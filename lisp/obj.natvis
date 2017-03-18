@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?> 
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+  <Type Name="obj">
+    <DisplayString Condition="typ == CELL &amp;&amp; tail->typ != CELL &amp;&amp; tail != &amp;nil" IncludeView="noparens">{*head} . {*tail}</DisplayString>
+    <DisplayString Condition="typ == CELL &amp;&amp; tail->typ != CELL &amp;&amp; tail != &amp;nil" ExcludeView="noparens">({*head} . {*tail})</DisplayString>
+    <DisplayString Condition="typ == CELL &amp;&amp; tail->typ != CELL &amp;&amp; tail == &amp;nil" IncludeView="noparens">{*head}</DisplayString>
+    <DisplayString Condition="typ == CELL &amp;&amp; tail->typ != CELL &amp;&amp; tail == &amp;nil" ExcludeView="noparens">({*head})</DisplayString>
+    <DisplayString Condition="typ == CELL &amp;&amp; tail->typ == CELL" IncludeView="noparens">{*head} {*tail,view(noparens)}</DisplayString>
+    <DisplayString Condition="typ == CELL &amp;&amp; tail->typ == CELL" ExcludeView="noparens">({*head} {*tail,view(noparens)})</DisplayString>
+    <DisplayString Condition="typ == NUM">{num}</DisplayString>
+    <DisplayString Condition="typ == SYMBOL">{sym,s}</DisplayString>
+    <DisplayString Condition="typ == FN || typ == SPECFORM">{fn,na}</DisplayString>
+    <DisplayString Condition="typ == LAMBDA">[lambda args={*args}]</DisplayString>
+    <DisplayString Condition="typ == MACRO">[macro args={*args}]</DisplayString>
+    <DisplayString Condition="typ == BUILTIN">{builtin,sb}</DisplayString>
+    <DisplayString Condition="typ == CONTN">{*contnp}</DisplayString>
+    <Expand>
+      <Item Name="Type">typ</Item>
+      
+      <Item Name="Head" Condition="typ == CELL">*head</Item>
+      <Item Name="Tail" Condition="typ == CELL">*tail</Item>
+      
+      <Item Name="Num" Condition="typ == NUM">num</Item>
+      
+      <Item Name="Symbol" Condition="typ == SYMBOL">sym,s</Item>
+      
+      <Item Name="Fn" Condition="typ == FN || typ == SPECFORM">fn,na</Item>
+      
+      <Item Name="Args" Condition="typ == LAMBDA || typ == MACRO">*args</Item>
+      <Item Name="Code" Condition="typ == LAMBDA || typ == MACRO">*code</Item>
+
+      <Item Name="Builtin" Condition="typ == BUILTIN">builtin,sb</Item>
+
+      <ExpandedItem Condition="typ == CONTN">contnp</ExpandedItem>
+    </Expand>
+  </Type>
+  
+  <Type Name="symbol">
+    <DisplayString>{name} -&gt; {*value}</DisplayString>
+  </Type>
+  <Type Name="env">
+    <DisplayString Condition="next == 0">size={(size_t)nsyms}</DisplayString>
+    <DisplayString Condition="next != 0">Big environment</DisplayString>
+    <Expand>
+      <Item Name="Size" Condition="!next" ExcludeView="append">(size_t)nsyms</Item>
+      <Synthetic Name="Size" Condition="next" ExcludeView="append">
+        <DisplayString>&gt; 32</DisplayString>
+      </Synthetic>
+      <ArrayItems Condition="nsyms > 0">
+        <Size>nsyms</Size>
+        <ValuePointer>syms</ValuePointer>
+      </ArrayItems>
+      <ExpandedItem Condition="next">next,view(append)</ExpandedItem>
+    </Expand>
+  </Type>
+  
+  <Type Name="contn">
+    <DisplayString Condition="data">{*data} -&gt; {fn,na}</DisplayString>
+    <DisplayString Condition="!data">NULL -&gt; {fn}</DisplayString>
+    <Expand>
+      <Item Name="Data">data</Item>
+      <Item Name="Env">env</Item>
+      <Item Name="Next" Condition="next">next</Item>
+      <Item Name="Fail" Condition="fail">fail</Item>
+      <Item Name="Fn" Condition="fn">fn,na</Item>
+    </Expand>
+  </Type>
+
+  <Type Name="gc_head">
+    <Expand>
+      <Item Name="Marked">(bool)(data &amp; 0x1u)</Item>
+      <Item Name="Next">next</Item>
+    </Expand>
+  </Type>
+</AutoVisualizer>

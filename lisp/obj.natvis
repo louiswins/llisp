@@ -67,6 +67,8 @@
   </Type>
 
   <Type Name="gc_head">
+    <DisplayString Condition="next">{data &amp; 0x1u}{*next}</DisplayString>
+    <DisplayString Condition="!next">{data &amp; 0x1u}</DisplayString>
     <Expand>
       <Item Name="Marked">(bool)(data &amp; 0x1u)</Item>
       <Item Name="Next">next</Item>

@@ -19,7 +19,7 @@ struct thing_to_alloc {
 #define ISMARKED(o) ((o)->data & 0x1u)
 #define ADDMARK(o) ((o)->data |= 0x1u)
 #define DELMARK(o) ((o)->data &= ~0x1u)
-#define GC_FROM_OBJ(o) ((struct gc_head*)((o) - offsetof(struct thing_to_alloc, u)))
+#define GC_FROM_OBJ(o) ((struct gc_head*)(((unsigned char *)o) - offsetof(struct thing_to_alloc, u)))
 #define OBJ_FROM_GC(gc) (&(((struct thing_to_alloc*)gc)->u))
 
 /* GC roots */

@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdio.h>
 #include <string.h>
 #include "cps.h"
@@ -88,6 +89,7 @@ static struct obj *fn_define(CPS_ARGS);
 static struct obj *define_setsym(CPS_ARGS);
 
 static struct obj *fn_define(CPS_ARGS) {
+	assert(obj->typ >= 0 && obj->typ < MAX);
 	if (!check_args("define", obj, 2)) {
 		*ret = self->fail;
 		return &nil;
@@ -98,11 +100,13 @@ static struct obj *fn_define(CPS_ARGS) {
 		return &nil;
 	}
 	struct contn *resume = dupcontn(self);
+	assert(obj->typ >= 0 && obj->typ < MAX);
 	resume->data = obj->head;
 	resume->fn = define_setsym;
 	gc_add_to_temp_contns(resume);
 
 	*ret = dupcontn(self);
+	assert(obj->typ >= 0 && obj->typ < MAX);
 	(*ret)->next = resume;
 	(*ret)->fn = eval_cps;
 	return obj->tail->head;

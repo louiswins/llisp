@@ -15,7 +15,7 @@ void free_str(struct string *s);
 void print_str(FILE *f, struct string *s);
 void str_append(struct string *s, char ch);
 
-enum objtype { CELL, NUM, SYMBOL, FN, SPECFORM, LAMBDA, MACRO, BUILTIN, CONTN };
+enum objtype { CELL, NUM, SYMBOL, FN, SPECFORM, LAMBDA, MACRO, BUILTIN, CONTN, MAX };
 struct obj {
 	//struct gc_head data_;
 	enum objtype typ;

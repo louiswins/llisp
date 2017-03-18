@@ -240,7 +240,7 @@ static struct obj *run_closure(CPS_ARGS) {
 }
 
 
-struct obj *run_cps(struct obj *obj, struct env *env) {
+struct obj *run_cps(struct obj **obj, struct env *env) {
 	cbegin.env = env;
 	cbegin.next = &cend;
 	cbegin.fail = &cfail;
@@ -249,12 +249,12 @@ struct obj *run_cps(struct obj *obj, struct env *env) {
 	struct contn *next = NULL;
 	while (gc_current_contn != &cend && gc_current_contn != &cfail) {
 		gc_clear_temp_roots();
-		obj = gc_current_contn->fn(gc_current_contn, obj, &next);
+		*obj = gc_current_contn->fn(gc_current_contn, *obj, &next);
 		gc_current_contn = next;
 	}
 	if (gc_current_contn == &cfail) {
 		puts("\nExecution failed.");
 	}
 	gc_current_contn = NULL;
-	return obj;
+	return *obj;
 }

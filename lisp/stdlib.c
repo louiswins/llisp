@@ -132,6 +132,6 @@ static const char louisp_stdlib[] = LOUISP_CODE(
 void add_stdlib(struct env *env) {
 	struct input i = input_from_string(louisp_stdlib);
 	while ((gc_current_obj = parse(&i)) != NULL) {
-		run_cps(gc_current_obj, env);
+		run_cps(&gc_current_obj, env);
 	}
 }

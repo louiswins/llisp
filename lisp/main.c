@@ -15,9 +15,10 @@ int main() {
 
 	printf("$ ");
 	fflush(stdout);
-	while ((gc_current_obj = parse_file(stdin)) != NULL) {
-		gc_current_obj = run_cps(&gc_current_obj, gc_global_env);
-		printf("=> ");print(gc_current_obj);
+	struct obj *obj;
+	while ((obj = parse_file(stdin)) != NULL) {
+		obj = run_cps(obj, gc_global_env);
+		printf("=> ");print(obj);
 		printf("\n\n$ ");
 		fflush(stdout);
 	}

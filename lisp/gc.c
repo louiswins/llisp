@@ -16,9 +16,11 @@ struct thing_to_alloc {
 	} u;
 };
 
-#define ISMARKED(o) ((o)->data & 0x1u)
-#define ADDMARK(o) ((o)->data |= 0x1u)
-#define DELMARK(o) ((o)->data &= ~0x1u)
+#define ISMARKED(o) ((o)->marknext & 0x1u)
+#define ADDMARK(o) ((o)->marknext |= 0x1u)
+#define DELMARK(o) ((o)->marknext &= ~0x1ull)
+#define NEXTTOMARK(o) ((struct gc_head*)((o)->marknext & ~0x1ull))
+#define SETNEXTTOMARK(o, val) ((o)->marknext = (ISMARKED(o) | (uintptr_t)val))
 #define GC_FROM_OBJ(o) ((struct gc_head*)(((unsigned char *)o) - offsetof(struct thing_to_alloc, u)))
 #define OBJ_FROM_GC(gc) (&(((struct thing_to_alloc*)gc)->u))
 
@@ -36,6 +38,7 @@ static size_t ntempenvs = 0;
 static struct env *temp_envs[MAX_TEMP_ROOTS];
 
 static struct gc_head *all_objects = NULL;
+static struct gc_head *objs_to_mark = NULL;
 
 void gc_add_to_temp_contns(struct contn *contn) {
 	assert(ntempcontns < MAX_TEMP_ROOTS);
@@ -50,19 +53,28 @@ void gc_clear_temp_roots() { ntempcontns = ntempenvs = 0; }
 static void mark_contn(struct contn *contn);
 static void mark_env(struct env *env);
 static void mark_obj(struct obj *obj);
+static void queue_obj(struct obj *obj);
 
 static void mark_contn(struct contn *contn) {
 	if (contn == &cbegin || contn == &cend || contn == &cfail) return;
 	if (contn == NULL || ISMARKED(GC_FROM_OBJ(contn))) return;
 	ADDMARK(GC_FROM_OBJ(contn));
-	mark_obj(contn->data);
+	queue_obj(contn->data);
 	mark_env(contn->env);
 	mark_contn(contn->next);
 	mark_contn(contn->fail);
 }
-static void mark_obj(struct obj *obj) {
+static void queue_obj(struct obj *obj) {
+	/* actually a stack :) */
 	if (obj == &nil || obj == &true_ || obj == &false_) return;
 	if (obj == NULL || ISMARKED(GC_FROM_OBJ(obj))) return;
+	struct gc_head *gc = GC_FROM_OBJ(obj);
+	if (NEXTTOMARK(gc) != NULL) return; // already in queue
+	SETNEXTTOMARK(gc, objs_to_mark);
+	objs_to_mark = gc;
+}
+static void mark_obj(struct obj *obj) {
+	if (ISMARKED(GC_FROM_OBJ(obj))) return;
 	ADDMARK(GC_FROM_OBJ(obj));
 	switch (TYPE(obj)) {
 	case NUM:
@@ -72,13 +84,13 @@ static void mark_obj(struct obj *obj) {
 	case BUILTIN:
 		return;
 	case CELL:
-		mark_obj(obj->head);
-		mark_obj(obj->tail);
+		queue_obj(obj->head);
+		queue_obj(obj->tail);
 		return;
 	case LAMBDA:
 	case MACRO:
-		mark_obj(obj->args);
-		mark_obj(obj->code);
+		queue_obj(obj->args);
+		queue_obj(obj->code);
 		mark_env(obj->env);
 		return;
 	case CONTN:
@@ -90,7 +102,7 @@ static void mark_env(struct env *env) {
 	if (env == NULL || ISMARKED(GC_FROM_OBJ(env))) return;
 	ADDMARK(GC_FROM_OBJ(env));
 	for (int i = 0; i < env->nsyms; ++i) {
-		mark_obj(env->syms[i].value);
+		queue_obj(env->syms[i].value);
 	}
 	mark_env(env->next);
 	mark_env(env->parent);
@@ -109,13 +121,20 @@ static void gc_collect() {
 
 	/* mark */
 	mark_contn(gc_current_contn);
-	mark_obj(gc_current_obj);
+	queue_obj(gc_current_obj);
 	mark_env(gc_global_env);
 	for (size_t i = 0; i < ntempcontns; ++i) {
 		mark_contn(temp_contns[i]);
 	}
 	for (size_t i = 0; i < ntempenvs; ++i) {
 		mark_env(temp_envs[i]);
+	}
+	/* avoid infinite recursion */
+	while (objs_to_mark != NULL) {
+		struct gc_head *cur = objs_to_mark;
+		objs_to_mark = NEXTTOMARK(cur);
+		SETNEXTTOMARK(cur, NULL);
+		mark_obj((struct obj *)OBJ_FROM_GC(cur));
 	}
 
 #pragma warning(push)
@@ -152,8 +171,9 @@ void *gc_alloc(size_t size) {
 	} else if (!count) {
 		gc_collect();
 	}
-	ret->data = 0;
 	ret->next = all_objects;
+	ret->marknext = 0;
+	typedef char assert_NULL_is_0[(uintptr_t)NULL == 0u ? 1 : -1];
 	all_objects = ret;
 	return OBJ_FROM_GC(ret);
 }

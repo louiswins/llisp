@@ -1,12 +1,13 @@
 #pragma once
+#include <stdint.h>
 #include <stdlib.h>
 struct contn;
 struct env;
 struct obj;
 
 struct gc_head {
-	unsigned char data; /* Only lowest bit is used */
 	struct gc_head *next;
+	uintptr_t marknext;
 };
 
 /* GC roots */

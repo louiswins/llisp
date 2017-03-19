@@ -19,6 +19,7 @@ int main() {
 	while ((obj = parse_file(stdin)) != NULL) {
 		obj = run_cps(obj, gc_global_env);
 		printf("=> ");print(obj);
+		gc_collect();
 		printf("\n\n$ ");
 		fflush(stdout);
 	}

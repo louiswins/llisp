@@ -17,7 +17,6 @@ void str_append(struct string *s, char ch);
 
 enum objtype { CELL, NUM, SYMBOL, FN, SPECFORM, LAMBDA, MACRO, BUILTIN, CONTN, MAX };
 struct obj {
-	//struct gc_head data_;
 	enum objtype typ;
 	union {
 		struct {
@@ -36,8 +35,6 @@ struct obj {
 		struct contn *contnp;
 	};
 };
-//#define TYPE(o) ((enum objtype)((o)->data_.data >> 2))
-//#define SETTYPE(o, typ) ((o)->data_.data |= (unsigned char)(typ) << 2)
 #define TYPE(o) ((o)->typ)
 #define SETTYPE(o, typ) (TYPE(o) = (typ))
 

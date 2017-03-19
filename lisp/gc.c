@@ -7,22 +7,25 @@
 #include "env-private.h"
 #include "obj.h"
 
-struct thing_to_alloc {
-	struct gc_head h;
-	union {
-		struct obj a;
-		struct env b;
-		struct contn c;
-	} u;
-};
-
 #define ISMARKED(o) ((o)->marknext & 0x1u)
 #define ADDMARK(o) ((o)->marknext |= 0x1u)
 #define DELMARK(o) ((o)->marknext &= ~0x1ull)
-#define NEXTTOMARK(o) ((struct gc_head*)((o)->marknext & ~0x1ull))
-#define SETNEXTTOMARK(o, val) ((o)->marknext = (ISMARKED(o) | (uintptr_t)val))
-#define GC_FROM_OBJ(o) ((struct gc_head*)(((unsigned char *)o) - offsetof(struct thing_to_alloc, u)))
-#define OBJ_FROM_GC(gc) (&(((struct thing_to_alloc*)gc)->u))
+#define NEXTTOMARK(o) ((struct gc_head*)((o)->marknext & ~0x7ull))
+#define SETNEXTTOMARK(o, val) ((o)->marknext = (((o)->marknext & 0x7u) | (uintptr_t)val))
+
+#define GCTYPE(o) ((enum gctype)(((o)->marknext & 0x6u) >> 1))
+
+#define GC_FROM_OBJ(o) ((struct gc_head*)((char*)(o) - SIZE_OF_HEAD))
+#define OBJ_FROM_GC(gc) ((void*)((char*)(gc) + SIZE_OF_HEAD))
+
+#define ALLOC_ALIGN 0x10
+#define SIZE_OF_HEAD ((sizeof(struct gc_head) + ALLOC_ALIGN - 1) & ~(ALLOC_ALIGN - 1))
+#define PAGE_SIZE (4096-2*(sizeof(void*))) /*4k - 2 pointers for malloc overhead*/
+
+typedef char assert_alignof_obj_ok[__alignof(struct obj) <= ALLOC_ALIGN ? 1 : -1];
+typedef char assert_alignof_env_ok[__alignof(struct env) <= ALLOC_ALIGN ? 1 : -1];
+typedef char assert_alignof_contn_ok[__alignof(struct contn) <= ALLOC_ALIGN ? 1 : -1];
+typedef char assert_room_for_tagbits[3 < __alignof(void*) ? 1 : -1];
 
 /* GC roots */
 struct contn *gc_current_contn = NULL;
@@ -32,50 +35,55 @@ struct env *gc_global_env = NULL;
 static int gc_active = 1;
 
 #define MAX_TEMP_ROOTS 32
-static size_t ntempcontns = 0;
-static struct contn *temp_contns[MAX_TEMP_ROOTS];
-static size_t ntempenvs = 0;
-static struct env *temp_envs[MAX_TEMP_ROOTS];
+static size_t ntemproots = 0;
+static struct gc_head *temp_roots[MAX_TEMP_ROOTS];
 
 static struct gc_head *all_objects = NULL;
 static struct gc_head *objs_to_mark = NULL;
 
-void gc_add_to_temp_contns(struct contn *contn) {
-	assert(ntempcontns < MAX_TEMP_ROOTS);
-	temp_contns[ntempcontns++] = contn;
+void gc_add_to_temp_roots(void *root) {
+	assert(ntemproots < MAX_TEMP_ROOTS);
+	temp_roots[ntemproots++] = root;
 }
-void gc_add_to_temp_envs(struct env *env) {
-	assert(ntempcontns < MAX_TEMP_ROOTS);
-	temp_envs[ntempenvs++] = env;
-}
-void gc_clear_temp_roots() { ntempcontns = ntempenvs = 0; }
+void gc_clear_temp_roots() { ntemproots = 0; }
 
-static void mark_contn(struct contn *contn);
-static void mark_env(struct env *env);
-static void mark_obj(struct obj *obj);
-static void queue_obj(struct obj *obj);
+static void gc_mark(struct gc_head *gcitem);
+static void gc_queue(void *obj);
 
-static void mark_contn(struct contn *contn) {
-	if (contn == &cbegin || contn == &cend || contn == &cfail) return;
-	if (contn == NULL || ISMARKED(GC_FROM_OBJ(contn))) return;
-	ADDMARK(GC_FROM_OBJ(contn));
-	queue_obj(contn->data);
-	mark_env(contn->env);
-	mark_contn(contn->next);
-	mark_contn(contn->fail);
+int is_static(void *obj) {
+	return obj == &nil || obj == &true_ || obj == &false_ ||
+		obj == &cbegin || obj == &cend || obj == &cfail;
 }
-static void queue_obj(struct obj *obj) {
-	/* actually a stack :) */
-	if (obj == &nil || obj == &true_ || obj == &false_) return;
-	if (obj == NULL || ISMARKED(GC_FROM_OBJ(obj))) return;
-	struct gc_head *gc = GC_FROM_OBJ(obj);
+
+static void gc_queue(void *thing) {
+	if (thing == NULL || ISMARKED(GC_FROM_OBJ(thing))) return;
+	if (is_static(thing)) return;
+	struct gc_head *gc = GC_FROM_OBJ(thing);
 	if (NEXTTOMARK(gc) != NULL) return; // already in queue
 	SETNEXTTOMARK(gc, objs_to_mark);
 	objs_to_mark = gc;
 }
-static void mark_obj(struct obj *obj) {
-	if (ISMARKED(GC_FROM_OBJ(obj))) return;
-	ADDMARK(GC_FROM_OBJ(obj));
+static void gc_mark(struct gc_head *gcitem) {
+	if (ISMARKED(gcitem)) return;
+	ADDMARK(gcitem);
+	if (GCTYPE(gcitem) == GC_ENV) {
+		struct env *env = OBJ_FROM_GC(gcitem);
+		gc_queue(env->next);
+		gc_queue(env->parent);
+		for (int i = 0; i < env->nsyms; ++i) {
+			gc_queue(env->syms[i].value);
+		}
+		return;
+	}
+	if (GCTYPE(gcitem) == GC_CONTN) {
+		struct contn *contn = OBJ_FROM_GC(gcitem);
+		gc_queue(contn->data);
+		gc_queue(contn->env);
+		gc_queue(contn->next);
+		gc_queue(contn->fail);
+	}
+	assert(GCTYPE(gcitem) == GC_OBJ);
+	struct obj *obj = OBJ_FROM_GC(gcitem);
 	switch (TYPE(obj)) {
 	case NUM:
 	case SYMBOL:
@@ -84,28 +92,19 @@ static void mark_obj(struct obj *obj) {
 	case BUILTIN:
 		return;
 	case CELL:
-		queue_obj(obj->head);
-		queue_obj(obj->tail);
+		gc_queue(obj->head);
+		gc_queue(obj->tail);
 		return;
 	case LAMBDA:
 	case MACRO:
-		queue_obj(obj->args);
-		queue_obj(obj->code);
-		mark_env(obj->env);
+		gc_queue(obj->args);
+		gc_queue(obj->code);
+		gc_queue(obj->env);
 		return;
 	case CONTN:
-		mark_contn(obj->contnp);
+		gc_queue(obj->contnp);
 		return;
 	}
-}
-static void mark_env(struct env *env) {
-	if (env == NULL || ISMARKED(GC_FROM_OBJ(env))) return;
-	ADDMARK(GC_FROM_OBJ(env));
-	for (int i = 0; i < env->nsyms; ++i) {
-		queue_obj(env->syms[i].value);
-	}
-	mark_env(env->next);
-	mark_env(env->parent);
 }
 
 static void clear_marks() {
@@ -115,26 +114,23 @@ static void clear_marks() {
 	}
 }
 
-static void gc_collect() {
+void gc_collect() {
 	if (!gc_active) return;
 	clear_marks();
 
+	/* queue roots */
+	gc_queue(gc_current_contn);
+	gc_queue(gc_current_obj);
+	gc_queue(gc_global_env);
+	for (size_t i = 0; i < ntemproots; ++i) {
+		gc_queue(temp_roots[i]);
+	}
 	/* mark */
-	mark_contn(gc_current_contn);
-	queue_obj(gc_current_obj);
-	mark_env(gc_global_env);
-	for (size_t i = 0; i < ntempcontns; ++i) {
-		mark_contn(temp_contns[i]);
-	}
-	for (size_t i = 0; i < ntempenvs; ++i) {
-		mark_env(temp_envs[i]);
-	}
-	/* avoid infinite recursion */
 	while (objs_to_mark != NULL) {
 		struct gc_head *cur = objs_to_mark;
 		objs_to_mark = NEXTTOMARK(cur);
 		SETNEXTTOMARK(cur, NULL);
-		mark_obj((struct obj *)OBJ_FROM_GC(cur));
+		gc_mark(cur);
 	}
 
 #pragma warning(push)
@@ -154,26 +150,20 @@ static void gc_collect() {
 #pragma warning(pop)
 }
 
-unsigned long long n_allocs = 0ull;
-unsigned char count = 0;
-void *gc_alloc(size_t size) {
-	(void)size;
-	++n_allocs;
-	struct gc_head *ret = malloc(sizeof(struct thing_to_alloc));
-	++count;
+void *gc_alloc(enum gctype typ, size_t size) {
+	size = (size - 1 + ALLOC_ALIGN) & ~(ALLOC_ALIGN - 1);
+	struct gc_head *ret = malloc(SIZE_OF_HEAD + size);
 	if (ret == NULL) {
 		gc_collect();
-		ret = malloc(sizeof(struct thing_to_alloc));
+		ret = malloc(SIZE_OF_HEAD + size);
 		if (ret == NULL) {
 			fputs("Out of memory\n", stderr);
 			abort();
 		}
-	} else if (!count) {
-		gc_collect();
 	}
 	ret->next = all_objects;
-	ret->marknext = 0;
-	typedef char assert_NULL_is_0[(uintptr_t)NULL == 0u ? 1 : -1];
+	ret->marknext = (uintptr_t)typ << 1;
+	typedef char assert_intptr_NULL_is_0[(uintptr_t)NULL == 0u ? 1 : -1];
 	all_objects = ret;
 	return OBJ_FROM_GC(ret);
 }

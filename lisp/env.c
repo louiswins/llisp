@@ -6,7 +6,7 @@
 #include "obj.h"
 
 struct env *make_env(struct env *parent) {
-	struct env *ret = gc_alloc(sizeof(*ret));
+	struct env *ret = gc_alloc(GC_ENV, sizeof(*ret));
 	ret->parent = parent;
 	ret->next = NULL;
 	ret->nsyms = 0;
@@ -30,6 +30,7 @@ void setsym(struct env *env, const char *name, struct obj *value) {
 		env = env->next;
 	}
 	if (env->nsyms == ENVSIZE) {
+		gc_add_to_temp_roots(value);
 		env->next = make_env(env);
 		env = env->next;
 		if (env == NULL) {

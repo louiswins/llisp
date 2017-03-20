@@ -1,11 +1,15 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "gc.h"
-
 #include "cps.h"
 #include "env-private.h"
+#include "gc.h"
 #include "obj.h"
+
+struct gc_head {
+	struct gc_head *next;
+	uintptr_t marknext;
+};
 
 #define ISMARKED(o) ((o)->marknext & 0x1u)
 #define ADDMARK(o) ((o)->marknext |= 0x1u)
@@ -20,7 +24,6 @@
 
 #define ALLOC_ALIGN 0x10
 #define SIZE_OF_HEAD ((sizeof(struct gc_head) + ALLOC_ALIGN - 1) & ~(ALLOC_ALIGN - 1))
-#define PAGE_SIZE (4096-2*(sizeof(void*))) /*4k - 2 pointers for malloc overhead*/
 
 typedef char assert_alignof_obj_ok[__alignof(struct obj) <= ALLOC_ALIGN ? 1 : -1];
 typedef char assert_alignof_env_ok[__alignof(struct env) <= ALLOC_ALIGN ? 1 : -1];
@@ -42,6 +45,7 @@ static struct gc_head *all_objects = NULL;
 static struct gc_head *objs_to_mark = NULL;
 
 void gc_add_to_temp_roots(void *root) {
+	if (!gc_active) return;
 	assert(ntemproots < MAX_TEMP_ROOTS);
 	temp_roots[ntemproots++] = root;
 }

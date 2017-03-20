@@ -1,6 +1,6 @@
 #pragma once
-#include "env.h"
 
+struct env;
 struct obj;
 
 void add_globals(struct env *env);

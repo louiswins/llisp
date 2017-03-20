@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "cps.h"
-#include "gc.h"
+#include "env.h"
 #include "globals.h"
 #include "obj.h"
 #include "print.h"
@@ -47,7 +47,6 @@ static struct obj *fn_if(CPS_ARGS) {
 	struct contn *resume = dupcontn(self);
 	resume->data = obj->tail;
 	resume->fn = resumeif;
-	gc_add_to_temp_roots(resume);
 
 	*ret = dupcontn(self);
 	(*ret)->next = resume;
@@ -103,7 +102,6 @@ static struct obj *fn_define(CPS_ARGS) {
 	assert(obj->typ >= 0 && obj->typ < MAX);
 	resume->data = obj->head;
 	resume->fn = define_setsym;
-	gc_add_to_temp_roots(resume);
 
 	*ret = dupcontn(self);
 	assert(obj->typ >= 0 && obj->typ < MAX);
@@ -234,7 +232,6 @@ static struct obj *fn_callcc(CPS_ARGS) {
 	}
 	*ret = dupcontn(self);
 	(*ret)->fn = eval_cps;
-	gc_add_to_temp_roots(*ret);
 	struct obj *contp = make_obj(CONTN);
 	contp->contnp = self->next;
 	return contp;
@@ -355,7 +352,6 @@ COMPARE_OPS(COMPARE_FN)
 #undef COMPARE_FN
 
 void add_globals(struct env *env) {
-	gc_add_to_temp_roots(env);
 	setsym(env, "begin", make_fn(FN, fn_begin));
 	setsym(env, "call-with-current-continuation", make_fn(FN, fn_callcc));
 	setsym(env, "car", make_fn(FN, fn_car));

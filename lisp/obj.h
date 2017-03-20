@@ -1,7 +1,6 @@
 #pragma once
 #include "cps.h"
 #include "env.h"
-#include "gc.h"
 
 struct string {
 	char *str;

@@ -6,14 +6,10 @@
 #include "obj.h"
 #include "print.h"
 
-//#define MEMCPYPTR(c) (&((c)->data))
-//#define CONTNOFFSETOFDATA(c) (MEMCPYPTR(c) - (c))
-//#define MEMCPYSIZE(c) (sizeof(*(c)) - CONTNOFFSETOFDATA(c))
-//#define COPYCONTNDATA(to, from) memcpy(MEMCPYPTR(to), MEMCPYPTR(from), MEMCPYSIZE(to))
-#define COPYCONTNDATA(to, from) memcpy(to, from, sizeof(*to));
 struct contn *dupcontn(struct contn *c) {
 	struct contn *ret = gc_alloc(GC_CONTN, sizeof(*ret));
-	COPYCONTNDATA(ret, c);
+	gc_add_to_temp_roots(ret);
+	memcpy(ret, c, sizeof(*ret));
 	return ret;
 }
 
@@ -77,7 +73,6 @@ struct obj *eval_cps(CPS_ARGS) {
 		struct contn *doapply = dupcontn(self);
 		doapply->data = obj;
 		doapply->fn = eval_doapply;
-		gc_add_to_temp_roots(doapply);
 
 		/* eval obj->head */
 		*ret = dupcontn(self);
@@ -107,7 +102,6 @@ static struct obj *eval_doapply(CPS_ARGS) {
 		appcnt->data = obj;
 		appcnt->fn = apply_closure;
 	}
-	gc_add_to_temp_roots(appcnt);
 
 	if (TYPE(obj) == FN || TYPE(obj) == LAMBDA) {
 		/* need to evaluate the arguments first */
@@ -159,7 +153,6 @@ static struct obj *evallist(CPS_ARGS) {
 	struct contn *tailcons = dupcontn(self);
 	tailcons->data = obj->tail;
 	tailcons->fn = evallist_tailcons;
-	gc_add_to_temp_roots(tailcons);
 
 	*ret = dupcontn(self);
 	(*ret)->next = tailcons;
@@ -171,7 +164,6 @@ static struct obj *evallist_tailcons(CPS_ARGS) {
 	struct contn *docons = dupcontn(self);
 	docons->data = obj;
 	docons->fn = evallist_cons;
-	gc_add_to_temp_roots(docons);
 
 	*ret = dupcontn(self);
 	(*ret)->data = &nil;
@@ -190,7 +182,6 @@ static struct obj *evallist_cons(CPS_ARGS) {
 static struct obj *apply_closure(CPS_ARGS) {
 	/* set up environment */
 	struct env *appenv = make_env(self->data->env);
-	gc_add_to_temp_roots(appenv);
 	struct obj *params = self->data->args;
 	for (;;) {
 		if (params == &nil && obj == &nil) break;
@@ -230,7 +221,6 @@ static struct obj *run_closure(CPS_ARGS) {
 
 	if (TYPE(self->data->tail) == CELL) {
 		/* more code to run after this... */
-		gc_add_to_temp_roots(*ret);
 		struct contn *finish = dupcontn(self);
 		finish->data = self->data->tail;
 		(*ret)->next = finish;

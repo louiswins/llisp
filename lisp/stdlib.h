@@ -1,4 +1,5 @@
 #pragma once
-#include "env.h"
+
+struct env;
 
 void add_stdlib(struct env *env);

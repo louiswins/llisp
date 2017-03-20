@@ -14,6 +14,7 @@ struct obj false_ = { BUILTIN, .builtin = "#f" };
 
 struct obj *make_obj(enum objtype type) {
 	struct obj *ret = gc_alloc(GC_OBJ, sizeof(*ret));
+	gc_add_to_temp_roots(ret);
 	SETTYPE(ret, type);
 	return ret;
 }

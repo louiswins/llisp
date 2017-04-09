@@ -57,7 +57,9 @@ struct obj *eval_cps(CPS_ARGS) {
 	case SYMBOL: {
 		struct obj *value = getsym(self->env, obj->sym);
 		if (value == NULL) {
-			fprintf(stderr, "eval: unknown symbol \"%s\"\n", obj->sym);
+			fputs("eval: unknown symbol \"", stderr);
+			print_str(stderr, obj->sym);
+			fputs("\"\n", stderr);
 			*ret = self->fail;
 			return &nil;
 		}

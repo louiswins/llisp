@@ -18,21 +18,9 @@ struct obj *make_obj(enum objtype type) {
 	SETTYPE(ret, type);
 	return ret;
 }
-struct obj *make_symbol(const char *name) {
-	return make_symbol_len(name, strlen(name));
-}
-struct obj *make_symbol_len(const char *name, size_t len) {
-	if (len >= MAXSYM) {
-		fprintf(stderr, "make_symbol: symbol name too long: ");
-		for (size_t i = 0; i < len; ++i) {
-			fputc(name[i], stderr);
-		}
-		fputc('\n', stderr);
-		return &nil;
-	}
+struct obj *make_symbol(struct string *name) {
 	struct obj *ret = make_obj(SYMBOL);
-	memcpy(ret->sym, name, len);
-	ret->sym[len] = '\0';
+	ret->sym = stringdup(name);
 	return ret;
 }
 struct obj *make_num(double val) {
@@ -56,7 +44,7 @@ struct obj *cons(struct obj *l, struct obj *r) {
 
 /* strings */
 struct string *make_str() {
-	return make_str_cap(MAXSYM);
+	return make_str_cap(32); /* 32 is a good initial size */
 }
 struct string *make_str_cap(size_t len) {
 	struct string *s = gc_alloc(GC_STR, sizeof(*s) + len);
@@ -74,6 +62,12 @@ struct string *make_str_ref_len(const char *c, size_t len) {
 	s->len = len;
 	s->cap = 0;
 	return s;
+}
+struct string *make_str_from_ptr_len(const char *c, size_t len) {
+	struct string *ret = make_str_cap(len);
+	memcpy(ret->str, c, len);
+	ret->len = len;
+	return ret;
 }
 void print_str(FILE *f, struct string *s) {
 	for (size_t i = 0; i < s->len; ++i) {
@@ -94,4 +88,27 @@ struct string *str_append(struct string *s, char ch) {
 		s->str[s->len++] = ch;
 	}
 	return s;
+}
+
+struct string *stringdup(struct string *s) {
+	if (s->cap) return s;
+	struct string *ret = make_str_cap(s->len);
+	memcpy(ret->str, s->str, s->len);
+	ret->len = ret->cap = s->len;
+	return ret;
+}
+int stringeq(struct string *a, struct string *b) {
+	if (!a && !b) return 1;
+	if (!a || !b) return 0;
+	if (a->len != b->len) return 0;
+	return memcmp(a->str, b->str, a->len) == 0;
+}
+int stringcmp(struct string *a, struct string *b) {
+	if (!a && !b) return 0;
+	if (!a) return -1;
+	if (!b) return 1;
+	size_t minsize = a->len < b->len ? a->len : b->len;
+	int ret = memcmp(a->str, b->str, minsize);
+	if (ret) return ret;
+	return (a->len < b->len) ? -1 : (a->len > b->len) ? 1 : 0;
 }

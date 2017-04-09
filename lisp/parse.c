@@ -186,25 +186,14 @@ static struct obj *parse_one(struct input *i, struct string *tok) {
 		return NULL;
 	}
 	if (ch == '+' || ch == '-' || ch == '.' || isdigit(ch)) {
+		/* Special case for '+ and '- and '->(whatever) symbols */
 		if ((tok->len == 1 && (ch == '+' || ch == '-')) || (tok->len > 1 && ch == '-' && tok->str[1] == '>')) {
-			if (tok->len >= MAXSYM) {
-				fprintf(stderr, "Symbol too long: ");
-				print_str(stderr, tok);
-				fputs(". Truncating.", stderr);
-				tok->len = MAXSYM - 1;
-			}
-			return make_symbol_len(tok->str, tok->len);
+			return make_symbol(tok);
 		}
 		return tryparsenum(tok);
 	}
 	if (isidentstart(ch)) {
-		if (tok->len >= MAXSYM) {
-			fprintf(stderr, "Symbol too long: ");
-			print_str(stderr, tok);
-			fputs(". Truncating.", stderr);
-			tok->len = MAXSYM - 1;
-		}
-		return make_symbol_len(tok->str, tok->len);
+		return make_symbol(tok);
 	}
 	fprintf(stderr, "Invalid token: ");
 	print_str(stderr, tok);

@@ -1,8 +1,10 @@
 #include <assert.h>
+#include <limits.h>
 #include <stdio.h>
 #include <string.h>
 #include "cps.h"
 #include "env.h"
+#include "gc.h"
 #include "globals.h"
 #include "obj.h"
 #include "print.h"
@@ -45,6 +47,7 @@ static struct obj *fn_if(CPS_ARGS) {
 		return &nil;
 	}
 	struct contn *resume = dupcontn(self);
+	gc_add_to_temp_roots(resume);
 	resume->data = obj->tail;
 	resume->fn = resumeif;
 
@@ -99,6 +102,7 @@ static struct obj *fn_define(CPS_ARGS) {
 		return &nil;
 	}
 	struct contn *resume = dupcontn(self);
+	gc_add_to_temp_roots(resume);
 	assert(obj->typ >= 0 && obj->typ < MAX);
 	resume->data = obj->head;
 	resume->fn = define_setsym;
@@ -178,10 +182,15 @@ static struct obj *fn_gensym(CPS_ARGS) {
 		len = 0;
 	}
 	if (len == 0) {
-		char symname[MAXSYM];
-		(void)snprintf(symname, MAXSYM, " gensym%d", ++symnum); /* can't get a space outside gensym */
+		static const char symformat[] = " gensym%d";
+		static size_t maxsymsize = 0;
+		if (!maxsymsize) maxsymsize = snprintf(NULL, 0, symformat, INT_MAX) + 1; /* +1 because snprintf always writes a '\0' */
+
+		struct string *s = make_str_cap(maxsymsize);
+		gc_add_to_temp_roots(s);
+		s->len = snprintf(s->str, s->cap, symformat, ++symnum); /* No +1 because we don't want the '\0' */
 		*ret = self->next;
-		return make_symbol(symname);
+		return make_symbol(s);
 	} else {
 		fputs("gensym: expected 0 or 1 args\n", stderr);
 		*ret = self->fail;
@@ -201,7 +210,7 @@ static struct obj *fn_eq_(CPS_ARGS) {
 		return a->num == b->num ? &true_ : &false_;
 	}
 	if (TYPE(a) == SYMBOL && TYPE(b) == SYMBOL) {
-		return strcmp(a->sym, b->sym) == 0 ? &true_ : &false_;
+		return stringeq(a->sym, b->sym) ? &true_ : &false_;
 	}
 	return a == b ? &true_ : &false_;
 }
@@ -231,6 +240,7 @@ static struct obj *fn_callcc(CPS_ARGS) {
 		return &nil;
 	}
 	*ret = dupcontn(self);
+	gc_add_to_temp_roots(*ret);
 	(*ret)->fn = eval_cps;
 	struct obj *contp = make_obj(CONTN);
 	contp->contnp = self->next;
@@ -352,26 +362,26 @@ COMPARE_OPS(COMPARE_FN)
 #undef COMPARE_FN
 
 void add_globals(struct env *env) {
-	setsym(env, "begin", make_fn(FN, fn_begin));
-	setsym(env, "call-with-current-continuation", make_fn(FN, fn_callcc));
-	setsym(env, "car", make_fn(FN, fn_car));
-	setsym(env, "cdr", make_fn(FN, fn_cdr));
-	setsym(env, "cons", make_fn(FN, fn_cons));
-	setsym(env, "define", make_fn(SPECFORM, fn_define));
-	setsym(env, "display", make_fn(FN, fn_display));
-	setsym(env, "eq?", make_fn(FN, fn_eq_));
-	setsym(env, "error", make_fn(FN, fn_error));
-	setsym(env, "gensym", make_fn(FN, fn_gensym));
-	setsym(env, "if", make_fn(SPECFORM, fn_if));
-	setsym(env, "lambda", make_fn(SPECFORM, fn_lambda));
-	setsym(env, "macro", make_fn(SPECFORM, fn_macro));
-	setsym(env, "newline", make_fn(FN, fn_newline));
-	setsym(env, "pair?", make_fn(FN, fn_pair_));
-	setsym(env, "quote", make_fn(SPECFORM, fn_quote));
-#define REGISTER_FN(name, op, ...) setsym(env, #op, make_fn(FN, name));
+	setsym(env, str_from_string_lit("begin"), make_fn(FN, fn_begin));
+	setsym(env, str_from_string_lit("call-with-current-continuation"), make_fn(FN, fn_callcc));
+	setsym(env, str_from_string_lit("car"), make_fn(FN, fn_car));
+	setsym(env, str_from_string_lit("cdr"), make_fn(FN, fn_cdr));
+	setsym(env, str_from_string_lit("cons"), make_fn(FN, fn_cons));
+	setsym(env, str_from_string_lit("define"), make_fn(SPECFORM, fn_define));
+	setsym(env, str_from_string_lit("display"), make_fn(FN, fn_display));
+	setsym(env, str_from_string_lit("eq?"), make_fn(FN, fn_eq_));
+	setsym(env, str_from_string_lit("error"), make_fn(FN, fn_error));
+	setsym(env, str_from_string_lit("gensym"), make_fn(FN, fn_gensym));
+	setsym(env, str_from_string_lit("if"), make_fn(SPECFORM, fn_if));
+	setsym(env, str_from_string_lit("lambda"), make_fn(SPECFORM, fn_lambda));
+	setsym(env, str_from_string_lit("macro"), make_fn(SPECFORM, fn_macro));
+	setsym(env, str_from_string_lit("newline"), make_fn(FN, fn_newline));
+	setsym(env, str_from_string_lit("pair?"), make_fn(FN, fn_pair_));
+	setsym(env, str_from_string_lit("quote"), make_fn(SPECFORM, fn_quote));
+#define REGISTER_FN(name, op, ...) setsym(env, str_from_string_lit(#op), make_fn(FN, name));
 	ARITH_OPS(REGISTER_FN)
 #undef REGISTER_FN
-#define REGISTER_FN(cname, lispname, ...) setsym(env, lispname, make_fn(FN, cname));
+#define REGISTER_FN(cname, lispname, ...) setsym(env, str_from_string_lit(lispname), make_fn(FN, cname));
 	COMPARE_OPS(REGISTER_FN)
 #undef REGISTER_FN
 }

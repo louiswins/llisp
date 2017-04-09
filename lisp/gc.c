@@ -39,7 +39,7 @@ static int gc_active = 1;
 
 #define MAX_TEMP_ROOTS 32
 static size_t ntemproots = 0;
-static struct gc_head *temp_roots[MAX_TEMP_ROOTS];
+static void *temp_roots[MAX_TEMP_ROOTS];
 
 static struct gc_head *all_objects = NULL;
 static struct gc_head *objs_to_mark = NULL;
@@ -63,19 +63,20 @@ static void gc_queue(void *thing) {
 	if (thing == NULL || ISMARKED(GC_FROM_OBJ(thing))) return;
 	if (is_static(thing)) return;
 	struct gc_head *gc = GC_FROM_OBJ(thing);
-	if (NEXTTOMARK(gc) != NULL) return; // already in queue
+	if (NEXTTOMARK(gc) != NULL) return; /* already in queue */
 	SETNEXTTOMARK(gc, objs_to_mark);
 	objs_to_mark = gc;
 }
 static void gc_mark(struct gc_head *gcitem) {
 	if (ISMARKED(gcitem)) return;
 	ADDMARK(gcitem);
-	if (GCTYPE(gcitem) == GC_STR) return;
+	if (GCTYPE(gcitem) == GC_STR) return; /* no pointers in a string :) */
 	if (GCTYPE(gcitem) == GC_ENV) {
 		struct env *env = OBJ_FROM_GC(gcitem);
 		gc_queue(env->next);
 		gc_queue(env->parent);
 		for (int i = 0; i < env->nsyms; ++i) {
+			gc_queue(env->syms[i].name);
 			gc_queue(env->syms[i].value);
 		}
 		return;
@@ -90,11 +91,16 @@ static void gc_mark(struct gc_head *gcitem) {
 	assert(GCTYPE(gcitem) == GC_OBJ);
 	struct obj *obj = OBJ_FROM_GC(gcitem);
 	switch (TYPE(obj)) {
+	default:
+		fprintf(stderr, "Fatal error: unknown type %d\n", TYPE(obj));
+		abort();
 	case NUM:
-	case SYMBOL:
 	case FN:
 	case SPECFORM:
 	case BUILTIN:
+		return;
+	case SYMBOL:
+		gc_queue(obj->sym);
 		return;
 	case CELL:
 		gc_queue(obj->head);

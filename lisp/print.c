@@ -39,7 +39,7 @@ static void realprint(FILE *f, struct obj *obj, struct env *env) {
 		break;
 	}
 	case SYMBOL:
-		fprintf(f, "%s", obj->sym);
+		print_str(f, obj->sym);
 		break;
 	case FN:
 		fprintf(f, "<#fn>");

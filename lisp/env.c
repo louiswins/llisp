@@ -15,15 +15,10 @@ struct env *make_env(struct env *parent) {
 	return ret;
 }
 
-void setsym(struct env *env, const char *name, struct obj *value) {
-	size_t namesize = strlen(name);
-	if (namesize >= MAXSYM) {
-		fprintf(stderr, "setsym: symbol name too long: \"%s\"\n", name);
-		return;
-	}
+void setsym(struct env *env, struct string *name, struct obj *value) {
 	for (;;) {
 		for (int i = 0; i < env->nsyms; ++i) {
-			if (strcmp(env->syms[i].name, name) == 0) {
+			if (stringeq(env->syms[i].name, name)) {
 				env->syms[i].value = value ? value : &nil;
 				return;
 			}
@@ -39,16 +34,16 @@ void setsym(struct env *env, const char *name, struct obj *value) {
 			return;
 		}
 	}
-	strcpy(env->syms[env->nsyms].name, name);
+	env->syms[env->nsyms].name = stringdup(name);
 	env->syms[env->nsyms].value = value ? value : &nil;
 	++env->nsyms;
 }
 
-struct obj *getsym(struct env *env, const char *name) {
+struct obj *getsym(struct env *env, struct string *name) {
 	for (; env != NULL; env = env->parent) {
 		for (struct env *cur = env; cur != NULL; cur = cur->next) {
 			for (int i = 0; i < cur->nsyms; ++i) {
-				if (strcmp(cur->syms[i].name, name) == 0) {
+				if (stringeq(cur->syms[i].name, name)) {
 					return cur->syms[i].value;
 				}
 			}
@@ -57,7 +52,7 @@ struct obj *getsym(struct env *env, const char *name) {
 	return NULL;
 }
 
-const char *revlookup_debug(struct env *env, struct obj *val) {
+struct string *revlookup_debug(struct env *env, struct obj *val) {
 	for (; env != NULL; env = env->parent) {
 		for (struct env *cur = env; cur != NULL; cur = cur->next) {
 			for (int i = 0; i < cur->nsyms; ++i) {

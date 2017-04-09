@@ -2,7 +2,7 @@
 #include "env.h"
 
 struct symbol {
-	char name[MAXSYM];
+	struct string *name;
 	struct obj *value;
 };
 

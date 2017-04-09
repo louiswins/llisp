@@ -55,44 +55,43 @@ struct obj *cons(struct obj *l, struct obj *r) {
 
 
 /* strings */
-void init_str_alloc(struct string *s) {
-	s->str = malloc(MAXSYM);
-	if (s->str == NULL) abort();
-	s->cap = MAXSYM;
+struct string *make_str() {
+	return make_str_cap(MAXSYM);
+}
+struct string *make_str_cap(size_t len) {
+	struct string *s = gc_alloc(GC_STR, sizeof(*s) + len);
+	s->str = ((char *)s) + sizeof(*s);
 	s->len = 0;
+	s->cap = len;
+	return s;
 }
-void init_str_ref(struct string *s, const char *c) {
-	init_str_ref_len(s, c, 0);
+struct string *make_str_ref(const char *c) {
+	return make_str_ref_len(c, 0);
 }
-void init_str_ref_len(struct string *s, const char *c, size_t len) {
-	memset(s, 0, sizeof(*s));
-	s->str = (char *)c; /* safe because cap==0 means we won't modify *str */
+struct string *make_str_ref_len(const char *c, size_t len) {
+	struct string *s = gc_alloc(GC_STR, sizeof(*s));
+	s->str = (char *)c; // it's ok: we won't actually try to modify it because cap == 0
 	s->len = len;
-}
-void free_str(struct string *s) {
-	if (s->str && s->cap) {
-		free(s->str);
-	}
 	s->cap = 0;
-	s->str = NULL;
+	return s;
 }
 void print_str(FILE *f, struct string *s) {
-	if (!s->str) return;
 	for (size_t i = 0; i < s->len; ++i) {
 		putc(s->str[i], f);
 	}
 }
-void str_append(struct string *s, char ch) {
-	if (s->str && !s->cap) {
+struct string *str_append(struct string *s, char ch) {
+	if (!s->cap) {
 		assert(s->str[s->len] == ch);
 		++s->len;
-	} else if (s->str) {
+	} else {
 		if (s->len == s->cap) {
-			s->cap += s->cap / 2;
-			char *newstr = realloc(s->str, s->cap);
-			if (newstr == NULL) abort();
-			s->str = newstr;
+			struct string *newstr = make_str_cap(s->cap + s->cap / 2);
+			memcpy(newstr->str, s->str, s->len);
+			newstr->len = s->len;
+			s = newstr;
 		}
 		s->str[s->len++] = ch;
 	}
+	return s;
 }

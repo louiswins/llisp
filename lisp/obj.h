@@ -7,12 +7,12 @@ struct string {
 	size_t len;
 	size_t cap; /* 0 if ref */
 };
-void init_str_alloc(struct string *s);
-void init_str_ref(struct string *s, const char *c);
-void init_str_ref_len(struct string *s, const char *c, size_t len);
-void free_str(struct string *s);
+struct string *make_str();
+struct string *make_str_cap(size_t cap);
+struct string *make_str_ref(const char *c);
+struct string *make_str_ref_len(const char *c, size_t len);
 void print_str(FILE *f, struct string *s);
-void str_append(struct string *s, char ch);
+struct string *str_append(struct string *s, char ch);
 
 enum objtype { CELL, NUM, SYMBOL, FN, SPECFORM, LAMBDA, MACRO, BUILTIN, CONTN, MAX };
 struct obj {

@@ -57,7 +57,7 @@ static void ungetch(struct input *i, int ch) {
 
 static int isbegin(int ch) { return ch == '(' || ch == '[' || ch == '{'; }
 static int isend(int ch) { return ch == ')' || ch == ']' || ch == '}'; }
-static int isdelim(int ch) { return !!strchr("()[]{}", ch); }
+static int isdelim(int ch) { return isbegin(ch) || isend(ch); }
 static int issym(int ch) { return isalnum(ch) || strchr("!$%&*+-./:<=>?@^_~#", ch); }
 static int isidentstart(int ch) { return isalpha(ch) || strchr("!$%&*/:<=>?@^_~#", ch); } /* '+, '-, '->(etc) taken care of other places */
 
@@ -75,15 +75,15 @@ static void skipws(struct input *i) {
 	ungetch(i, ch);
 }
 
-static void read_token(struct input *i, struct string *s) {
-	free_str(s);
+static struct string *read_token(struct input *i) {
+	struct string *s;
 	skipws(i);
 	int ch = getch(i);
-	if (ch == EOF) return;
+	if (ch == EOF) return NULL;
 	if (i->type == IN_FILE) {
-		init_str_alloc(s);
+		s = make_str();
 	} else {
-		init_str_ref(s, i->str + (i->offset - 1));
+		s = make_str_ref(i->str + (i->offset - 1));
 	}
 	str_append(s, (char)ch);
 	if (!isdelim(ch)) {
@@ -92,6 +92,7 @@ static void read_token(struct input *i, struct string *s) {
 		}
 		ungetch(i, ch);
 	}
+	return s;
 }
 
 static struct obj *tryparsenum(struct string *s) {
@@ -110,14 +111,13 @@ static struct obj *parse_one(struct input *i, struct string *tok);
 static struct obj *parse_list(struct input *i) {
 	struct obj *list = &nil;
 	struct obj *cur = &nil;
-	struct string tok = { NULL };
 	/* 0: no dot
 	 * 1: read dot
 	 * 2: read dot and one symbol after it */
 	int isdot = 0;
 	for (;;) {
-		read_token(i, &tok);
-		if (!tok.str) {
+		struct string *tok = read_token(i);
+		if (!tok) {
 			int ch = getch(i);
 			if (ch == EOF) {
 				fputs("Unexpected EOF", stderr);
@@ -126,19 +126,17 @@ static struct obj *parse_list(struct input *i) {
 			}
 			return NULL;
 		}
-		int ch = tok.str[0];
+		int ch = tok->str[0];
 		if (isend(ch)) {
 			if (isdot == 1) {
 				fputs("Illegal dotted list: ignoring trailing dot", stderr);
 			}
-			free_str(&tok);
 			ungetch(i, ch);
 			return list;
 		}
-		if (tok.len == 1 && ch == '.') {
+		if (tok->len == 1 && ch == '.') {
 			if (isdot || list == &nil) {
 				fprintf(stderr, "Illegal dotted list: %s\n", (isdot) ? "too many dots" : "no first element");
-				free_str(&tok);
 				return NULL;
 			}
 			isdot = 1;
@@ -146,10 +144,12 @@ static struct obj *parse_list(struct input *i) {
 		}
 		if (isdot == 2) {
 			fputs("Illegal dotted list: too many elements after last dot", stderr);
-			free_str(&tok);
 			return NULL;
 		}
-		struct obj *obj = parse_one(i, &tok);
+		struct obj *obj = parse_one(i, tok);
+		if (!obj) {
+			return NULL;
+		}
 		if (isdot == 1) {
 			cur->tail = obj;
 			isdot = 2;
@@ -213,12 +213,12 @@ static struct obj *parse_one(struct input *i, struct string *tok) {
 }
 
 struct obj *parse(struct input *i) {
+	struct obj *ret = NULL;
 	gc_suspend();
-	struct string s = { NULL };
-	read_token(i, &s);
-	if (!s.str) return NULL;
-	struct obj *ret = parse_one(i, &s);
-	free_str(&s);
+	struct string *s = read_token(i);
+	if (s) {
+		ret = parse_one(i, s);
+	}
 	gc_resume();
 	return ret;
 }

@@ -70,6 +70,7 @@ static void gc_queue(void *thing) {
 static void gc_mark(struct gc_head *gcitem) {
 	if (ISMARKED(gcitem)) return;
 	ADDMARK(gcitem);
+	if (GCTYPE(gcitem) == GC_STR) return;
 	if (GCTYPE(gcitem) == GC_ENV) {
 		struct env *env = OBJ_FROM_GC(gcitem);
 		gc_queue(env->next);
@@ -119,7 +120,7 @@ static void clear_marks() {
 }
 
 void gc_collect() {
-	if (!gc_active) return;
+	if (!gc_active || !all_objects) return;
 	clear_marks();
 
 	/* queue roots */
@@ -137,8 +138,6 @@ void gc_collect() {
 		gc_mark(cur);
 	}
 
-#pragma warning(push)
-#pragma warning(disable: 6001) /* VS doesn't understand that every object in all_objects has been initialized */
 	/* sweep */
 	struct gc_head **cur = &all_objects;
 	while (*cur != NULL) {
@@ -151,7 +150,6 @@ void gc_collect() {
 			free(leaked);
 		}
 	}
-#pragma warning(pop)
 }
 
 void *gc_alloc(enum gctype typ, size_t size) {

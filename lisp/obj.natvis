@@ -77,4 +77,8 @@
       <Item Name="Obj" Condition="((marknext &amp; 0x6u) >> 1) == GC_OBJ">*(struct obj*)((char*)this+0x10)</Item>
     </Expand>
   </Type>
+
+  <Type Name="string">
+    <DisplayString>{str,[len]s}</DisplayString>
+  </Type>
 </AutoVisualizer>

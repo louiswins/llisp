@@ -10,7 +10,7 @@ extern struct contn *gc_current_contn;
 extern struct obj *gc_current_obj;
 extern struct env *gc_global_env;
 
-enum gctype { GC_OBJ, GC_CONTN, GC_ENV };
+enum gctype { GC_OBJ, GC_CONTN, GC_ENV, GC_STR };
 
 void gc_add_to_temp_roots(void *root);
 void gc_clear_temp_roots();

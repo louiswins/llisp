@@ -1,4 +1,3 @@
-#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -8,7 +7,6 @@
 
 struct env *make_env(struct env *parent) {
 	struct env *ret = gc_alloc(GC_ENV, sizeof(*ret));
-	gc_add_to_temp_roots(ret);
 	ret->parent = parent;
 	ret->next = NULL;
 	ret->nsyms = 0;

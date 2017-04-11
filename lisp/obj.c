@@ -14,7 +14,6 @@ struct obj false_ = { BUILTIN, .builtin = "#f" };
 
 struct obj *make_obj(enum objtype type) {
 	struct obj *ret = gc_alloc(GC_OBJ, sizeof(*ret));
-	gc_add_to_temp_roots(ret);
 	SETTYPE(ret, type);
 	return ret;
 }
@@ -58,7 +57,7 @@ struct string *make_str_ref(const char *c) {
 }
 struct string *make_str_ref_len(const char *c, size_t len) {
 	struct string *s = gc_alloc(GC_STR, sizeof(*s));
-	s->str = (char *)c; // it's ok: we won't actually try to modify it because cap == 0
+	s->str = (char *)c; /* it's ok: we won't actually try to modify it because cap == 0 */
 	s->len = len;
 	s->cap = 0;
 	return s;

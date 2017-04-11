@@ -4,7 +4,7 @@ struct env;
 struct obj;
 
 /*
- * A continuation expects to be given a simple louisp value. This is the obj pointer.
+ * A continuation expects to be given a simple llisp value. This is the obj pointer.
  * Instead of returning, the continuation invokes another continuation, giving it
  * another obj pointer. This is done by filling in the `ret' out param with the
  * continuation to invoke, and returning the argument.
@@ -31,7 +31,7 @@ struct obj *eval_cps(CPS_ARGS);
 
 /* Evaluate obj in env in a continuation-passing style
  * Suitable for calling at the top-level outside of any other
- * louisp computation */
+ * llisp computation */
 struct obj *run_cps(struct obj *obj, struct env *env);
 
 extern struct contn cend;

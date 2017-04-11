@@ -1,4 +1,3 @@
-#include <assert.h>
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>
@@ -47,7 +46,6 @@ static struct obj *fn_if(CPS_ARGS) {
 		return &nil;
 	}
 	struct contn *resume = dupcontn(self);
-	gc_add_to_temp_roots(resume);
 	resume->data = obj->tail;
 	resume->fn = resumeif;
 
@@ -91,7 +89,6 @@ static struct obj *fn_define(CPS_ARGS);
 static struct obj *define_setsym(CPS_ARGS);
 
 static struct obj *fn_define(CPS_ARGS) {
-	assert(obj->typ >= 0 && obj->typ < MAX);
 	if (!check_args("define", obj, 2)) {
 		*ret = self->fail;
 		return &nil;
@@ -102,13 +99,10 @@ static struct obj *fn_define(CPS_ARGS) {
 		return &nil;
 	}
 	struct contn *resume = dupcontn(self);
-	gc_add_to_temp_roots(resume);
-	assert(obj->typ >= 0 && obj->typ < MAX);
 	resume->data = obj->head;
 	resume->fn = define_setsym;
 
 	*ret = dupcontn(self);
-	assert(obj->typ >= 0 && obj->typ < MAX);
 	(*ret)->next = resume;
 	(*ret)->fn = eval_cps;
 	return obj->tail->head;
@@ -187,7 +181,6 @@ static struct obj *fn_gensym(CPS_ARGS) {
 		if (!maxsymsize) maxsymsize = snprintf(NULL, 0, symformat, INT_MAX) + 1; /* +1 because snprintf always writes a '\0' */
 
 		struct string *s = make_str_cap(maxsymsize);
-		gc_add_to_temp_roots(s);
 		s->len = snprintf(s->str, s->cap, symformat, ++symnum); /* No +1 because we don't want the '\0' */
 		*ret = self->next;
 		return make_symbol(s);
@@ -240,7 +233,6 @@ static struct obj *fn_callcc(CPS_ARGS) {
 		return &nil;
 	}
 	*ret = dupcontn(self);
-	gc_add_to_temp_roots(*ret);
 	(*ret)->fn = eval_cps;
 	struct obj *contp = make_obj(CONTN);
 	contp->contnp = self->next;
@@ -342,16 +334,16 @@ ARITH_OPS(ARITH_FN)
 #undef NAN
 
 #define COMPARE_OPS(compare) \
-	compare(fn_cmpeq, "=", ==) \
-	compare(fn_cmplt, "<", <) \
-	compare(fn_cmpgt, ">", >) \
-	compare(fn_cmple, "<=", <=) \
-	compare(fn_cmpge, ">=", >=)
+	compare(fn_cmpeq, =, ==) \
+	compare(fn_cmplt, <, <) \
+	compare(fn_cmpgt, >, >) \
+	compare(fn_cmple, <=, <=) \
+	compare(fn_cmpge, >=, >=)
 #define COMPARE_FN(cname, lispname, op) \
 static struct obj *cname(CPS_ARGS) { \
-	if (!check_args(lispname, obj, 2)) return &nil; \
+	if (!check_args(#lispname, obj, 2)) return &nil; \
 	if (TYPE(obj->head) != NUM || TYPE(obj->tail->head) != NUM) { \
-		fputs(lispname ": argument not a number\n", stderr); \
+		fputs(#lispname ": argument not a number\n", stderr); \
 		*ret = self->fail; \
 		return &nil; \
 	} \
@@ -362,26 +354,28 @@ COMPARE_OPS(COMPARE_FN)
 #undef COMPARE_FN
 
 void add_globals(struct env *env) {
-	setsym(env, str_from_string_lit("begin"), make_fn(FN, fn_begin));
-	setsym(env, str_from_string_lit("call-with-current-continuation"), make_fn(FN, fn_callcc));
-	setsym(env, str_from_string_lit("car"), make_fn(FN, fn_car));
-	setsym(env, str_from_string_lit("cdr"), make_fn(FN, fn_cdr));
-	setsym(env, str_from_string_lit("cons"), make_fn(FN, fn_cons));
-	setsym(env, str_from_string_lit("define"), make_fn(SPECFORM, fn_define));
-	setsym(env, str_from_string_lit("display"), make_fn(FN, fn_display));
-	setsym(env, str_from_string_lit("eq?"), make_fn(FN, fn_eq_));
-	setsym(env, str_from_string_lit("error"), make_fn(FN, fn_error));
-	setsym(env, str_from_string_lit("gensym"), make_fn(FN, fn_gensym));
-	setsym(env, str_from_string_lit("if"), make_fn(SPECFORM, fn_if));
-	setsym(env, str_from_string_lit("lambda"), make_fn(SPECFORM, fn_lambda));
-	setsym(env, str_from_string_lit("macro"), make_fn(SPECFORM, fn_macro));
-	setsym(env, str_from_string_lit("newline"), make_fn(FN, fn_newline));
-	setsym(env, str_from_string_lit("pair?"), make_fn(FN, fn_pair_));
-	setsym(env, str_from_string_lit("quote"), make_fn(SPECFORM, fn_quote));
-#define REGISTER_FN(name, op, ...) setsym(env, str_from_string_lit(#op), make_fn(FN, name));
+#define DEFSYM(name, fn, type) setsym(env, str_from_string_lit(#name), make_fn(type, fn)); gc_cycle();
+	DEFSYM(begin, fn_begin, FN);
+	DEFSYM(call-with-current-continuation, fn_callcc, FN);
+	DEFSYM(car, fn_car, FN);
+	DEFSYM(cdr, fn_cdr, FN);
+	DEFSYM(cons, fn_cons, FN);
+	DEFSYM(define, fn_define, SPECFORM);
+	DEFSYM(display, fn_display, FN);
+	DEFSYM(eq?, fn_eq_, FN);
+	DEFSYM(error, fn_error, FN);
+	DEFSYM(gensym, fn_gensym, FN);
+	DEFSYM(if, fn_if, SPECFORM);
+	DEFSYM(lambda, fn_lambda, SPECFORM);
+	DEFSYM(macro, fn_macro, SPECFORM);
+	DEFSYM(newline, fn_newline, FN);
+	DEFSYM(pair?, fn_pair_, FN);
+	DEFSYM(quote, fn_quote, SPECFORM);
+#define REGISTER_FN(name, op, ...) DEFSYM(op, name, FN);
 	ARITH_OPS(REGISTER_FN)
 #undef REGISTER_FN
-#define REGISTER_FN(cname, lispname, ...) setsym(env, str_from_string_lit(lispname), make_fn(FN, cname));
+#define REGISTER_FN(cname, lispname, ...) DEFSYM(lispname, cname, FN);
 	COMPARE_OPS(REGISTER_FN)
 #undef REGISTER_FN
+#undef DEFSYM
 }

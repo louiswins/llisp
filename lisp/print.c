@@ -7,7 +7,6 @@
 #include "obj.h"
 #include "print.h"
 
-//	enum objtype { CELL, NUM, SYMBOL, FN, SPECFORM, LAMBDA, BUILTIN } type;
 static void realprint(FILE *f, struct obj *obj, struct env *env) {
 #if 0
 	{
@@ -98,6 +97,5 @@ static void realprint(FILE *f, struct obj *obj, struct env *env) {
 
 void print(struct obj *obj) { realprint(stdout, obj, NULL); }
 void print_debug(struct obj *obj, struct env *env) {
-//	memset(hasbeenprinted, 0, MAXOBJECTS);
 	realprint(stderr, obj, env);
 }

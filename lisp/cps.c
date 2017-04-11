@@ -8,7 +8,6 @@
 
 struct contn *dupcontn(struct contn *c) {
 	struct contn *ret = gc_alloc(GC_CONTN, sizeof(*ret));
-	gc_add_to_temp_roots(ret);
 	memcpy(ret, c, sizeof(*ret));
 	return ret;
 }
@@ -241,9 +240,9 @@ struct obj *run_cps(struct obj *obj, struct env *env) {
 	gc_current_obj = obj;
 	struct contn *next = NULL;
 	while (gc_current_contn != &cend && gc_current_contn != &cfail) {
-		gc_clear_temp_roots();
 		gc_current_obj = gc_current_contn->fn(gc_current_contn, gc_current_obj, &next);
 		gc_current_contn = next;
+		gc_cycle();
 	}
 	if (gc_current_contn == &cfail) {
 		puts("\nExecution failed.");

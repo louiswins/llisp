@@ -9,9 +9,9 @@ struct string {
 };
 struct string *make_str();
 struct string *make_str_cap(size_t cap);
-struct string *make_str_ref(const char *c);
+struct string *make_str_ref(const char *c); /* Defaults to length 0 */
 struct string *make_str_ref_len(const char *c, size_t len);
-struct string *make_str_from_ptr_len(const char *c, size_t len);
+struct string *make_str_from_ptr_len(const char *c, size_t len); /* Copies */
 #define str_from_string_lit(lit) make_str_from_ptr_len(lit, sizeof(lit)-1)
 void print_str(FILE *f, struct string *s);
 struct string *str_append(struct string *s, char ch);

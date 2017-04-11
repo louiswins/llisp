@@ -2,13 +2,13 @@
 #include "parse.h"
 #include "stdlib.h"
 
-#define LOUISP_CODE(...) #__VA_ARGS__
+#define LLISP_CODE(...) #__VA_ARGS__
 
 /* This is pretty much a hack.
  * Comments are... sort-of... supported. You need to terminate them with the
  * character sequence \n (that's a literal backslash and the n character) because
  * of the way stringification works. */
-static const char louisp_stdlib[] = LOUISP_CODE(
+static const char llisp_stdlib[] = LLISP_CODE(
 (define nil ())
 (define null? (lambda (x) (eq? x nil)))
 
@@ -130,7 +130,7 @@ static const char louisp_stdlib[] = LOUISP_CODE(
 );
 
 void add_stdlib(struct env *env) {
-	struct input i = input_from_string(louisp_stdlib);
+	struct input i = input_from_string(llisp_stdlib);
 	struct obj *obj;
 	while ((obj = parse(&i)) != NULL) {
 		run_cps(obj, env);

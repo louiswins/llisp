@@ -12,15 +12,16 @@ extern struct env *gc_global_env;
 
 enum gctype { GC_OBJ, GC_CONTN, GC_ENV, GC_STR };
 
-void gc_add_to_temp_roots(void *root);
-void gc_clear_temp_roots();
-
+/* Allocate an object of type `typ' and size `size' */
 void *gc_alloc(enum gctype typ, size_t size);
+/* Assert that every allocated object is reachable from the three
+ * roots above. This is cheap - in particular, it doesn't collect
+ * garbage. */
+void gc_cycle();
+/* Manually collect garbage. */
 void gc_collect();
 
-/* GC will not collect while suspended. Temp roots will also
- * not be recorded while suspended, so you must make sure
- * everything is reachable from one of the three permanent
- * roots once you resume. */
+/* GC will not collect while suspended. Make sure everything is
+ * reachable from one of the GC roots once you resume. */
 void gc_suspend();
 void gc_resume();

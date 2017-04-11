@@ -44,12 +44,12 @@ static void *temp_roots[MAX_TEMP_ROOTS];
 static struct gc_head *all_objects = NULL;
 static struct gc_head *objs_to_mark = NULL;
 
-void gc_add_to_temp_roots(void *root) {
-	if (!gc_active) return;
+static void *gc_add_to_temp_roots(void *root) {
+	if (!gc_active) return root;
 	assert(ntemproots < MAX_TEMP_ROOTS);
-	temp_roots[ntemproots++] = root;
+	return temp_roots[ntemproots++] = root;
 }
-void gc_clear_temp_roots() { ntemproots = 0; }
+void gc_cycle() { ntemproots = 0; }
 
 static void gc_mark(struct gc_head *gcitem);
 static void gc_queue(void *obj);
@@ -87,12 +87,13 @@ static void gc_mark(struct gc_head *gcitem) {
 		gc_queue(contn->env);
 		gc_queue(contn->next);
 		gc_queue(contn->fail);
+		return;
 	}
 	assert(GCTYPE(gcitem) == GC_OBJ);
 	struct obj *obj = OBJ_FROM_GC(gcitem);
 	switch (TYPE(obj)) {
 	default:
-		fprintf(stderr, "Fatal error: unknown type %d\n", TYPE(obj));
+		fprintf(stderr, "Fatal error: unknown object type %d\n", TYPE(obj));
 		abort();
 	case NUM:
 	case FN:
@@ -119,10 +120,12 @@ static void gc_mark(struct gc_head *gcitem) {
 }
 
 static void clear_marks() {
+#ifdef DEBUG_GC
 	for (struct gc_head *cur = all_objects; cur != NULL; cur = cur->next) {
 		assert(!ISMARKED(cur));
 		DELMARK(cur);
 	}
+#endif
 }
 
 void gc_collect() {
@@ -160,6 +163,10 @@ void gc_collect() {
 
 void *gc_alloc(enum gctype typ, size_t size) {
 	size = (size - 1 + ALLOC_ALIGN) & ~(ALLOC_ALIGN - 1);
+#ifdef DEBUG_GC
+	static unsigned char num_allocs = 0;
+	if (!++num_allocs) { gc_collect(); }
+#endif
 	struct gc_head *ret = malloc(SIZE_OF_HEAD + size);
 	if (ret == NULL) {
 		gc_collect();
@@ -173,7 +180,9 @@ void *gc_alloc(enum gctype typ, size_t size) {
 	ret->marknext = (uintptr_t)typ << 1;
 	typedef char assert_intptr_NULL_is_0[(uintptr_t)NULL == 0u ? 1 : -1];
 	all_objects = ret;
-	return OBJ_FROM_GC(ret);
+	/* Automatically add the new thing to the temporary roots, until it's firmly
+	 * in the object graph */
+	return gc_add_to_temp_roots(OBJ_FROM_GC(ret));
 }
 
 void gc_suspend() {

@@ -44,6 +44,11 @@ static void *temp_roots[MAX_TEMP_ROOTS];
 static struct gc_head *all_objects = NULL;
 static struct gc_head *objs_to_mark = NULL;
 
+#ifdef GC_STATS
+unsigned long long gc_total_allocs = 0;
+unsigned long long gc_total_frees = 0;
+#endif
+
 static void *gc_add_to_temp_roots(void *root) {
 	if (!gc_active) return root;
 	assert(ntemproots < MAX_TEMP_ROOTS);
@@ -54,7 +59,7 @@ void gc_cycle() { ntemproots = 0; }
 static void gc_mark(struct gc_head *gcitem);
 static void gc_queue(void *obj);
 
-int is_static(void *obj) {
+static int is_static(void *obj) {
 	return obj == &nil || obj == &true_ || obj == &false_ ||
 		obj == &cbegin || obj == &cend || obj == &cfail;
 }
@@ -120,17 +125,17 @@ static void gc_mark(struct gc_head *gcitem) {
 }
 
 static void clear_marks() {
-#ifdef DEBUG_GC
 	for (struct gc_head *cur = all_objects; cur != NULL; cur = cur->next) {
 		assert(!ISMARKED(cur));
 		DELMARK(cur);
 	}
-#endif
 }
 
 void gc_collect() {
 	if (!gc_active || !all_objects) return;
+#ifdef DEBUG_GC
 	clear_marks();
+#endif
 
 	/* queue roots */
 	gc_queue(gc_current_contn);
@@ -157,6 +162,9 @@ void gc_collect() {
 			struct gc_head *leaked = *cur;
 			*cur = leaked->next;
 			free(leaked);
+#ifdef GC_STATS
+			++gc_total_frees;
+#endif
 		}
 	}
 }
@@ -180,6 +188,9 @@ void *gc_alloc(enum gctype typ, size_t size) {
 	ret->marknext = (uintptr_t)typ << 1;
 	typedef char assert_intptr_NULL_is_0[(uintptr_t)NULL == 0u ? 1 : -1];
 	all_objects = ret;
+#ifdef GC_STATS
+	++gc_total_allocs;
+#endif
 	/* Automatically add the new thing to the temporary roots, until it's firmly
 	 * in the object graph */
 	return gc_add_to_temp_roots(OBJ_FROM_GC(ret));

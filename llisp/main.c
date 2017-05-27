@@ -23,5 +23,15 @@ int main() {
 		printf("\n\n$ ");
 		fflush(stdout);
 	}
+
+#ifdef GC_STATS
+	printf("Total allocations:               %llu\n", gc_total_allocs);
+	printf("Total frees (before collection): %llu\n", gc_total_frees);
+	gc_global_env = NULL; gc_current_contn = NULL; gc_current_obj = NULL;
+	gc_cycle(); gc_collect();
+	printf("Total frees (after collection):  %llu\n", gc_total_frees);
+	printf("Leaked memory:                   %llu\n", gc_total_allocs - gc_total_frees);
+#endif
+
 	return 0;
 }

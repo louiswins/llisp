@@ -25,3 +25,8 @@ void gc_collect();
  * reachable from one of the GC roots once you resume. */
 void gc_suspend();
 void gc_resume();
+
+#ifdef GC_STATS
+extern unsigned long long gc_total_allocs;
+extern unsigned long long gc_total_frees;
+#endif

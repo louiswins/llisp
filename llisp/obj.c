@@ -32,6 +32,11 @@ struct obj *make_fn(enum objtype type, struct obj *(*fn)(CPS_ARGS)) {
 	ret->fn = fn;
 	return ret;
 }
+struct obj *make_str_obj(struct string *val) {
+	struct obj *ret = make_obj(STRING);
+	ret->str = stringdup(val);
+	return ret;
+}
 
 struct obj *cons(struct obj *l, struct obj *r) {
 	struct obj *ret = make_obj(CELL);

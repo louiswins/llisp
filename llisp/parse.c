@@ -86,7 +86,36 @@ static struct string *read_token(struct input *i) {
 		s = make_str_ref(i->str + (i->offset - 1));
 	}
 	str_append(s, (char)ch);
-	if (!isdelim(ch)) {
+	if (ch == '"') {
+		int isescape = 0;
+		for (;;) {
+			ch = getch(i);
+			if (ch == EOF) {
+				fputs("Unterminated string\n", stderr);
+				return NULL;
+			}
+			if (!isprint(ch)) {
+				fprintf(stderr, "Invalid byte \\x%02X in string\n", ch);
+				return NULL;
+			}
+			str_append(s, (char)ch);
+			switch(ch) {
+			default:
+				isescape = 0;
+				break;
+			case '\\':
+				isescape = !isescape;
+				break;
+			case '"':
+				if (isescape)
+					isescape = 0;
+				else
+					return s;
+				break;
+			}
+		}
+
+	} else if (!isdelim(ch)) {
 		while ((ch = getch(i)) != EOF && !isspace(ch) && !isdelim(ch)) {
 			str_append(s, (char)ch);
 		}
@@ -162,6 +191,72 @@ static struct obj *parse_list(struct input *i) {
 	}
 }
 
+static int parseonehex(int ch) {
+	if (!isxdigit(ch)) {
+		if (isprint(ch)) {
+			fprintf(stderr, "Invalid hex digit %c\n", ch);
+		} else {
+			fprintf(stderr, "Invalid hex digit \\x%02X\n", ch);
+		}
+		return -1;
+	}
+	if (isdigit(ch)) ch -= '0';
+	else if (isupper(ch)) ch -= 'A';
+	else ch -= 'a';
+	return ch;
+}
+static struct obj *validate_string(struct string *tok) {
+	if (!memchr(tok->str, '\\', tok->len)) {
+		/* Fast path: no escapes. Copy everything except the quotes */
+		return make_str_obj(make_str_from_ptr_len(tok->str + 1, tok->len - 2));
+	}
+	/* Slow path */
+	struct string *ret = make_str();
+	const char *cur = tok->str + 1;
+	const char *end = tok->str + tok->len - 1;
+	for (; cur != end; ++cur) {
+		if (*cur != '\\') {
+			str_append(ret, *cur);
+			continue;
+		}
+		++cur;
+		switch (*cur) {
+		case '\\':
+			str_append(ret, '\\');
+			break;
+		case 'r':
+			str_append(ret, '\r');
+			break;
+		case 'n':
+			str_append(ret, '\n');
+			break;
+		case 't':
+			str_append(ret, '\t');
+			break;
+		case '"':
+			str_append(ret, '"');
+			break;
+		case 'x': {
+			/* We know the string ends in ", so if we get hex digits we're ok */
+			int val1 = parseonehex(*++cur);
+			if (val1 < 0) return NULL;
+			int val2 = parseonehex(*++cur);
+			if (val2 < 0) return NULL;
+			str_append(ret, (char)(val1 * 16 + val2));
+			break;
+		}
+		default:
+			if (isprint(*cur)) {
+				fprintf(stderr, "Invalid escape \\%c\n", *cur);
+			} else {
+				fprintf(stderr, "Invalid escape \\(\\x%02X)\n", *cur);
+			}
+			return NULL;
+		}
+	}
+	return make_str_obj(ret);
+}
+
 static int ismatched(int start, int end) {
 	return (start == '(' && end == ')')
 		|| (start == '[' && end == ']')
@@ -174,8 +269,9 @@ static struct obj *parse_one(struct input *i, struct string *tok) {
 		struct obj *ret = parse_list(i);
 		int end = getch(i);
 		if (!ismatched(ch, end)) {
-			fprintf(stderr, "Unmatched delimiters: %c %c\n", ch, end);
-			if (!isend(end)) {
+			if (isend(end)) {
+				fprintf(stderr, "Warning: unmatched delimiters: %c %c\n", ch, end);
+			} else {
 				return NULL;
 			}
 		}
@@ -184,6 +280,9 @@ static struct obj *parse_one(struct input *i, struct string *tok) {
 	if (isend(ch)) {
 		fprintf(stderr, "Unmatched %c\n", ch);
 		return NULL;
+	}
+	if (ch == '"') {
+		return validate_string(tok);
 	}
 	if (ch == '+' || ch == '-' || ch == '.' || isdigit(ch)) {
 		/* Special case for '+ and '- and '->(whatever) symbols */
@@ -195,7 +294,7 @@ static struct obj *parse_one(struct input *i, struct string *tok) {
 	if (isidentstart(ch)) {
 		return make_symbol(tok);
 	}
-	fprintf(stderr, "Invalid token: ");
+	fputs("Invalid token: ", stderr);
 	print_str_escaped(stderr, tok);
 	fputs("", stderr);
 	return NULL;

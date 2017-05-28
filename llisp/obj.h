@@ -52,5 +52,6 @@ struct obj *make_obj(enum objtype type);
 struct obj *make_symbol(struct string *name);
 struct obj *make_num(double val);
 struct obj *make_fn(enum objtype type, struct obj *(*fn)(CPS_ARGS));
+struct obj *make_str_obj(struct string *val);
 
 struct obj *cons(struct obj *l, struct obj *r);

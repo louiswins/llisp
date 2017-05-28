@@ -89,7 +89,7 @@ struct obj *eval_cps(CPS_ARGS) {
 static struct obj *eval_doapply(CPS_ARGS) {
 	if (!is_callable(TYPE(obj))) {
 		fprintf(stderr, "apply: unable to apply non-function ");
-		print_on(stderr, obj);
+		print_on(stderr, obj, 1);
 		fputc('\n', stderr);
 		*ret = self->fail;
 		return &nil;

@@ -5,9 +5,10 @@
 #include "obj.h"
 #include "print.h"
 
-void print(struct obj *obj) { print_on(stdout, obj); }
+void print(struct obj *obj) { print_on(stdout, obj, 1); }
+void display(struct obj *obj) { print_on(stdout, obj, 0); }
 
-void print_on(FILE *f, struct obj *obj) {
+void print_on(FILE *f, struct obj *obj, int verbose) {
 	switch (TYPE(obj)) {
 	default:
 		fprintf(stderr, "<#unknown type %d>", TYPE(obj));
@@ -26,9 +27,13 @@ void print_on(FILE *f, struct obj *obj) {
 		print_str(f, obj->str);
 		break;
 	case STRING:
-		fputc('"', f);
-		print_str_escaped(f, obj->str);
-		fputc('"', f);
+		if (verbose) {
+			fputc('"', f);
+			print_str_escaped(f, obj->str);
+			fputc('"', f);
+		} else {
+			print_str(f, obj->str);
+		}
 		break;
 	case FN:
 		fprintf(f, "<#fn>");
@@ -38,12 +43,12 @@ void print_on(FILE *f, struct obj *obj) {
 		break;
 	case LAMBDA:
 		fprintf(f, "<#closure args=");
-		print_on(f, obj->args);
+		print_on(f, obj->args, verbose);
 		fprintf(f, ">");
 		break;
 	case MACRO:
 		fprintf(f, "<#macro args=");
-		print_on(f, obj->args);
+		print_on(f, obj->args, verbose);
 		fprintf(f, ">");
 		break;
 	case BUILTIN:
@@ -54,13 +59,13 @@ void print_on(FILE *f, struct obj *obj) {
 		for (; TYPE(obj->tail) == CELL; obj = obj->tail) {
 			putc(prev, f);
 			prev = ' ';
-			print_on(f, obj->head);
+			print_on(f, obj->head, verbose);
 		}
 		putc(prev, f);
-		print_on(f, obj->head);
+		print_on(f, obj->head, verbose);
 		if (obj->tail != &nil) {
 			fprintf(f, " . ");
-			print_on(f, obj->tail);
+			print_on(f, obj->tail, verbose);
 		}
 		putc(')', f);
 	}

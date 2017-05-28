@@ -3,20 +3,30 @@
 #include "env.h"
 #include "gc.h"
 #include "globals.h"
+#include "obj.h"
 #include "parse.h"
 #include "print.h"
 #include "stdlib.h"
 
+static int repl_done = 0;
+static struct obj *fn_quit(CPS_ARGS) {
+	(void)obj;
+	repl_done = 1;
+	*ret = self->fail;
+	return &nil;
+}
 
 int main() {
 	gc_global_env = make_env(NULL);
 	add_globals(gc_global_env);
 	add_stdlib(gc_global_env);
+	setsym(gc_global_env, str_from_string_lit("quit"), make_fn(FN, fn_quit));
+	gc_cycle();
 
 	printf("$ ");
 	fflush(stdout);
 	struct obj *obj;
-	while ((obj = parse_file(stdin)) != NULL) {
+	while (!repl_done && (obj = parse_file(stdin)) != NULL) {
 		obj = run_cps(obj, gc_global_env);
 		printf("=> ");print(obj);
 		gc_collect();

@@ -213,6 +213,15 @@ static struct obj *fn_display(CPS_ARGS) {
 		*ret = self->fail;
 		return &nil;
 	}
+	display(obj->head);
+	*ret = self->next;
+	return &nil;
+}
+static struct obj *fn_write(CPS_ARGS) {
+	if (!check_args("write", obj, 1)) {
+		*ret = self->fail;
+		return &nil;
+	}
 	print(obj->head);
 	*ret = self->next;
 	return &nil;
@@ -371,6 +380,7 @@ void add_globals(struct env *env) {
 	DEFSYM(newline, fn_newline, FN);
 	DEFSYM(pair?, fn_pair_, FN);
 	DEFSYM(quote, fn_quote, SPECFORM);
+	DEFSYM(write, fn_write, FN);
 #define REGISTER_FN(name, op, ...) DEFSYM(op, name, FN);
 	ARITH_OPS(REGISTER_FN)
 #undef REGISTER_FN

@@ -51,13 +51,14 @@ struct obj *eval_cps(CPS_ARGS) {
 	case FN:
 	case LAMBDA:
 	case MACRO:
+	case STRING:
 		*ret = self->next;
 		return obj;
 	case SYMBOL: {
-		struct obj *value = getsym(self->env, obj->sym);
+		struct obj *value = getsym(self->env, obj->str);
 		if (value == NULL) {
 			fputs("eval: unknown symbol \"", stderr);
-			print_str(stderr, obj->sym);
+			print_str_escaped(stderr, obj->str);
 			fputs("\"\n", stderr);
 			*ret = self->fail;
 			return &nil;
@@ -88,7 +89,7 @@ struct obj *eval_cps(CPS_ARGS) {
 static struct obj *eval_doapply(CPS_ARGS) {
 	if (!is_callable(TYPE(obj))) {
 		fprintf(stderr, "apply: unable to apply non-function ");
-		print_debug(obj, NULL);
+		print_on(stderr, obj);
 		fputc('\n', stderr);
 		*ret = self->fail;
 		return &nil;
@@ -187,7 +188,7 @@ static struct obj *apply_closure(CPS_ARGS) {
 	for (;;) {
 		if (params == &nil && obj == &nil) break;
 		if (TYPE(params) == SYMBOL) {
-			setsym(appenv, params->sym, obj);
+			setsym(appenv, params->str, obj);
 			params = &nil;
 			break;
 		}
@@ -200,7 +201,7 @@ static struct obj *apply_closure(CPS_ARGS) {
 			*ret = self->fail;
 			return &nil;
 		}
-		setsym(appenv, params->head->sym, obj->head);
+		setsym(appenv, params->head->str, obj->head);
 		params = params->tail;
 		obj = obj->tail;
 	}

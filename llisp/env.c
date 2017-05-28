@@ -49,15 +49,3 @@ struct obj *getsym(struct env *env, struct string *name) {
 	}
 	return NULL;
 }
-
-struct string *revlookup_debug(struct env *env, struct obj *val) {
-	for (; env != NULL; env = env->parent) {
-		for (struct env *cur = env; cur != NULL; cur = cur->next) {
-			for (int i = 0; i < cur->nsyms; ++i) {
-				if (cur->syms[i].value == val)
-					return cur->syms[i].name;
-			}
-		}
-	}
-	return NULL;
-}

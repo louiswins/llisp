@@ -19,7 +19,7 @@ struct obj *make_obj(enum objtype type) {
 }
 struct obj *make_symbol(struct string *name) {
 	struct obj *ret = make_obj(SYMBOL);
-	ret->sym = stringdup(name);
+	ret->str = stringdup(name);
 	return ret;
 }
 struct obj *make_num(double val) {
@@ -69,10 +69,35 @@ struct string *make_str_from_ptr_len(const char *c, size_t len) {
 	return ret;
 }
 void print_str(FILE *f, struct string *s) {
+	fwrite(s->str, 1, s->len, f);
+}
+#define BACKSLASH(ch) ((unsigned char)((ch) | 0x80))
+unsigned char print_chars[] = {
+	0, 0, 0, 0, 0, 0, 0, 0, 0, BACKSLASH('t'), BACKSLASH('n'), 0, 0, BACKSLASH('r'), 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	' ', '!', BACKSLASH('"'), '#', '$', '%', '&', '\'', '(', ')', '*', '+', ',', '-', '.', '/',
+	'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', ':', ';', '<', '=', '>', '?',
+	'@', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O',
+	'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', '[', BACKSLASH('\\'), ']', '^', '_',
+	'`', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o',
+	'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '{', '|', '}', '~', 0
+};
+#undef BACKSLASH
+void print_str_escaped(FILE *f, struct string *s) {
 	for (size_t i = 0; i < s->len; ++i) {
-		putc(s->str[i], f);
+		char ch = s->str[i];
+		if (ch < 0x80 && print_chars[ch]) {
+			/* printable, with a possible escape */
+			if (print_chars[ch] & 0x80)
+				putc('\\', f);
+			putc(print_chars[ch] & 0x7f, f);
+		} else {
+			/* nonprintable */
+			fprintf(f, "\\x%02X", ch);
+		}
 	}
 }
+
 struct string *str_append(struct string *s, char ch) {
 	if (!s->cap) {
 		assert(s->str[s->len] == ch);
@@ -97,13 +122,13 @@ struct string *stringdup(struct string *s) {
 	return ret;
 }
 int stringeq(struct string *a, struct string *b) {
-	if (!a && !b) return 1;
+	if (a == b) return 1;
 	if (!a || !b) return 0;
 	if (a->len != b->len) return 0;
 	return memcmp(a->str, b->str, a->len) == 0;
 }
 int stringcmp(struct string *a, struct string *b) {
-	if (!a && !b) return 0;
+	if (a == b) return 0;
 	if (!a) return -1;
 	if (!b) return 1;
 	size_t minsize = a->len < b->len ? a->len : b->len;

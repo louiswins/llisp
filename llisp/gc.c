@@ -106,7 +106,8 @@ static void gc_mark(struct gc_head *gcitem) {
 	case BUILTIN:
 		return;
 	case SYMBOL:
-		gc_queue(obj->sym);
+	case STRING:
+		gc_queue(obj->str);
 		return;
 	case CELL:
 		gc_queue(obj->head);

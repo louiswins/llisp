@@ -100,7 +100,7 @@ static struct obj *tryparsenum(struct string *s) {
 	double val = strtod(s->str, &endp);
 	if (endp != s->str + s->len) {
 		fprintf(stderr, "Invalid number: ");
-		print_str(stderr, s);
+		print_str_escaped(stderr, s);
 		fputs("", stderr);
 		return NULL;
 	}
@@ -196,7 +196,7 @@ static struct obj *parse_one(struct input *i, struct string *tok) {
 		return make_symbol(tok);
 	}
 	fprintf(stderr, "Invalid token: ");
-	print_str(stderr, tok);
+	print_str_escaped(stderr, tok);
 	fputs("", stderr);
 	return NULL;
 }

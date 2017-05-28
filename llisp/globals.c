@@ -110,7 +110,7 @@ static struct obj *fn_define(CPS_ARGS) {
 
 /* obj = eval(defn), self->data = sym */
 static struct obj *define_setsym(CPS_ARGS) {
-	setsym(self->env, self->data->sym, obj);
+	setsym(self->env, self->data->str, obj);
 	*ret = self->next;
 	return &nil;
 }
@@ -202,8 +202,8 @@ static struct obj *fn_eq_(CPS_ARGS) {
 	if (TYPE(a) == NUM && TYPE(b) == NUM) {
 		return a->num == b->num ? &true_ : &false_;
 	}
-	if (TYPE(a) == SYMBOL && TYPE(b) == SYMBOL) {
-		return stringeq(a->sym, b->sym) ? &true_ : &false_;
+	if ((TYPE(a) == SYMBOL && TYPE(b) == SYMBOL) || (TYPE(a) == STRING && TYPE(b) == STRING)) {
+		return stringeq(a->str, b->str) ? &true_ : &false_;
 	}
 	return a == b ? &true_ : &false_;
 }

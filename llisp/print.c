@@ -2,43 +2,33 @@
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
-#include "env.h"
-#include "gc.h"
 #include "obj.h"
 #include "print.h"
 
-static void realprint(FILE *f, struct obj *obj, struct env *env) {
-#if 0
-	{
-		/* debug stuff */
-		size_t index = object_indexof(obj);
-		if (index != (size_t)-1) {
-			hasbeenprinted[object_indexof(obj)] = 1;
-		}
-		if (env) {
-			const char *name = revlookup_debug(env, obj);
-			if (name) {
-				fprintf(f, "%s:", name);
-			}
-		}
-	}
-#endif
+void print(struct obj *obj) { print_on(stdout, obj); }
+
+void print_on(FILE *f, struct obj *obj) {
 	switch (TYPE(obj)) {
 	default:
 		fprintf(stderr, "<#unknown type %d>", TYPE(obj));
 		break;
 	case NUM: {
 		double d = obj->num;
-		if (d == round(d) && d >= INT_MIN && d <= INT_MAX) {
+		if (d == round(d) && d >= LONG_MIN && d <= LONG_MAX) {
 			/* if d is integral, print it as such */
-			fprintf(f, "%d", (int)d);
+			fprintf(f, "%ld", (long)d);
 		} else {
 			fprintf(f, "%f", obj->num);
 		}
 		break;
 	}
 	case SYMBOL:
-		print_str(f, obj->sym);
+		print_str(f, obj->str);
+		break;
+	case STRING:
+		fputc('"', f);
+		print_str_escaped(f, obj->str);
+		fputc('"', f);
 		break;
 	case FN:
 		fprintf(f, "<#fn>");
@@ -48,30 +38,12 @@ static void realprint(FILE *f, struct obj *obj, struct env *env) {
 		break;
 	case LAMBDA:
 		fprintf(f, "<#closure args=");
-		realprint(f, obj->args, env);
-#if 0
-		if (env) {
-			size_t index = object_indexof(obj->code);
-			if (index != (size_t)-1 && !hasbeenprinted[index]) {
-				fprintf(f, " code=");
-				realprint(f, obj->code, env);
-			}
-		}
-#endif
+		print_on(f, obj->args);
 		fprintf(f, ">");
 		break;
 	case MACRO:
 		fprintf(f, "<#macro args=");
-		realprint(f, obj->args, env);
-#if 0
-		if (env) {
-			size_t index = object_indexof(obj->code);
-			if (index != (size_t)-1 && !hasbeenprinted[index]) {
-				fprintf(f, " code=");
-				realprint(f, obj->code, env);
-			}
-		}
-#endif
+		print_on(f, obj->args);
 		fprintf(f, ">");
 		break;
 	case BUILTIN:
@@ -82,20 +54,15 @@ static void realprint(FILE *f, struct obj *obj, struct env *env) {
 		for (; TYPE(obj->tail) == CELL; obj = obj->tail) {
 			putc(prev, f);
 			prev = ' ';
-			realprint(f, obj->head, env);
+			print_on(f, obj->head);
 		}
 		putc(prev, f);
-		realprint(f, obj->head, env);
+		print_on(f, obj->head);
 		if (obj->tail != &nil) {
 			fprintf(f, " . ");
-			realprint(f, obj->tail, env);
+			print_on(f, obj->tail);
 		}
 		putc(')', f);
 	}
 	}
-}
-
-void print(struct obj *obj) { realprint(stdout, obj, NULL); }
-void print_debug(struct obj *obj, struct env *env) {
-	realprint(stderr, obj, env);
 }

@@ -29,8 +29,10 @@ int main() {
 		obj = run_cps(obj, gc_global_env);
 		printf("=> ");print(obj);
 		gc_collect();
-		printf("\n\n$ ");
-		fflush(stdout);
+		if (!repl_done) {
+			printf("\n\n$ ");
+			fflush(stdout);
+		}
 	}
 
 #ifdef GC_STATS

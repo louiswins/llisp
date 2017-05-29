@@ -28,31 +28,31 @@ void print_on(FILE *f, struct obj *obj, int verbose) {
 		break;
 	case STRING:
 		if (verbose) {
-			fputc('"', f);
+			putc('"', f);
 			print_str_escaped(f, obj->str);
-			fputc('"', f);
+			putc('"', f);
 		} else {
 			print_str(f, obj->str);
 		}
 		break;
 	case FN:
-		fprintf(f, "<#fn>");
+		fputs("<#fn>", f);
 		break;
 	case SPECFORM:
-		fprintf(f, "<#specform>");
+		fputs("<#specform>", f);
 		break;
 	case LAMBDA:
-		fprintf(f, "<#closure args=");
+		fputs("<#closure args=", f);
 		print_on(f, obj->args, verbose);
-		fprintf(f, ">");
+		putc('>', f);
 		break;
 	case MACRO:
-		fprintf(f, "<#macro args=");
+		fputs("<#macro args=", f);
 		print_on(f, obj->args, verbose);
-		fprintf(f, ">");
+		putc('>', f);
 		break;
 	case BUILTIN:
-		fprintf(f, "%s", obj->builtin);
+		fputs(obj->builtin, f);
 		break;
 	case CELL: {
 		char prev = '(';
@@ -68,6 +68,11 @@ void print_on(FILE *f, struct obj *obj, int verbose) {
 			print_on(f, obj->tail, verbose);
 		}
 		putc(')', f);
+		break;
 	}
+	case CONTN:
+		fputs("<#continuation>", f);
+		break;
+
 	}
 }

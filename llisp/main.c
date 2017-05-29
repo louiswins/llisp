@@ -19,7 +19,7 @@ int main() {
 	gc_global_env = make_env(NULL);
 	add_globals(gc_global_env);
 	add_stdlib(gc_global_env);
-	setsym(gc_global_env, str_from_string_lit("quit"), make_fn(FN, fn_quit));
+	definesym(gc_global_env, str_from_string_lit("quit"), make_fn(FN, fn_quit));
 	gc_cycle();
 
 	printf("$ ");

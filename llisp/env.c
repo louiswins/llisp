@@ -13,7 +13,7 @@ struct env *make_env(struct env *parent) {
 	return ret;
 }
 
-void setsym(struct env *env, struct string *name, struct obj *value) {
+void definesym(struct env *env, struct string *name, struct obj *value) {
 	for (;;) {
 		for (int i = 0; i < env->nsyms; ++i) {
 			if (stringeq(env->syms[i].name, name)) {
@@ -27,14 +27,24 @@ void setsym(struct env *env, struct string *name, struct obj *value) {
 	if (env->nsyms == ENVSIZE) {
 		env->next = make_env(env);
 		env = env->next;
-		if (env == NULL) {
-			fprintf(stderr, "setsym: out of memory\n");
-			return;
-		}
 	}
 	env->syms[env->nsyms].name = stringdup(name);
 	env->syms[env->nsyms].value = value ? value : &nil;
 	++env->nsyms;
+}
+
+int setsym(struct env *env, struct string *name, struct obj *value) {
+	for (; env != NULL; env = env->parent) {
+		for (struct env *cur = env; cur != NULL; cur = cur->next) {
+			for (int i = 0; i < cur->nsyms; ++i) {
+				if (stringeq(cur->syms[i].name, name)) {
+					cur->syms[i].value = value ? value : &nil;
+					return 1;
+				}
+			}
+		}
+	}
+	return 0;
 }
 
 struct obj *getsym(struct env *env, struct string *name) {

@@ -16,7 +16,8 @@ static int is_callable(enum objtype type) {
 	return type == MACRO ||
 		type == LAMBDA ||
 		type == FN ||
-		type == SPECFORM;
+		type == SPECFORM ||
+		type == CONTN;
 }
 
 struct contn cend = { NULL };
@@ -37,6 +38,8 @@ static struct obj *evallist_cons(CPS_ARGS);
 static struct obj *apply_closure(CPS_ARGS);
 static struct obj *run_closure(CPS_ARGS);
 
+/* Apply a continuation */
+static struct obj *apply_contn(CPS_ARGS);
 
 /* obj = object to eval, return self->next(eval(obj)) */
 struct obj *eval_cps(CPS_ARGS) {
@@ -52,6 +55,7 @@ struct obj *eval_cps(CPS_ARGS) {
 	case LAMBDA:
 	case MACRO:
 	case STRING:
+	case CONTN:
 		*ret = self->next;
 		return obj;
 	case SYMBOL: {
@@ -89,14 +93,17 @@ struct obj *eval_cps(CPS_ARGS) {
 static struct obj *eval_doapply(CPS_ARGS) {
 	if (!is_callable(TYPE(obj))) {
 		fprintf(stderr, "apply: unable to apply non-function ");
-		print_on(stderr, obj, 1);
+		print_on(stderr, obj, 1 /*verbose*/);
 		fputc('\n', stderr);
 		*ret = self->fail;
 		return &nil;
 	}
 
 	struct contn *appcnt = dupcontn(self);
-	if (TYPE(obj) == FN || TYPE(obj) == SPECFORM) {
+	if (TYPE(obj) == CONTN) {
+		appcnt->data = obj;
+		appcnt->fn = apply_contn;
+	} else if (TYPE(obj) == FN || TYPE(obj) == SPECFORM) {
 		/* Just call the function */
 		appcnt->data = &nil;
 		appcnt->fn = obj->fn;
@@ -105,13 +112,13 @@ static struct obj *eval_doapply(CPS_ARGS) {
 		appcnt->fn = apply_closure;
 	}
 
-	if (TYPE(obj) == FN || TYPE(obj) == LAMBDA) {
+	if (TYPE(obj) == FN || TYPE(obj) == LAMBDA || TYPE(obj) == CONTN) {
 		/* need to evaluate the arguments first */
 		*ret = dupcontn(self);
 		(*ret)->data = &nil;
 		(*ret)->next = appcnt;
 		(*ret)->fn = evallist;
-	} else /* specform or macro */ {
+	} else /* specform, macro */ {
 		/* ready to apply!*/
 		*ret = appcnt;
 
@@ -188,7 +195,7 @@ static struct obj *apply_closure(CPS_ARGS) {
 	for (;;) {
 		if (params == &nil && obj == &nil) break;
 		if (TYPE(params) == SYMBOL) {
-			setsym(appenv, params->str, obj);
+			definesym(appenv, params->str, obj);
 			params = &nil;
 			break;
 		}
@@ -201,7 +208,7 @@ static struct obj *apply_closure(CPS_ARGS) {
 			*ret = self->fail;
 			return &nil;
 		}
-		setsym(appenv, params->head->str, obj->head);
+		definesym(appenv, params->head->str, obj->head);
 		params = params->tail;
 		obj = obj->tail;
 	}
@@ -231,6 +238,14 @@ static struct obj *run_closure(CPS_ARGS) {
 	return self->data->head;
 }
 
+/* obj = args, self->data = contnp, return contnp(args) */
+static struct obj *apply_contn(CPS_ARGS) {
+	if (obj->tail != &nil) {
+		fputs("warning: apply: too many arguments given\n", stderr);
+	}
+	*ret = self->data->contnp;
+	return obj->head;
+}
 
 struct obj *run_cps(struct obj *obj, struct env *env) {
 	cbegin.env = env;

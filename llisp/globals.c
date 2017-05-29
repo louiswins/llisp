@@ -85,22 +85,19 @@ static struct obj *fn_quote(CPS_ARGS) {
 	return obj->head;
 }
 
-static struct obj *fn_define(CPS_ARGS);
-static struct obj *define_setsym(CPS_ARGS);
-
-static struct obj *fn_define(CPS_ARGS) {
-	if (!check_args("define", obj, 2)) {
+static struct obj *set_symbol_cps(const char *name, struct obj *(*next)(CPS_ARGS), CPS_ARGS) {
+	if (!check_args(name, obj, 2)) {
 		*ret = self->fail;
 		return &nil;
 	}
 	if (TYPE(obj->head) != SYMBOL) {
-		fputs("define: must define a symbol\n", stderr);
+		fprintf(stderr, "%s: must define a symbol\n", name);
 		*ret = self->fail;
 		return &nil;
 	}
 	struct contn *resume = dupcontn(self);
 	resume->data = obj->head;
-	resume->fn = define_setsym;
+	resume->fn = next;
 
 	*ret = dupcontn(self);
 	(*ret)->next = resume;
@@ -108,9 +105,34 @@ static struct obj *fn_define(CPS_ARGS) {
 	return obj->tail->head;
 }
 
+static struct obj *fn_define(CPS_ARGS);
+static struct obj *do_definesym(CPS_ARGS);
+
+static struct obj *fn_define(CPS_ARGS) {
+	return set_symbol_cps("define", do_definesym, self, obj, ret);
+}
 /* obj = eval(defn), self->data = sym */
-static struct obj *define_setsym(CPS_ARGS) {
-	setsym(self->env, self->data->str, obj);
+static struct obj *do_definesym(CPS_ARGS) {
+	definesym(self->env, self->data->str, obj);
+	*ret = self->next;
+	return &nil;
+}
+
+static struct obj *fn_set_(CPS_ARGS);
+static struct obj *do_setsym(CPS_ARGS);
+
+static struct obj *fn_set_(CPS_ARGS) {
+	return set_symbol_cps("set!", do_setsym, self, obj, ret);
+}
+/* obj = eval(defn), self->data = sym */
+static struct obj *do_setsym(CPS_ARGS) {
+	if (!setsym(self->env, self->data->str, obj)) {
+		fputs("set!: symbol \"", stderr);
+		print_str_escaped(stderr, self->data->str);
+		fputs("\" does not exist\n", stderr);
+		*ret = self->fail;
+		return &nil;
+	}
 	*ret = self->next;
 	return &nil;
 }
@@ -237,7 +259,7 @@ static struct obj *fn_newline(CPS_ARGS) {
 }
 
 static struct obj *fn_callcc(CPS_ARGS) {
-	if (!check_args("call-with-current-continuation", obj, 0)) {
+	if (!check_args("call-with-current-continuation", obj, 1)) {
 		*ret = self->fail;
 		return &nil;
 	}
@@ -245,7 +267,7 @@ static struct obj *fn_callcc(CPS_ARGS) {
 	(*ret)->fn = eval_cps;
 	struct obj *contp = make_obj(CONTN);
 	contp->contnp = self->next;
-	return contp;
+	return cons(obj->head, cons(contp, &nil));
 }
 
 static struct obj *fn_error(CPS_ARGS) {
@@ -358,7 +380,7 @@ COMPARE_OPS(COMPARE_FN)
 #undef COMPARE_FN
 
 void add_globals(struct env *env) {
-#define DEFSYM(name, fn, type) setsym(env, str_from_string_lit(#name), make_fn(type, fn)); gc_cycle();
+#define DEFSYM(name, fn, type) definesym(env, str_from_string_lit(#name), make_fn(type, fn)); gc_cycle()
 	DEFSYM(begin, fn_begin, FN);
 	DEFSYM(call-with-current-continuation, fn_callcc, FN);
 	DEFSYM(car, fn_car, FN);
@@ -375,6 +397,7 @@ void add_globals(struct env *env) {
 	DEFSYM(newline, fn_newline, FN);
 	DEFSYM(pair?, fn_pair_, FN);
 	DEFSYM(quote, fn_quote, SPECFORM);
+	DEFSYM(set!, fn_set_, SPECFORM);
 	DEFSYM(write, fn_write, FN);
 #define REGISTER_FN(name, op, ...) DEFSYM(op, name, FN);
 	ARITH_OPS(REGISTER_FN)

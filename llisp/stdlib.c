@@ -39,6 +39,10 @@ static const char llisp_stdlib[] = LLISP_CODE(
       nil
       (cons (fn (car lst)) (map fn (cdr lst))))))
 
+(define for-each (lambda (fn lst)
+  (map fn lst)
+  nil))
+
 (define foldl (lambda (fn init lst)
   (if (null? lst)
       init
@@ -120,9 +124,7 @@ static const char llisp_stdlib[] = LLISP_CODE(
         ((and (pair? a) (pair? b)) (and (equal? (car a) (car b))
                                         (equal? (cdr a) (cdr b)))))))
 
-; extra layer of abstraction because the long form is only defined \n
-; on the cps-style function \n
-(define call/cc (lambda (fun) (call-with-current-continuation fun)))
+(define call/cc call-with-current-continuation)
 
 ; to help with copy/pasting from repl.it \n
 (define define-macro (macro (nameargs . body)

@@ -8,7 +8,7 @@
     <DisplayString Condition="typ == CELL &amp;&amp; tail->typ == CELL" IncludeView="noparens">{*head} {*tail,view(noparens)}</DisplayString>
     <DisplayString Condition="typ == CELL &amp;&amp; tail->typ == CELL" ExcludeView="noparens">({*head} {*tail,view(noparens)})</DisplayString>
     <DisplayString Condition="typ == NUM">{num}</DisplayString>
-    <DisplayString Condition="typ == SYMBOL">{sym}</DisplayString>
+    <DisplayString Condition="typ == SYMBOL || typ == STRING">{str}</DisplayString>
     <DisplayString Condition="typ == FN || typ == SPECFORM">{fn,na}</DisplayString>
     <DisplayString Condition="typ == LAMBDA">[lambda args={*args}]</DisplayString>
     <DisplayString Condition="typ == MACRO">[macro args={*args}]</DisplayString>
@@ -22,7 +22,7 @@
       
       <Item Name="Num" Condition="typ == NUM">num</Item>
       
-      <Item Name="Symbol" Condition="typ == SYMBOL">sym</Item>
+      <Item Name="Symbol" Condition="typ == SYMBOL">str</Item>
       
       <Item Name="Fn" Condition="typ == FN || typ == SPECFORM">fn,na</Item>
       
@@ -30,6 +30,8 @@
       <Item Name="Code" Condition="typ == LAMBDA || typ == MACRO">*code</Item>
 
       <Item Name="Builtin" Condition="typ == BUILTIN">builtin,sb</Item>
+
+      <Item Name="String" Condition="typ == STRING">str</Item>
 
       <ExpandedItem Condition="typ == CONTN">contnp</ExpandedItem>
     </Expand>

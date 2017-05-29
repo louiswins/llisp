@@ -10,10 +10,9 @@
 
 static int repl_done = 0;
 static struct obj *fn_quit(CPS_ARGS) {
-	(void)obj;
 	repl_done = 1;
 	*ret = self->fail;
-	return &nil;
+	return obj;
 }
 
 int main() {

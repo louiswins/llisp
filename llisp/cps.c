@@ -247,6 +247,10 @@ struct obj *run_cps(struct obj *obj, struct env *env) {
 	}
 	if (gc_current_contn == &cfail) {
 		puts("\nExecution failed.");
+		/* If we got `(obj)`, just return `obj`. */
+		if (TYPE(gc_current_obj) == CELL && gc_current_obj->tail == &nil) {
+			gc_current_obj = gc_current_obj->head;
+		}
 	}
 	gc_current_contn = NULL;
 	return gc_current_obj;

@@ -249,14 +249,9 @@ static struct obj *fn_callcc(CPS_ARGS) {
 }
 
 static struct obj *fn_error(CPS_ARGS) {
-	int len = length(obj);
-	if (len >= 1) {
-		fputs("error: custom messages not yet supported.\n", stderr);
-	}
 	*ret = self->fail;
-	return &nil;
+	return obj;
 }
-
 
 static struct obj *make_closure(const char *name, enum objtype type, CPS_ARGS) {
 	if (obj == &nil) {

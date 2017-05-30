@@ -40,10 +40,16 @@ static const char llisp_stdlib[] = LLISP_CODE(
   (if (null? lst)
       nil
       (cons (fn (car lst)) (map fn (cdr lst))))))
-
 (define for-each (lambda (fn lst)
   (map fn lst)
   nil))
+
+(define filter (lambda (fn lst)
+  (define filter-helper (lambda (fn lst accum)
+    (cond ((null? lst) accum)
+          ((fn (car lst)) (filter-helper fn (cdr lst) (cons (car lst) accum)))
+          (else (filter-helper fn (cdr lst) accum)))))
+  (reverse (filter-helper fn lst nil))))
 
 (define foldl (lambda (fn init lst)
   (if (null? lst)
@@ -95,7 +101,7 @@ static const char llisp_stdlib[] = LLISP_CODE(
 (define and (macro args
   (cond ((null? args) #t)
         ((null? (cdr args)) (car args)) ; final symbol \n
-        (#t (list (quote if) (car args) (cons (quote and) (cdr args)))))))
+        (else (list (quote if) (car args) (cons (quote and) (cdr args)))))))
 
 (define or (macro args
   (if (null? args)
@@ -113,6 +119,18 @@ static const char llisp_stdlib[] = LLISP_CODE(
         (#t (nth (- n 1) (cdr lst))))))
 
 (define pi 3.14159265358979323846)
+
+; Disgustingly inefficient \n
+; Also not guaranteed to work since we use doubles everywhere. Who knows about fmod. \n
+(define prime? (lambda (n)
+  (define prime-helper (lambda (k)
+    (cond ((<= k 1) #t)
+          ((= (% n k) 0) #f)
+          (else (prime-helper (- k 2))))))
+  (cond ((< n 2) #f)
+        ((= n 2) #t)
+        ((= 0 (% n 2)) #f)
+        (else (prime-helper (- n 2))))))
 
 (define length (lambda (lst)
   (define length-helper (lambda (n lst)

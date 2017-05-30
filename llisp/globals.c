@@ -1,4 +1,5 @@
 #include <limits.h>
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
 #include "cps.h"
@@ -326,7 +327,7 @@ static struct obj *fn_macro(CPS_ARGS) {
 	arith(fn_minus, -) \
 	arith(fn_times, *) \
 	arith(fn_div, /, if(obj->head->num==0.){fputs("Warning: /: divide by zero\n", stderr);})
-#define NAN(arg, op) \
+#define NONNUM(arg, op) \
 	if (TYPE(arg) != NUM) { \
 		fputs(#op ": argument not a number\n", stderr); \
 		*ret = self->fail; \
@@ -339,15 +340,15 @@ static struct obj *name(CPS_ARGS) { \
 		*ret = self->fail; \
 		return &nil; \
 	} \
-	NAN(obj->head, op) \
+	NONNUM(obj->head, op) \
 	double val = obj->head->num; \
 	for (obj = obj->tail; TYPE(obj) == CELL; obj = obj->tail) { \
-		NAN(obj->head, op) \
+		NONNUM(obj->head, op) \
 		__VA_ARGS__ \
 		val = val op obj->head->num; \
 	} \
 	if (obj != &nil) { \
-		NAN(obj, op) \
+		NONNUM(obj, op) \
 		__VA_ARGS__ \
 		val = val op obj->num; \
 	} \
@@ -357,7 +358,20 @@ static struct obj *name(CPS_ARGS) { \
 }
 ARITH_OPS(ARITH_FN)
 #undef ARITH_FN
-#undef NAN
+#undef NONNUM
+static struct obj *fn_mod(CPS_ARGS) {
+	if (!check_args("%", obj, 2)) {
+		*ret = self->fail;
+		return &nil;
+	}
+	if (TYPE(obj->head) != NUM || TYPE(obj->tail->head) != NUM) {
+		fputs("%: argument not a number\n", stderr);
+		*ret = self->fail;
+		return &nil;
+	}
+	*ret = self->next;
+	return make_num(fmod(obj->head->num, obj->tail->head->num));
+}
 
 #define COMPARE_OPS(compare) \
 	compare(fn_cmpeq, =, ==) \
@@ -367,7 +381,10 @@ ARITH_OPS(ARITH_FN)
 	compare(fn_cmpge, >=, >=)
 #define COMPARE_FN(cname, lispname, op) \
 static struct obj *cname(CPS_ARGS) { \
-	if (!check_args(#lispname, obj, 2)) return &nil; \
+	if (!check_args(#lispname, obj, 2)) { \
+		*ret = self->fail; \
+		return &nil; \
+	} \
 	if (TYPE(obj->head) != NUM || TYPE(obj->tail->head) != NUM) { \
 		fputs(#lispname ": argument not a number\n", stderr); \
 		*ret = self->fail; \
@@ -402,6 +419,7 @@ void add_globals(struct env *env) {
 #define REGISTER_FN(name, op, ...) DEFSYM(op, name, FN);
 	ARITH_OPS(REGISTER_FN)
 #undef REGISTER_FN
+	DEFSYM(%, fn_mod, FN);
 #define REGISTER_FN(cname, lispname, ...) DEFSYM(lispname, cname, FN);
 	COMPARE_OPS(REGISTER_FN)
 #undef REGISTER_FN

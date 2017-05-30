@@ -75,4 +75,9 @@
   <ItemGroup>
     <Natvis Include="obj.natvis" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="stdlib.llisp">
+      <Filter>Resource Files</Filter>
+    </None>
+  </ItemGroup>
 </Project>

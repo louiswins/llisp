@@ -44,7 +44,6 @@ struct obj {
 #define SETTYPE(o, typ) (TYPE(o) = (typ))
 
 extern struct obj nil;
-extern struct obj *pnil;
 extern struct obj true_;
 extern struct obj false_;
 

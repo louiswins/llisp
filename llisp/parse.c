@@ -58,8 +58,6 @@ static void ungetch(struct input *i, int ch) {
 static int isbegin(int ch) { return ch == '(' || ch == '[' || ch == '{'; }
 static int isend(int ch) { return ch == ')' || ch == ']' || ch == '}'; }
 static int isdelim(int ch) { return isbegin(ch) || isend(ch); }
-static int issym(int ch) { return isalnum(ch) || strchr("!$%&*+-./:<=>?@^_~#", ch); }
-static int isidentstart(int ch) { return isalpha(ch) || strchr("!$%&*/:<=>?@^_~#", ch); } /* '+, '-, '->(etc) taken care of other places */
 
 static void skipws(struct input *i) {
 	int ch;
@@ -86,7 +84,10 @@ static struct string *read_token(struct input *i) {
 		s = make_str_ref(i->str + (i->offset - 1));
 	}
 	s = str_append(s, (char)ch);
-	if (ch == '"') {
+	if (isdelim(ch) || ch == '\'') {
+		/* These tokens are complete by themselves */
+		return s;
+	} else if (ch == '"') {
 		int isescape = 0;
 		for (;;) {
 			ch = getch(i);
@@ -99,7 +100,7 @@ static struct string *read_token(struct input *i) {
 				return NULL;
 			}
 			s = str_append(s, (char)ch);
-			switch(ch) {
+			switch (ch) {
 			default:
 				isescape = 0;
 				break;
@@ -114,8 +115,7 @@ static struct string *read_token(struct input *i) {
 				break;
 			}
 		}
-
-	} else if (!isdelim(ch)) {
+	} else {
 		while ((ch = getch(i)) != EOF && !isspace(ch) && !isdelim(ch)) {
 			s = str_append(s, (char)ch);
 		}
@@ -128,9 +128,6 @@ static struct obj *tryparsenum(struct string *s) {
 	char *endp;
 	double val = strtod(s->str, &endp);
 	if (endp != s->str + s->len) {
-		fprintf(stderr, "Invalid number: ");
-		print_str_escaped(stderr, s);
-		fputs("", stderr);
 		return NULL;
 	}
 	return make_num(val);
@@ -281,23 +278,21 @@ static struct obj *parse_one(struct input *i, struct string *tok) {
 		fprintf(stderr, "Unmatched %c\n", ch);
 		return NULL;
 	}
+	if (ch == '\'') {
+		struct string *next = read_token(i);
+		if (!next) return NULL;
+		return cons(make_symbol(str_from_string_lit("quote")), cons(parse_one(i, next), &nil));
+	}
 	if (ch == '"') {
 		return validate_string(tok);
 	}
 	if (ch == '+' || ch == '-' || ch == '.' || isdigit(ch)) {
-		/* Special case for '+ and '- and '->(whatever) symbols */
-		if ((tok->len == 1 && (ch == '+' || ch == '-')) || (tok->len > 1 && ch == '-' && tok->str[1] == '>')) {
-			return make_symbol(tok);
+		struct obj *ret = tryparsenum(tok);
+		if (ret) {
+			return ret;
 		}
-		return tryparsenum(tok);
 	}
-	if (isidentstart(ch)) {
-		return make_symbol(tok);
-	}
-	fputs("Invalid token: ", stderr);
-	print_str_escaped(stderr, tok);
-	fputs("", stderr);
-	return NULL;
+	return make_symbol(tok);
 }
 
 struct obj *parse(struct input *i) {

@@ -5,25 +5,26 @@
 
 (define #t (= 0 0))
 (define #f (= 0 1))
+(define not (lambda (x) (if x #f #t)))
 
 ; if in terms of cond
 ;(define if (macro (cnd then . els)
-;  (cons (quote cond) (cons (list cnd then)
+;  (cons 'cond (cons (list cnd then)
 ;                           (cond ((null? els) ())
-;                                 (#t (list (cons #t els))))))))
+;                                 (else (list (cons #t els))))))))
 
 ; cond in terms of if
 (define cond (macro condns
   (if (null? condns) #f
       (if (null? (cdr (car condns)))
-          (let ((sym (gensym)))                                ; hygiene :)
-            (list (quote let) (list (list sym (car (car condns))))
-               (list (quote if) sym sym (cons (quote cond) (cdr condns)))))
-          (if (eq? (car (car condns)) (quote else))
-              (cons (quote begin) (cdr (car condns)))          ; just do it if you saw else
-              (list (quote if) (car (car condns))              ; test
-                    (cons (quote begin) (cdr (car condns)))    ; result
-                    (cons (quote cond) (cdr condns))))))))
+          (let ((sym (gensym)))                         ; hygiene :)
+            (list 'let (list (list sym (car (car condns))))
+               (list 'if sym sym (cons 'cond (cdr condns)))))
+          (if (eq? (car (car condns)) 'else)
+              (cons 'begin (cdr (car condns)))          ; just do it if you saw else
+              (list 'if (car (car condns))              ; test
+                    (cons 'begin (cdr (car condns)))    ; result
+                    (cons 'cond (cdr condns))))))))
 
 (define map (lambda (fn lst)
   (if (null? lst)
@@ -59,20 +60,20 @@
 (define let (macro (bindings . body)
   (cons                                          ; application
     (list                                        ; lambda defn
-      (quote lambda)
+      'lambda
       (map car bindings)
       . body)
     (map (lambda (x) (car (cdr x))) bindings)))) ; args
 
 (define let* (macro (bindings . body)
-  (cond ((null? bindings) (cons (quote begin) body))
-        ((null? (cdr bindings)) (cons (quote let) (cons bindings body)))
-        (#t (list (quote let) (list (car bindings))
-          (cons (quote let*) (cons (cdr bindings) body)))))))
+  (cond ((null? bindings) (cons 'begin body))
+        ((null? (cdr bindings)) (cons 'let (cons bindings body)))
+        (else (list 'let (list (car bindings))
+          (cons 'let* (cons (cdr bindings) body)))))))
 
 (define letrec (macro (bindings . body)
-  (list (cons (quote lambda) (cons ()
-    (foldr (lambda (binding rest) (cons (cons (quote define) binding) rest)) body bindings))))))
+  (list (cons 'lambda (cons ()
+    (foldr (lambda (binding rest) (cons (cons 'define binding) rest)) body bindings))))))
 
 (define reverse (lambda (lst)
   (foldl (lambda (rest cur) (cons cur rest)) () lst)))
@@ -90,14 +91,12 @@
 (define and (macro args
   (cond ((null? args) #t)
         ((null? (cdr args)) (car args)) ; final symbol
-        (else (list (quote if) (car args) (cons (quote and) (cdr args)))))))
+        (else (list 'if (car args) (cons 'and (cdr args)))))))
 
 (define or (macro args
   (if (null? args)
       #f
-      (cons (quote cond) (map list args)))))
-
-(define not (lambda (x) (if x #f #t)))
+      (cons 'cond (map list args)))))
 
 (define append (lambda (xs ys)
   (foldr cons ys xs)))
@@ -105,7 +104,7 @@
 (define nth (lambda (n lst)
   (cond ((null? lst) (error "list too short"))
         ((zero? n) (car lst))
-        (#t (nth (- n 1) (cdr lst))))))
+        (else (nth (- n 1) (cdr lst))))))
 
 (define pi 3.14159265358979323846)
 
@@ -125,7 +124,7 @@
   (define length-helper (lambda (n lst)
     (cond ((null? lst) n)
           ((pair? lst) (length-helper (+ n 1) (cdr lst)))
-          (#t (error "not a list")))))
+          (else (error "not a list")))))
   (length-helper 0 lst)))
 
 (define equal? (lambda (a b)
@@ -137,4 +136,4 @@
 
 ; to help with copy/pasting from repl.it
 (define define-macro (macro (nameargs . body)
-  (list (quote define) (car nameargs) (cons (quote macro) (cons (cdr nameargs) body)))))
+  (list 'define (car nameargs) (cons 'macro (cons (cdr nameargs) body)))))

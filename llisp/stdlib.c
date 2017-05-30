@@ -30,9 +30,11 @@ static const char llisp_stdlib[] = LLISP_CODE(
           (let ((sym (gensym))) ; (hygiene :)\n
             (list (quote let) (list (list sym (car (car condns))))
                (list (quote if) sym sym (cons (quote cond) (cdr condns)))))
-          (list (quote if) (car (car condns)) ; test\n
-               (car (cdr (car condns))) ; result\n
-               (cons (quote cond) (cdr condns)))))))
+          (if (eq? (car (car condns)) (quote else))
+              (cons (quote begin) (cdr (car condns))) ; just do it if you saw else \n
+              (list (quote if) (car (car condns)) ; test \n
+                    (cons (quote begin) (cdr (car condns))) ; result \n
+                    (cons (quote cond) (cdr condns))))))))
 
 (define map (lambda (fn lst)
   (if (null? lst)

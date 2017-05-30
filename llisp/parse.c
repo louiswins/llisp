@@ -85,7 +85,7 @@ static struct string *read_token(struct input *i) {
 	} else {
 		s = make_str_ref(i->str + (i->offset - 1));
 	}
-	str_append(s, (char)ch);
+	s = str_append(s, (char)ch);
 	if (ch == '"') {
 		int isescape = 0;
 		for (;;) {
@@ -98,7 +98,7 @@ static struct string *read_token(struct input *i) {
 				fprintf(stderr, "Invalid byte \\x%02X in string\n", ch);
 				return NULL;
 			}
-			str_append(s, (char)ch);
+			s = str_append(s, (char)ch);
 			switch(ch) {
 			default:
 				isescape = 0;
@@ -117,7 +117,7 @@ static struct string *read_token(struct input *i) {
 
 	} else if (!isdelim(ch)) {
 		while ((ch = getch(i)) != EOF && !isspace(ch) && !isdelim(ch)) {
-			str_append(s, (char)ch);
+			s = str_append(s, (char)ch);
 		}
 		ungetch(i, ch);
 	}
@@ -216,25 +216,25 @@ static struct obj *validate_string(struct string *tok) {
 	const char *end = tok->str + tok->len - 1;
 	for (; cur != end; ++cur) {
 		if (*cur != '\\') {
-			str_append(ret, *cur);
+			ret = str_append(ret, *cur);
 			continue;
 		}
 		++cur;
 		switch (*cur) {
 		case '\\':
-			str_append(ret, '\\');
+			ret = str_append(ret, '\\');
 			break;
 		case 'r':
-			str_append(ret, '\r');
+			ret = str_append(ret, '\r');
 			break;
 		case 'n':
-			str_append(ret, '\n');
+			ret = str_append(ret, '\n');
 			break;
 		case 't':
-			str_append(ret, '\t');
+			ret = str_append(ret, '\t');
 			break;
 		case '"':
-			str_append(ret, '"');
+			ret = str_append(ret, '"');
 			break;
 		case 'x': {
 			/* We know the string ends in ", so if we get hex digits we're ok */
@@ -242,7 +242,7 @@ static struct obj *validate_string(struct string *tok) {
 			if (val1 < 0) return NULL;
 			int val2 = parseonehex(*++cur);
 			if (val2 < 0) return NULL;
-			str_append(ret, (char)(val1 * 16 + val2));
+			ret = str_append(ret, (char)(val1 * 16 + val2));
 			break;
 		}
 		default:

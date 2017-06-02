@@ -84,9 +84,18 @@ static struct string *read_token(struct input *i) {
 		s = make_str_ref(i->str + (i->offset - 1));
 	}
 	s = str_append(s, (char)ch);
-	if (isdelim(ch) || ch == '\'') {
+	if (isdelim(ch) || ch == '\'' || ch == '`') {
 		/* These tokens are complete by themselves */
 		return s;
+	} else if (ch == ',') {
+		/* could be , or ,@ */
+		ch = getch(i);
+		if (ch == '@') {
+			return str_append(s, (char)ch);
+		} else {
+			ungetch(i, ch);
+			return s;
+		}
 	} else if (ch == '"') {
 		int isescape = 0;
 		for (;;) {
@@ -259,6 +268,9 @@ static int ismatched(int start, int end) {
 		|| (start == '[' && end == ']')
 		|| (start == '{' && end == '}');
 }
+static int isquotesyntax(char ch) {
+	return ch == '\'' || ch == '`' || ch == ',';
+}
 
 static struct obj *parse_one(struct input *i, struct string *tok) {
 	char ch = tok->str[0];
@@ -278,10 +290,32 @@ static struct obj *parse_one(struct input *i, struct string *tok) {
 		fprintf(stderr, "Unmatched %c\n", ch);
 		return NULL;
 	}
-	if (ch == '\'') {
-		struct string *next = read_token(i);
+	if (isquotesyntax(ch)) {
+		struct string *nexttok = read_token(i);
+		if (!nexttok) return NULL;
+		struct obj *next = parse_one(i, nexttok);
 		if (!next) return NULL;
-		return cons(make_symbol(str_from_string_lit("quote")), cons(parse_one(i, next), &nil));
+		struct string *sym;
+		switch (ch) {
+		default:
+			fputs("Unknown quote syntax ", stderr);
+			print_str_escaped(stderr, tok);
+			return NULL;
+		case '\'':
+			sym = str_from_string_lit("quote");
+			break;
+		case '`':
+			sym = str_from_string_lit("quasiquote");
+			break;
+		case ',':
+			if (tok->len == 1) {
+				sym = str_from_string_lit("unquote");
+			} else {
+				sym = str_from_string_lit("unquote-splicing");
+			}
+			break;
+		}
+		return cons(make_symbol(sym), cons(next, &nil));
 	}
 	if (ch == '"') {
 		return validate_string(tok);

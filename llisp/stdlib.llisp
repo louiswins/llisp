@@ -7,6 +7,21 @@
 (define #f (= 0 1))
 (define not (lambda (x) (if x #f #t)))
 
+(define cadr (lambda (p) (car (cdr p))))
+
+; bootstrap macros
+(define unquote (lambda args (error "unquote , must only be used within quasiquote `")))
+(define unquote-splicing (lambda args (error "unquote-splicing ,@ must only be used within quasiquote `")))
+(define quasiquote (macro (data)
+  (cond ((not (pair? data))   ; `x => 'x
+         (list 'quote data))
+        ((eq? (car data) 'unquote)   ; `,x => x
+         (cadr data))
+        ((and (pair? (car data)) (eq? (car (car data)) 'unquote-splicing))   ; `(,@x . y) => (append x `y)
+         (list 'append (cadr (car data)) (list 'quasiquote (cdr data))))
+        (else   ; `(x . y) => (`x . `y)
+         (list 'cons (list 'quasiquote (car data)) (list 'quasiquote (cdr data)))))))
+
 ; if in terms of cond
 ;(define if (macro (cnd then . els)
 ;  (cons 'cond (cons (list cnd then)
@@ -14,6 +29,7 @@
 ;                                 (else (list (cons #t els))))))))
 
 ; cond in terms of if
+; (quasiquote) uses (cond), so do it manually
 (define cond (macro condns
   (if (null? condns) #f
       (if (null? (cdr (car condns)))
@@ -58,22 +74,22 @@
         ((pair? lst) (list? (cdr lst))))))
 
 (define let (macro (bindings . body)
-  (cons                                          ; application
-    (list                                        ; lambda defn
-      'lambda
-      (map car bindings)
-      . body)
-    (map (lambda (x) (car (cdr x))) bindings)))) ; args
+  `((lambda ,(map car bindings) ,@body)
+    ,@(map cadr bindings))))
+
 
 (define let* (macro (bindings . body)
-  (cond ((null? bindings) (cons 'begin body))
-        ((null? (cdr bindings)) (cons 'let (cons bindings body)))
-        (else (list 'let (list (car bindings))
-          (cons 'let* (cons (cdr bindings) body)))))))
+  (cond ((null? bindings)
+         `(begin ,@body))
+        ((null? (cdr bindings))
+         `(let ,bindings ,@body))
+        (else
+         `(let (,(car bindings))
+            (let* ,(cdr bindings) ,@body))))))
 
 (define letrec (macro (bindings . body)
-  (list (cons 'lambda (cons ()
-    (foldr (lambda (binding rest) (cons (cons 'define binding) rest)) body bindings))))))
+  `((lambda ()
+     ,@(map (lambda (binding) `(define ,@binding)) bindings) ,@body))))
 
 (define reverse (lambda (lst)
   (foldl (lambda (rest cur) (cons cur rest)) () lst)))
@@ -88,15 +104,16 @@
       (range-helper 0 (- a 1) nil)
       (range-helper a (- (car b) 1) nil))))
 
+; (quasiquote) uses (and), so do it the long way
 (define and (macro args
-  (cond ((null? args) #t)
-        ((null? (cdr args)) (car args)) ; final symbol
+  (cond ((null? args) #t) ; (and)
+        ((null? (cdr args)) (car args)) ; (and x)
         (else (list 'if (car args) (cons 'and (cdr args)))))))
 
 (define or (macro args
   (if (null? args)
       #f
-      (cons 'cond (map list args)))))
+      `(cond ,@(map list args)))))
 
 (define append (lambda (xs ys)
   (foldr cons ys xs)))
@@ -136,4 +153,4 @@
 
 ; to help with copy/pasting from repl.it
 (define define-macro (macro (nameargs . body)
-  (list 'define (car nameargs) (cons 'macro (cons (cdr nameargs) body)))))
+  `(define ,(car nameargs) (macro ,(cdr nameargs) ,@body))))

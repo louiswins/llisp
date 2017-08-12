@@ -31,13 +31,14 @@
 ; cond in terms of if
 ; (quasiquote) uses (cond), so do it manually
 (define cond (macro condns
-  (if (null? condns) #f
+  (if (null? condns)
+      #f
       (if (null? (cdr (car condns)))
           (let ((sym (gensym)))                         ; hygiene :)
             (list 'let (list (list sym (car (car condns))))
                (list 'if sym sym (cons 'cond (cdr condns)))))
-          (if (eq? (car (car condns)) 'else)
-              (cons 'begin (cdr (car condns)))          ; just do it if you saw else
+          (if (if (null? (cdr condns)) (eq? (car (car condns)) 'else))
+              (cons 'begin (cdr (car condns)))          ; just do it if you saw else in the last slot
               (list 'if (car (car condns))              ; test
                     (cons 'begin (cdr (car condns)))    ; result
                     (cons 'cond (cdr condns))))))))

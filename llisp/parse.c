@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <ctype.h>
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -53,7 +54,7 @@ static struct string *read_token(struct input *i) {
 	if (ch == EOF) return NULL;
 	struct string *s = make_str();
 	s = str_append(s, (char)ch);
-	if (isdelim(ch) || ch == '\'' || ch == '`') {
+	if (isdelim(ch) || ch == '\'' || ch == '`' || ch == '"') {
 		/* These tokens are complete by themselves */
 		return s;
 	} else if (ch == ',') {
@@ -64,34 +65,6 @@ static struct string *read_token(struct input *i) {
 		} else {
 			ungetch(i, ch);
 			return s;
-		}
-	} else if (ch == '"') {
-		int isescape = 0;
-		for (;;) {
-			ch = getch(i);
-			if (ch == EOF) {
-				fputs("Unterminated string\n", stderr);
-				return NULL;
-			}
-			if (!isprint(ch)) {
-				fprintf(stderr, "Invalid byte \\x%02X in string\n", ch);
-				return NULL;
-			}
-			s = str_append(s, (char)ch);
-			switch (ch) {
-			default:
-				isescape = 0;
-				break;
-			case '\\':
-				isescape = !isescape;
-				break;
-			case '"':
-				if (isescape)
-					isescape = 0;
-				else
-					return s;
-				break;
-			}
 		}
 	} else {
 		while ((ch = getch(i)) != EOF && !isspace(ch) && !isdelim(ch)) {
@@ -166,70 +139,99 @@ static struct obj *parse_list(struct input *i) {
 	}
 }
 
-static int parseonehex(int ch) {
-	if (!isxdigit(ch)) {
-		if (isprint(ch)) {
-			fprintf(stderr, "Invalid hex digit %c\n", ch);
+static uint32_t read_unicode_escape(struct input *i, int len) {
+	uint32_t ret = 0;
+	while (len--) {
+		int ch = getch(i);
+		if ('0' <= ch && ch <= '9') {
+			ret = (ret << 4) | (ch - '0');
+		} else if ('a' <= ch && ch <= 'f') {
+			ret = (ret << 4) | (ch - 'a' + 10);
+		} else if ('A' <= ch && ch <= 'F') {
+			ret = (ret << 4) | (ch - 'A' + 10);
 		} else {
-			fprintf(stderr, "Invalid hex digit \\x%02X\n", ch);
+			fprintf(stderr, "Invalid unicode escaped char '%c'\n", ch);
+			return (uint32_t)-1; /* 0xFFFFFFFF is not a unicode character so it works as a sentinel */
 		}
-		return -1;
 	}
-	if (isdigit(ch)) ch -= '0';
-	else if (isupper(ch)) ch -= 'A';
-	else ch -= 'a';
-	return ch;
+	return ret;
 }
-static struct obj *validate_string(struct string *tok) {
-	if (!memchr(tok->str, '\\', tok->len)) {
-		/* Fast path: no escapes. Copy everything except the quotes */
-		return make_str_obj(make_str_from_ptr_len(tok->str + 1, tok->len - 2));
+static struct string *write_utf8(struct string *s, uint32_t codepoint) {
+	if (codepoint <= 0x7f) {
+		return str_append(s, (char)codepoint);
 	}
-	/* Slow path */
-	struct string *ret = make_str();
-	const char *cur = tok->str + 1;
-	const char *end = tok->str + tok->len - 1;
-	for (; cur != end; ++cur) {
-		if (*cur != '\\') {
-			ret = str_append(ret, *cur);
-			continue;
-		}
-		++cur;
-		switch (*cur) {
-		case '\\':
-			ret = str_append(ret, '\\');
-			break;
-		case 'r':
-			ret = str_append(ret, '\r');
-			break;
-		case 'n':
-			ret = str_append(ret, '\n');
-			break;
-		case 't':
-			ret = str_append(ret, '\t');
-			break;
-		case '"':
-			ret = str_append(ret, '"');
-			break;
-		case 'x': {
-			/* We know the string ends in ", so if we get hex digits we're ok */
-			int val1 = parseonehex(*++cur);
-			if (val1 < 0) return NULL;
-			int val2 = parseonehex(*++cur);
-			if (val2 < 0) return NULL;
-			ret = str_append(ret, (char)(val1 * 16 + val2));
-			break;
-		}
-		default:
-			if (isprint(*cur)) {
-				fprintf(stderr, "Invalid escape \\%c\n", *cur);
-			} else {
-				fprintf(stderr, "Invalid escape \\(\\x%02X)\n", *cur);
-			}
+	if (codepoint <= 0x7ff) {
+		unsigned char ch = (unsigned char)(0xc0 | (codepoint >> 6));
+		s = str_append(s, (char)ch);
+		ch = 0x80 | (codepoint & 0x3f);
+		return str_append(s, (char)ch);
+	}
+	if (codepoint <= 0xffff) {
+		unsigned char ch = (unsigned char)(0xe0 | (codepoint >> 12));
+		s = str_append(s, (char)ch);
+		ch = 0x80 | ((codepoint >> 6) & 0x3f);
+		s = str_append(s, (char)ch);
+		ch = 0x80 | (codepoint & 0x3f);
+		return str_append(s, (char)ch);
+	}
+	if (codepoint <= 0x10ffff) {
+		unsigned char ch = (unsigned char)(0xf0 | (codepoint >> 18));
+		s = str_append(s, (char)ch);
+		ch = 0x80 | ((codepoint >> 12) & 0x3f);
+		s = str_append(s, (char)ch);
+		ch = 0x80 | ((codepoint >> 6) & 0x3f);
+		s = str_append(s, (char)ch);
+		ch = 0x80 | (codepoint & 0x3f);
+		return str_append(s, (char)ch);
+	}
+	fprintf(stderr, "Invalid unicode codepoint %" PRIu32 "\n", codepoint);
+	return s;
+}
+
+static struct obj *parse_string(struct input *i) {
+	struct string *str = make_str();
+	for (;;) {
+		uint32_t codepoint;
+		int ch = getch(i);
+		if (ch == EOF) {
+			fputs("Unclosed string\n", stderr);
 			return NULL;
 		}
+		if (ch == '"') {
+			return make_str_obj(str);
+		}
+		if (ch != '\\') {
+			str = str_append(str, (char)ch);
+			continue;
+		}
+		ch = getch(i);
+		switch (ch) {
+		default:
+			fprintf(stderr, "Warning: unknown escape \\%c, treating as %c\n", ch, ch);
+			/* fallthru */
+		case '\\':
+		case '\'':
+		case '"':
+			str = str_append(str, (char)ch);
+			break;
+		case 'r':
+			str = str_append(str, '\r');
+			break;
+		case 'n':
+			str = str_append(str, '\n');
+			break;
+		case 't':
+			str = str_append(str, '\t');
+			break;
+		case 'u':
+		case 'U':
+			codepoint = read_unicode_escape(i, ch == 'u' ? 4 : 8);
+			if (codepoint != (uint32_t)-1) {
+				str = write_utf8(str, codepoint);
+			}
+			break;
+		}
 	}
-	return make_str_obj(ret);
 }
 
 static int ismatched(int start, int end) {
@@ -287,7 +289,7 @@ static struct obj *parse_one(struct input *i, struct string *tok) {
 		return cons(make_symbol(sym), cons(next, &nil));
 	}
 	if (ch == '"') {
-		return validate_string(tok);
+		return parse_string(i);
 	}
 	if (ch == '+' || ch == '-' || ch == '.' || isdigit(ch)) {
 		struct obj *ret = tryparsenum(tok);

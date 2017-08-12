@@ -84,6 +84,11 @@
   </Type>
 
   <Type Name="string">
-    <DisplayString>{str,[len]s}</DisplayString>
+    <DisplayString>{str,[len]s8}</DisplayString>
+    <Expand>
+      <Item Name="str">str,[len]s8</Item>
+      <Item Name="len">len</Item>
+      <Item Name="cap">cap</Item>
+    </Expand>
   </Type>
 </AutoVisualizer>

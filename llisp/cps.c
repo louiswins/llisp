@@ -136,7 +136,8 @@ static struct obj *eval_doapply(CPS_ARGS) {
 /* obj = expansion, self->data = (macroname . args), call self->next(eval(obj)) */
 static struct obj *eval_macroreeval(CPS_ARGS) {
 	/* expand macro in place */
-	memcpy(self->data, obj, sizeof(*self->data));
+	/* disabled due to design issues */
+	/* memcpy(self->data, obj, sizeof(*self->data)); */
 
 	*ret = dupcontn(self);
 	(*ret)->data = &nil;

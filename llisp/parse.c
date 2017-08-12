@@ -11,48 +11,22 @@
 
 
 struct input input_from_file(FILE *f) {
-	struct input ret = { IN_FILE };
+	struct input ret = { NULL, UNGET_NONE };
 	ret.f = f;
-	ret.ungotten = UNGET_NONE;
-	return ret;
-}
-struct input input_from_string(const char *s) {
-	struct input ret = { IN_STRING };
-	ret.str = s;
-	ret.offset = 0;
 	return ret;
 }
 
 static int getch(struct input *i) {
-	if (i->type == IN_FILE) {
-		if (i->ungotten != UNGET_NONE) {
-			int ret = i->ungotten;
-			i->ungotten = UNGET_NONE;
-			return ret;
-		}
-		return getc(i->f);
-	} else {
-		char ch = i->str[i->offset];
-		if (ch) {
-			++i->offset;
-			return ch;
-		}
-		return EOF;
+	if (i->ungotten != UNGET_NONE) {
+		int ret = i->ungotten;
+		i->ungotten = UNGET_NONE;
+		return ret;
 	}
+	return getc(i->f);
 }
 static void ungetch(struct input *i, int ch) {
-	if (i->type == IN_FILE) {
-		assert(i->ungotten == UNGET_NONE);
-		i->ungotten = ch;
-	} else {
-		assert(i->offset > 0);
-		if (ch == EOF) {
-			assert(i->str[i->offset] == '\0');
-		} else {
-			assert(i->str[i->offset - 1] == ch);
-			--i->offset;
-		}
-	}
+	assert(i->ungotten == UNGET_NONE);
+	i->ungotten = ch;
 }
 
 static int isbegin(int ch) { return ch == '(' || ch == '[' || ch == '{'; }
@@ -74,15 +48,10 @@ static void skipws(struct input *i) {
 }
 
 static struct string *read_token(struct input *i) {
-	struct string *s;
 	skipws(i);
 	int ch = getch(i);
 	if (ch == EOF) return NULL;
-	if (i->type == IN_FILE) {
-		s = make_str();
-	} else {
-		s = make_str_ref(i->str + (i->offset - 1));
-	}
+	struct string *s = make_str();
 	s = str_append(s, (char)ch);
 	if (isdelim(ch) || ch == '\'' || ch == '`') {
 		/* These tokens are complete by themselves */
@@ -341,9 +310,5 @@ struct obj *parse(struct input *i) {
 }
 struct obj *parse_file(FILE *f) {
 	struct input i = input_from_file(f);
-	return parse(&i);
-}
-struct obj *parse_string(const char *s) {
-	struct input i = input_from_string(s);
 	return parse(&i);
 }

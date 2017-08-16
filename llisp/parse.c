@@ -29,6 +29,11 @@ static void ungetch(struct input *i, int ch) {
 	assert(i->ungotten == UNGET_NONE);
 	i->ungotten = ch;
 }
+static int peek(struct input *i) {
+	int ret = getch(i);
+	ungetch(i, ret);
+	return ret;
+}
 
 static int isbegin(int ch) { return ch == '(' || ch == '[' || ch == '{'; }
 static int isend(int ch) { return ch == ')' || ch == ']' || ch == '}'; }
@@ -85,6 +90,7 @@ static struct obj *tryparsenum(struct string *s) {
 }
 
 static struct obj *parse_one(struct input *i, struct string *tok);
+static struct obj *parse_single(struct input *i);
 static struct obj *parse_list(struct input *i) {
 	struct obj *list = &nil;
 	struct obj *cur = &nil;
@@ -188,6 +194,8 @@ static struct string *write_utf8(struct string *s, uint32_t codepoint) {
 	return s;
 }
 
+/* Precondition: should have already read the starting quote "
+ * Postcondition: will consume the ending quote ", ready to parse again */
 static struct obj *parse_string(struct input *i) {
 	struct string *str = make_str();
 	for (;;) {
@@ -239,8 +247,15 @@ static int ismatched(int start, int end) {
 		|| (start == '[' && end == ']')
 		|| (start == '{' && end == '}');
 }
-static int isquotesyntax(char ch) {
-	return ch == '\'' || ch == '`' || ch == ',';
+
+static struct obj *parse_list_validate_end(char ch, struct input *i) {
+	struct obj *ret = parse_list(i);
+	if (!ret) return NULL;
+	int end = getch(i);
+	if (!ismatched(ch, end)) {
+		fprintf(stderr, "Warning: unmatched delimiters: %c %c\n", ch, end);
+	}
+	return ret;
 }
 
 static struct obj *parse_one(struct input *i, struct string *tok) {
@@ -261,7 +276,7 @@ static struct obj *parse_one(struct input *i, struct string *tok) {
 		fprintf(stderr, "Unmatched %c\n", ch);
 		return NULL;
 	}
-	if (isquotesyntax(ch)) {
+	if (ch == '\'' || ch == '`' || ch == ',') {
 		struct string *nexttok = read_token(i);
 		if (!nexttok) return NULL;
 		struct obj *next = parse_one(i, nexttok);
@@ -300,13 +315,77 @@ static struct obj *parse_one(struct input *i, struct string *tok) {
 	return make_symbol(tok);
 }
 
-struct obj *parse(struct input *i) {
-	struct obj *ret = NULL;
-	gc_suspend();
-	struct string *s = read_token(i);
-	if (s) {
-		ret = parse_one(i, s);
+static struct obj *parsenum(int sign) { (void)sign; return NULL; }
+
+static struct obj *parse_single(struct input *i) {
+	struct obj *tmp;
+	int ch;
+	for (;;) {
+		ch = getch(i);
+		if (ch == EOF) return NULL;
+		if (isspace(ch)) continue;
+		if (ch == ';') {
+			while ((ch = getch(i)) != EOF && ch != '\n');
+			continue;
+		}
+		break;
 	}
+
+	if (isbegin(ch)) {
+		return parse_list_validate_end((char)ch, i);
+	}
+	if (isend(ch)) {
+		fprintf(stderr, "Unmatched %c\n", ch);
+		return NULL;
+	}
+
+	if (ch == '"') {
+		return parse_string(i);
+	}
+
+#define PARSEQUOTE(symb) \
+	do { \
+		tmp = parse_single(i); \
+		if (!tmp) return NULL; \
+		return cons(make_symbol(str_from_string_lit(#symb)), cons(tmp, &nil)); \
+	} while (0)
+	if (ch == '\'') {
+		PARSEQUOTE(quote);
+	}
+	if (ch == '`') {
+		PARSEQUOTE(quasiquote);
+	}
+	if (ch == ',') {
+		ch = peek(i);
+		if (ch == '@') {
+			PARSEQUOTE(unquote-splicing);
+		}
+		ungetch(i, ch);
+		PARSEQUOTE(unquote);
+	}
+#undef PARSEQUOTE
+
+	/* number */
+	if (isdigit(ch)) {
+		ungetch(i, ch);
+		return parsenum(1);
+	}
+	if (ch == '-' && isdigit(peek(i))) {
+		return parsenum(-1);
+	}
+
+	/* symbol */
+	struct string *str = make_str();
+	do {
+		str = str_append(str, (char)ch);
+	} while ((ch = getch(i)) != EOF && !isspace(ch) && !isdelim(ch));
+	ungetch(i, ch);
+	return make_symbol(str);
+}
+
+struct obj *parse(struct input *i) {
+	gc_suspend();
+	struct obj *ret = parse_single(i);
 	gc_resume();
 	return ret;
 }

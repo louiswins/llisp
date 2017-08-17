@@ -9,7 +9,14 @@
 #include "parse.h"
 
 #define UNGET_NONE -2
-
+#define OBJ_NULL ((uintptr_t)0)
+#define OBJ_DOT ((uintptr_t)0x1)
+#define OBJ_CPAREN ((uintptr_t)0x4)
+#define OBJ_CBRACKET ((uintptr_t)0x5)
+#define OBJ_CBRACE ((uintptr_t)0x6)
+#define OBJ_ISEND(o) ((o) & 0x4)
+#define OBJ_TO_CHAR(o) ((char)(((273 - 19 * o) * o - 708) / 2))
+#define OBJ_ISSPECIAL(o) ((o) < GC_ALLOC_ALIGN)
 
 struct input input_from_file(FILE *f) {
 	struct input ret = { NULL, UNGET_NONE };
@@ -39,59 +46,8 @@ static int isbegin(int ch) { return ch == '(' || ch == '[' || ch == '{'; }
 static int isend(int ch) { return ch == ')' || ch == ']' || ch == '}'; }
 static int isdelim(int ch) { return isbegin(ch) || isend(ch); }
 
-static void skipws(struct input *i) {
-	int ch;
-	for (;;) {
-		while ((ch = getch(i)) != EOF && isspace(ch));
-		if (ch == ';') {
-			/* skip comments */
-			while ((ch = getch(i)) != EOF && ch != '\n');
-		} else {
-			break;
-		}
-	}
-	ungetch(i, ch);
-}
-
-static struct string *read_token(struct input *i) {
-	skipws(i);
-	int ch = getch(i);
-	if (ch == EOF) return NULL;
-	struct string *s = make_str();
-	s = str_append(s, (char)ch);
-	if (isdelim(ch) || ch == '\'' || ch == '`' || ch == '"') {
-		/* These tokens are complete by themselves */
-		return s;
-	} else if (ch == ',') {
-		/* could be , or ,@ */
-		ch = getch(i);
-		if (ch == '@') {
-			return str_append(s, (char)ch);
-		} else {
-			ungetch(i, ch);
-			return s;
-		}
-	} else {
-		while ((ch = getch(i)) != EOF && !isspace(ch) && !isdelim(ch)) {
-			s = str_append(s, (char)ch);
-		}
-		ungetch(i, ch);
-	}
-	return s;
-}
-
-static struct obj *tryparsenum(struct string *s) {
-	char *endp;
-	double val = strtod(s->str, &endp);
-	if (endp != s->str + s->len) {
-		return NULL;
-	}
-	return make_num(val);
-}
-
-static struct obj *parse_one(struct input *i, struct string *tok);
-static struct obj *parse_single(struct input *i);
-static struct obj *parse_list(struct input *i) {
+static uintptr_t parse_one(struct input *i);
+static struct obj *parse_list(char begin, struct input *i) {
 	struct obj *list = &nil;
 	struct obj *cur = &nil;
 	/* 0: no dot
@@ -99,25 +55,11 @@ static struct obj *parse_list(struct input *i) {
 	 * 2: read dot and one symbol after it */
 	int isdot = 0;
 	for (;;) {
-		struct string *tok = read_token(i);
-		if (!tok) {
-			int ch = getch(i);
-			if (ch == EOF) {
-				fputs("Unexpected EOF", stderr);
-			} else {
-				ungetch(i, ch);
-			}
+		uintptr_t obj = parse_one(i);
+		if (!obj) {
 			return NULL;
 		}
-		int ch = tok->str[0];
-		if (isend(ch)) {
-			if (isdot == 1) {
-				fputs("Illegal dotted list: ignoring trailing dot", stderr);
-			}
-			ungetch(i, ch);
-			return list;
-		}
-		if (tok->len == 1 && ch == '.') {
+		if (obj == OBJ_DOT) {
 			if (isdot || list == &nil) {
 				fprintf(stderr, "Illegal dotted list: %s\n", (isdot) ? "too many dots" : "no first element");
 				return NULL;
@@ -125,21 +67,32 @@ static struct obj *parse_list(struct input *i) {
 			isdot = 1;
 			continue;
 		}
+		if (OBJ_ISEND(obj)) {
+			if (isdot == 1) {
+				fputs("Illegal dotted list: ignoring trailing dot\n", stderr);
+			}
+			int ismatched =
+				(begin == '(' && obj == OBJ_CPAREN) ||
+				(begin == '[' && obj == OBJ_CBRACKET) ||
+				(begin == '{' && obj == OBJ_CBRACE);
+			if (!ismatched) {
+				fprintf(stderr, "Warning: unmatched delimiters: %c %c\n", begin, OBJ_TO_CHAR(obj));
+			}
+			return list;
+		}
+
 		if (isdot == 2) {
-			fputs("Illegal dotted list: too many elements after last dot", stderr);
+			fputs("Illegal dotted list: too many elements after last dot\n", stderr);
 			return NULL;
 		}
-		struct obj *obj = parse_one(i, tok);
-		if (!obj) {
-			return NULL;
-		}
+
 		if (isdot == 1) {
-			cur->tail = obj;
+			cur->tail = (struct obj *)obj;
 			isdot = 2;
 		} else if (list == &nil) {
-			list = cur = cons(obj, &nil);
+			list = cur = cons((struct obj *)obj, &nil);
 		} else {
-			cur->tail = cons(obj, &nil);
+			cur->tail = cons((struct obj *)obj, &nil);
 			cur = cur->tail;
 		}
 	}
@@ -242,87 +195,29 @@ static struct obj *parse_string(struct input *i) {
 	}
 }
 
-static int ismatched(int start, int end) {
-	return (start == '(' && end == ')')
-		|| (start == '[' && end == ']')
-		|| (start == '{' && end == '}');
-}
-
-static struct obj *parse_list_validate_end(char ch, struct input *i) {
-	struct obj *ret = parse_list(i);
-	if (!ret) return NULL;
-	int end = getch(i);
-	if (!ismatched(ch, end)) {
-		fprintf(stderr, "Warning: unmatched delimiters: %c %c\n", ch, end);
+static struct obj *parsenum(int sign, struct input *i) {
+	struct string *str = make_str();
+	int ch;
+	char *endp;
+	while (isdigit((ch = getch(i))) || ch == '.' || ch == 'e' || ch == 'E' || ch == '+' || ch == '-') {
+		str = str_append(str, (char)ch);
 	}
-	return ret;
-}
+	ungetch(i, ch);
 
-static struct obj *parse_one(struct input *i, struct string *tok) {
-	char ch = tok->str[0];
-	if (isbegin(ch)) {
-		struct obj *ret = parse_list(i);
-		int end = getch(i);
-		if (!ismatched(ch, end)) {
-			if (isend(end)) {
-				fprintf(stderr, "Warning: unmatched delimiters: %c %c\n", ch, end);
-			} else {
-				return NULL;
-			}
-		}
-		return ret;
-	}
-	if (isend(ch)) {
-		fprintf(stderr, "Unmatched %c\n", ch);
+	double val = strtod(str->str, &endp);
+	if (endp != str->str + str->len) {
+		/* We know that we only have printable characters in str, so %s is safe */
+		fprintf(stderr, "Invalid number %s%s\n", (sign > 0) ? "" : "-", str->str);
 		return NULL;
 	}
-	if (ch == '\'' || ch == '`' || ch == ',') {
-		struct string *nexttok = read_token(i);
-		if (!nexttok) return NULL;
-		struct obj *next = parse_one(i, nexttok);
-		if (!next) return NULL;
-		struct string *sym;
-		switch (ch) {
-		default:
-			fputs("Unknown quote syntax ", stderr);
-			print_str_escaped(stderr, tok);
-			return NULL;
-		case '\'':
-			sym = str_from_string_lit("quote");
-			break;
-		case '`':
-			sym = str_from_string_lit("quasiquote");
-			break;
-		case ',':
-			if (tok->len == 1) {
-				sym = str_from_string_lit("unquote");
-			} else {
-				sym = str_from_string_lit("unquote-splicing");
-			}
-			break;
-		}
-		return cons(make_symbol(sym), cons(next, &nil));
-	}
-	if (ch == '"') {
-		return parse_string(i);
-	}
-	if (ch == '+' || ch == '-' || ch == '.' || isdigit(ch)) {
-		struct obj *ret = tryparsenum(tok);
-		if (ret) {
-			return ret;
-		}
-	}
-	return make_symbol(tok);
+	return make_num(sign * val);
 }
 
-static struct obj *parsenum(int sign) { (void)sign; return NULL; }
-
-static struct obj *parse_single(struct input *i) {
-	struct obj *tmp;
+static uintptr_t parse_one(struct input *i) {
 	int ch;
 	for (;;) {
 		ch = getch(i);
-		if (ch == EOF) return NULL;
+		if (ch == EOF) return OBJ_NULL;
 		if (isspace(ch)) continue;
 		if (ch == ';') {
 			while ((ch = getch(i)) != EOF && ch != '\n');
@@ -332,22 +227,22 @@ static struct obj *parse_single(struct input *i) {
 	}
 
 	if (isbegin(ch)) {
-		return parse_list_validate_end((char)ch, i);
+		return (uintptr_t)parse_list((char)ch, i);
 	}
-	if (isend(ch)) {
-		fprintf(stderr, "Unmatched %c\n", ch);
-		return NULL;
-	}
+	if (ch == ')') return OBJ_CPAREN;
+	if (ch == '}') return OBJ_CBRACE;
+	if (ch == ']') return OBJ_CBRACKET;
+	if (ch == '.') return OBJ_DOT;
 
 	if (ch == '"') {
-		return parse_string(i);
+		return (uintptr_t)parse_string(i);
 	}
 
 #define PARSEQUOTE(symb) \
 	do { \
-		tmp = parse_single(i); \
-		if (!tmp) return NULL; \
-		return cons(make_symbol(str_from_string_lit(#symb)), cons(tmp, &nil)); \
+		uintptr_t tmp = parse_one(i); \
+		if (OBJ_ISSPECIAL(tmp)) return OBJ_NULL; \
+		return (uintptr_t)cons(make_symbol(str_from_string_lit(#symb)), cons((struct obj *)tmp, &nil)); \
 	} while (0)
 	if (ch == '\'') {
 		PARSEQUOTE(quote);
@@ -356,7 +251,7 @@ static struct obj *parse_single(struct input *i) {
 		PARSEQUOTE(quasiquote);
 	}
 	if (ch == ',') {
-		ch = peek(i);
+		ch = getch(i);
 		if (ch == '@') {
 			PARSEQUOTE(unquote-splicing);
 		}
@@ -368,10 +263,10 @@ static struct obj *parse_single(struct input *i) {
 	/* number */
 	if (isdigit(ch)) {
 		ungetch(i, ch);
-		return parsenum(1);
+		return (uintptr_t)parsenum(1, i);
 	}
 	if (ch == '-' && isdigit(peek(i))) {
-		return parsenum(-1);
+		return (uintptr_t)parsenum(-1, i);
 	}
 
 	/* symbol */
@@ -380,14 +275,16 @@ static struct obj *parse_single(struct input *i) {
 		str = str_append(str, (char)ch);
 	} while ((ch = getch(i)) != EOF && !isspace(ch) && !isdelim(ch));
 	ungetch(i, ch);
-	return make_symbol(str);
+	return (uintptr_t)make_symbol(str);
 }
 
 struct obj *parse(struct input *i) {
 	gc_suspend();
-	struct obj *ret = parse_single(i);
+	uintptr_t ret = parse_one(i);
 	gc_resume();
-	return ret;
+	if (OBJ_ISSPECIAL(ret))
+		return NULL;
+	return (struct obj *)ret;
 }
 struct obj *parse_file(FILE *f) {
 	struct input i = input_from_file(f);

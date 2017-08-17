@@ -22,12 +22,11 @@ struct gc_head {
 #define GC_FROM_OBJ(o) ((struct gc_head*)((char*)(o) - SIZE_OF_HEAD))
 #define OBJ_FROM_GC(gc) ((void*)((char*)(gc) + SIZE_OF_HEAD))
 
-#define ALLOC_ALIGN 0x10
-#define SIZE_OF_HEAD ((sizeof(struct gc_head) + ALLOC_ALIGN - 1) & ~(ALLOC_ALIGN - 1))
+#define SIZE_OF_HEAD ((sizeof(struct gc_head) + GC_ALLOC_ALIGN - 1) & ~(GC_ALLOC_ALIGN - 1))
 
-typedef char assert_alignof_obj_ok[__alignof(struct obj) <= ALLOC_ALIGN ? 1 : -1];
-typedef char assert_alignof_env_ok[__alignof(struct env) <= ALLOC_ALIGN ? 1 : -1];
-typedef char assert_alignof_contn_ok[__alignof(struct contn) <= ALLOC_ALIGN ? 1 : -1];
+typedef char assert_alignof_obj_ok[__alignof(struct obj) <= GC_ALLOC_ALIGN ? 1 : -1];
+typedef char assert_alignof_env_ok[__alignof(struct env) <= GC_ALLOC_ALIGN ? 1 : -1];
+typedef char assert_alignof_contn_ok[__alignof(struct contn) <= GC_ALLOC_ALIGN ? 1 : -1];
 typedef char assert_room_for_tagbits[3 < __alignof(void*) ? 1 : -1];
 
 /* GC roots */
@@ -171,7 +170,7 @@ void gc_collect() {
 }
 
 void *gc_alloc(enum gctype typ, size_t size) {
-	size = (size - 1 + ALLOC_ALIGN) & ~(ALLOC_ALIGN - 1);
+	size = (size - 1 + GC_ALLOC_ALIGN) & ~(GC_ALLOC_ALIGN - 1);
 #ifdef DEBUG_GC
 	static unsigned char num_allocs = 0;
 	if (!++num_allocs) { gc_collect(); }

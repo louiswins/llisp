@@ -102,28 +102,19 @@ static struct string *write_utf8(struct string *s, uint32_t codepoint) {
 		return str_append(s, (char)codepoint);
 	}
 	if (codepoint <= 0x7ff) {
-		unsigned char ch = (unsigned char)(0xc0 | (codepoint >> 6));
-		s = str_append(s, (char)ch);
-		ch = 0x80 | (codepoint & 0x3f);
-		return str_append(s, (char)ch);
+		s = str_append(s, (char)(0xc0u | (codepoint >> 6)));
+		return str_append(s, (char)(0x80u | (codepoint & 0x3fu)));
 	}
 	if (codepoint <= 0xffff) {
-		unsigned char ch = (unsigned char)(0xe0 | (codepoint >> 12));
-		s = str_append(s, (char)ch);
-		ch = 0x80 | ((codepoint >> 6) & 0x3f);
-		s = str_append(s, (char)ch);
-		ch = 0x80 | (codepoint & 0x3f);
-		return str_append(s, (char)ch);
+		s = str_append(s, (char)(0xe0u | (codepoint >> 12)));
+		s = str_append(s, (char)(0x80u | ((codepoint >> 6) & 0x3fu)));
+		return str_append(s, (char)(0x80u | (codepoint & 0x3fu)));
 	}
 	if (codepoint <= 0x10ffff) {
-		unsigned char ch = (unsigned char)(0xf0 | (codepoint >> 18));
-		s = str_append(s, (char)ch);
-		ch = 0x80 | ((codepoint >> 12) & 0x3f);
-		s = str_append(s, (char)ch);
-		ch = 0x80 | ((codepoint >> 6) & 0x3f);
-		s = str_append(s, (char)ch);
-		ch = 0x80 | (codepoint & 0x3f);
-		return str_append(s, (char)ch);
+		s = str_append(s, (char)(0xf0u | (codepoint >> 18)));
+		s = str_append(s, (char)(0x80u | ((codepoint >> 12) & 0x3fu)));
+		s = str_append(s, (char)(0x80u | ((codepoint >> 6) & 0x3fu)));
+		return str_append(s, (char)(0x80u | (codepoint & 0x3fu)));
 	}
 	fprintf(stderr, "Invalid unicode codepoint %" PRIu32 "\n", codepoint);
 	return s;

@@ -131,6 +131,7 @@
     <ClCompile Include="env.c" />
     <ClCompile Include="gc.c" />
     <ClCompile Include="globals.c" />
+    <ClCompile Include="hashtab.c" />
     <ClCompile Include="main.c" />
     <ClCompile Include="obj.c" />
     <ClCompile Include="parse.c" />
@@ -143,6 +144,8 @@
     <ClInclude Include="env.h" />
     <ClInclude Include="gc.h" />
     <ClInclude Include="globals.h" />
+    <ClInclude Include="hashtab-private.h" />
+    <ClInclude Include="hashtab.h" />
     <ClInclude Include="obj.h" />
     <ClInclude Include="parse.h" />
     <ClInclude Include="print.h" />

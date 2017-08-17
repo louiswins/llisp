@@ -42,6 +42,9 @@
     <ClCompile Include="gc.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="hashtab.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="env.h">
@@ -69,6 +72,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="env-private.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="hashtab.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="hashtab-private.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

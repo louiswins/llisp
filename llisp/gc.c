@@ -4,6 +4,7 @@
 #include "cps.h"
 #include "env-private.h"
 #include "gc.h"
+#include "hashtab-private.h"
 #include "obj.h"
 
 struct gc_head {
@@ -14,10 +15,10 @@ struct gc_head {
 #define ISMARKED(o) ((o)->marknext & 0x1u)
 #define ADDMARK(o) ((o)->marknext |= 0x1u)
 #define DELMARK(o) ((o)->marknext &= ~0x1ull)
-#define NEXTTOMARK(o) ((struct gc_head*)((o)->marknext & ~0x7ull))
-#define SETNEXTTOMARK(o, val) ((o)->marknext = (((o)->marknext & 0x7u) | (uintptr_t)val))
+#define NEXTTOMARK(o) ((struct gc_head*)((o)->marknext & ~0xfull))
+#define SETNEXTTOMARK(o, val) ((o)->marknext = (((o)->marknext & 0xfu) | (uintptr_t)val))
 
-#define GCTYPE(o) ((enum gctype)(((o)->marknext & 0x6u) >> 1))
+#define GCTYPE(o) ((enum gctype)(((o)->marknext & 0xeu) >> 1))
 
 #define GC_FROM_OBJ(o) ((struct gc_head*)((char*)(o) - SIZE_OF_HEAD))
 #define OBJ_FROM_GC(gc) ((void*)((char*)(gc) + SIZE_OF_HEAD))
@@ -93,6 +94,8 @@ static void gc_mark(struct gc_head *gcitem) {
 		gc_queue(contn->fail);
 		return;
 	}
+	/* hashtables should only ever be embedded in other objects,
+	 * not allocated on the heap. */
 	assert(GCTYPE(gcitem) == GC_OBJ);
 	struct obj *obj = OBJ_FROM_GC(gcitem);
 	switch (TYPE(obj)) {
@@ -175,10 +178,10 @@ void *gc_alloc(enum gctype typ, size_t size) {
 	static unsigned char num_allocs = 0;
 	if (!++num_allocs) { gc_collect(); }
 #endif
-	struct gc_head *ret = malloc(SIZE_OF_HEAD + size);
+	struct gc_head *ret = calloc(1, SIZE_OF_HEAD + size);
 	if (ret == NULL) {
 		gc_collect();
-		ret = malloc(SIZE_OF_HEAD + size);
+		ret = calloc(1, SIZE_OF_HEAD + size);
 		if (ret == NULL) {
 			fputs("Out of memory\n", stderr);
 			abort();

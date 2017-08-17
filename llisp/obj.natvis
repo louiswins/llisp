@@ -37,22 +37,11 @@
     </Expand>
   </Type>
   
-  <Type Name="symbol">
-    <DisplayString>{name} -&gt; {*value}</DisplayString>
-  </Type>
   <Type Name="env">
-    <DisplayString Condition="next == 0">size={(size_t)nsyms}</DisplayString>
-    <DisplayString Condition="next != 0">Big environment</DisplayString>
+    <DisplayString>env {{size = {table.size}}}</DisplayString>
     <Expand>
-      <Item Name="Size" Condition="!next" ExcludeView="append">(size_t)nsyms</Item>
-      <Synthetic Name="Size" Condition="next" ExcludeView="append">
-        <DisplayString>&gt; 32</DisplayString>
-      </Synthetic>
-      <ArrayItems Condition="nsyms > 0">
-        <Size>nsyms</Size>
-        <ValuePointer>syms</ValuePointer>
-      </ArrayItems>
-      <ExpandedItem Condition="next">next,view(append)</ExpandedItem>
+      <Item Name="Parent">parent</Item>
+      <ExpandedItem>table</ExpandedItem>
     </Expand>
   </Type>
   
@@ -70,14 +59,14 @@
 
   <Type Name="gc_head">
     <DisplayString Condition="next" IncludeView="tail">{marknext &amp; 0x1u}{*next,view(tail)}</DisplayString>
-    <DisplayString Condition="next" ExcludeView="tail">{(gctype)((marknext &amp; 0x6u) >> 1)} : {marknext &amp; 0x1u}{*next,view(tail)}</DisplayString>
+    <DisplayString Condition="next" ExcludeView="tail">{(gctype)((marknext &amp; 0xeu) >> 1)} : {marknext &amp; 0x1u}{*next,view(tail)}</DisplayString>
     <DisplayString Condition="!next" IncludeView="tail">{marknext &amp; 0x1u}</DisplayString>
-    <DisplayString Condition="!next" ExcludeView="tail">{(gctype)((marknext &amp; 0x6u) >> 1)} : {marknext &amp; 0x1u}</DisplayString>
+    <DisplayString Condition="!next" ExcludeView="tail">{(gctype)((marknext &amp; 0xeu) >> 1)} : {marknext &amp; 0x1u}</DisplayString>
     <Expand>
       <Item Name="Marked">(bool)(marknext &amp; 0x1u)</Item>
-      <Item Name="Type">(gctype)((marknext &amp; 0x6u) >> 1)</Item>
+      <Item Name="Type">(gctype)((marknext &amp; 0xeu) >> 1)</Item>
       <Item Name="Next">next</Item>
-      <Item Name="MarkNext">(gc_head*)(marknext &amp; ~0x7ull)</Item>
+      <Item Name="MarkNext">(gc_head*)(marknext &amp; ~0xfull)</Item>
       <Item Name="Obj" Condition="((marknext &amp; 0x6u) >> 1) == GC_OBJ">*(struct obj*)((char*)this+0x10)</Item>
       <Item Name="Str" Condition="((marknext &amp; 0x6u) >> 1) == GC_STR">*(string*)((char*)this+0x10)</Item>
     </Expand>
@@ -89,6 +78,24 @@
       <Item Name="str">str,[len]s8</Item>
       <Item Name="len">len</Item>
       <Item Name="cap">cap</Item>
+    </Expand>
+  </Type>
+
+  <Type Name="ht_entry">
+    <DisplayString>{key} -&gt; {*value}</DisplayString>
+  </Type>
+  <Type Name="hashtab">
+    <DisplayString>hashtab {{size = {size}}}</DisplayString>
+    <Expand>
+      <CustomListItems>
+        <Variable Name="cur" InitialValue="0" />
+        <Size>size</Size>
+        <Loop>
+          <Exec>cur += __findnonnull(table + cur, cap*2 - cur) / 2</Exec>
+          <Item>table[cur]</Item>
+          <Exec>cur++</Exec>
+        </Loop>
+      </CustomListItems>
     </Expand>
   </Type>
 </AutoVisualizer>

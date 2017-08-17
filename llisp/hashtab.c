@@ -1,16 +1,21 @@
 #include <assert.h>
 #include "gc.h"
-#include "hashtab-private.h"
+#include "hashtab.h"
 #include "obj.h"
 
 #define INITIAL_HASHTAB_CAPACITY 32
 #define MAX_LOAD_FACTOR 0.66
 
+struct ht_entry {
+	struct string *key;
+	struct obj *value;
+};
+
 void init_hashtab(struct hashtab *ht)
 {
 	ht->size = 0;
-	ht->cap = INITIAL_HASHTAB_CAPACITY;
 	ht->table = gc_alloc(GC_HASHTAB, INITIAL_HASHTAB_CAPACITY * sizeof(*ht->table));
+	ht->cap = INITIAL_HASHTAB_CAPACITY;
 }
 
 /* Implementation of Jenkins's one-at-a-time hash taken from
@@ -57,8 +62,8 @@ static void hashtab_embiggen(struct hashtab *ht) {
 			target->value = ht->table[i].value;
 		}
 	}
-	ht->table = newtab;
 	ht->cap = newcap;
+	ht->table = newtab;
 }
 
 void hashtab_put(struct hashtab *ht, struct string *key, struct obj *value) {

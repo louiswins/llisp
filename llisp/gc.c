@@ -4,7 +4,7 @@
 #include "cps.h"
 #include "env-private.h"
 #include "gc.h"
-#include "hashtab-private.h"
+#include "hashtab.h"
 #include "obj.h"
 
 struct gc_head {
@@ -28,7 +28,7 @@ struct gc_head {
 typedef char assert_alignof_obj_ok[__alignof(struct obj) <= GC_ALLOC_ALIGN ? 1 : -1];
 typedef char assert_alignof_env_ok[__alignof(struct env) <= GC_ALLOC_ALIGN ? 1 : -1];
 typedef char assert_alignof_contn_ok[__alignof(struct contn) <= GC_ALLOC_ALIGN ? 1 : -1];
-typedef char assert_room_for_tagbits[3 < __alignof(void*) ? 1 : -1];
+typedef char assert_room_for_tagbits[4 < __alignof(void*) ? 1 : -1];
 
 /* GC roots */
 struct contn *gc_current_contn = NULL;
@@ -72,18 +72,31 @@ static void gc_queue(void *thing) {
 	SETNEXTTOMARK(gc, objs_to_mark);
 	objs_to_mark = gc;
 }
+static void gc_queue_hashtab_entry(struct string *key, struct obj *value, void *ignored) {
+	(void)ignored;
+	ADDMARK(GC_FROM_OBJ(key)); /* I know it's a string */
+	gc_queue(value);
+}
 static void gc_mark(struct gc_head *gcitem) {
 	if (ISMARKED(gcitem)) return;
 	ADDMARK(gcitem);
 	if (GCTYPE(gcitem) == GC_STR) return; /* no pointers in a string :) */
+	if (GCTYPE(gcitem) == GC_HASHTAB) {
+		/* Should be queued as part of its owner, because we don't have the length here */
+		/* Could be added as part of the temp roots while allocating. Hopefully if there's
+		 * anything in it it's already in the graph, because we don't have size here. */
+		/* TODO: change this to a struct {size, array} */
+		return;
+	}
 	if (GCTYPE(gcitem) == GC_ENV) {
 		struct env *env = OBJ_FROM_GC(gcitem);
-		gc_queue(env->next);
-		gc_queue(env->parent);
-		for (int i = 0; i < env->nsyms; ++i) {
-			gc_queue(env->syms[i].name);
-			gc_queue(env->syms[i].value);
+		/* If we allocate the environment but then need to collect when trying to allocate
+		 * the initial hashtable, we don't have anything to mark yet. */
+		if (env->table.cap) {
+			ADDMARK(GC_FROM_OBJ(env->table.table));
+			hashtab_foreach(&env->table, gc_queue_hashtab_entry, NULL);
 		}
+		gc_queue(env->parent);
 		return;
 	}
 	if (GCTYPE(gcitem) == GC_CONTN) {
@@ -94,8 +107,6 @@ static void gc_mark(struct gc_head *gcitem) {
 		gc_queue(contn->fail);
 		return;
 	}
-	/* hashtables should only ever be embedded in other objects,
-	 * not allocated on the heap. */
 	assert(GCTYPE(gcitem) == GC_OBJ);
 	struct obj *obj = OBJ_FROM_GC(gcitem);
 	switch (TYPE(obj)) {
@@ -127,12 +138,14 @@ static void gc_mark(struct gc_head *gcitem) {
 	}
 }
 
+#ifdef DEBUG_GC
 static void clear_marks() {
 	for (struct gc_head *cur = all_objects; cur != NULL; cur = cur->next) {
 		assert(!ISMARKED(cur));
 		DELMARK(cur);
 	}
 }
+#endif
 
 void gc_collect() {
 	if (!gc_active || !all_objects) return;

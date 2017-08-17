@@ -144,7 +144,6 @@
     <ClInclude Include="env.h" />
     <ClInclude Include="gc.h" />
     <ClInclude Include="globals.h" />
-    <ClInclude Include="hashtab-private.h" />
     <ClInclude Include="hashtab.h" />
     <ClInclude Include="obj.h" />
     <ClInclude Include="parse.h" />

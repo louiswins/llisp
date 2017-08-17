@@ -25,7 +25,7 @@ int main() {
 	printf("$ ");
 	fflush(stdout);
 	struct obj *obj;
-	while (!repl_done && (obj = parse_file(stdin)) != NULL) {
+	while (!repl_done && (obj = parse(stdin)) != NULL) {
 		obj = run_cps(obj, gc_global_env);
 		printf("=> ");print(obj);
 		gc_collect();

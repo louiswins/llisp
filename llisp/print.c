@@ -5,10 +5,16 @@
 #include "obj.h"
 #include "print.h"
 
-void print(struct obj *obj) { print_on(stdout, obj, 1); }
-void display(struct obj *obj) { print_on(stdout, obj, 0); }
+#define MAX_RECURSION 40
 
-void print_on(FILE *f, struct obj *obj, int verbose) {
+void print(struct obj *obj) { print_on(stdout, obj, 1, 0); }
+void display(struct obj *obj) { print_on(stdout, obj, 0, 0); }
+
+void print_on(FILE *f, struct obj *obj, int verbose, int reclvl) {
+	if (reclvl > MAX_RECURSION) {
+		fprintf(f, "...");
+		return;
+	}
 	switch (TYPE(obj)) {
 	default:
 		fprintf(stderr, "<#unknown type %d>", TYPE(obj));
@@ -43,29 +49,42 @@ void print_on(FILE *f, struct obj *obj, int verbose) {
 		break;
 	case LAMBDA:
 		fputs("<#closure args=", f);
-		print_on(f, obj->args, verbose);
+		print_on(f, obj->args, verbose, reclvl + 1);
 		putc('>', f);
 		break;
 	case MACRO:
 		fputs("<#macro args=", f);
-		print_on(f, obj->args, verbose);
+		print_on(f, obj->args, verbose, reclvl + 1);
 		putc('>', f);
 		break;
 	case BUILTIN:
 		fputs(obj->builtin, f);
 		break;
 	case CELL: {
+		struct obj* tortoise = obj;
 		char prev = '(';
-		for (; TYPE(obj->tail) == CELL; obj = obj->tail) {
+		do {
+			if (TYPE(obj->tail) != CELL) break;
 			putc(prev, f);
 			prev = ' ';
-			print_on(f, obj->head, verbose);
+			print_on(f, obj->head, verbose, reclvl + 1);
+			obj = obj->tail;
+			if (TYPE(obj->tail) != CELL) break;
+			putc(' ', f);
+			print_on(f, obj->head, verbose, reclvl + 1);
+			obj = obj->tail;
+			tortoise = tortoise->tail;
+		} while (tortoise != obj);
+		// We check prev to avoid mistaking single dotted pairs for infinite lists
+		if (prev == ' ' && tortoise == obj) {
+			fprintf(f, " ...)");
+			break;
 		}
 		putc(prev, f);
-		print_on(f, obj->head, verbose);
+		print_on(f, obj->head, verbose, reclvl + 1);
 		if (obj->tail != &nil) {
 			fprintf(f, " . ");
-			print_on(f, obj->tail, verbose);
+			print_on(f, obj->tail, verbose, reclvl + 1);
 		}
 		putc(')', f);
 		break;
@@ -73,6 +92,5 @@ void print_on(FILE *f, struct obj *obj, int verbose) {
 	case CONTN:
 		fputs("<#continuation>", f);
 		break;
-
 	}
 }

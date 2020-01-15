@@ -138,6 +138,35 @@ static struct obj *do_setsym(CPS_ARGS) {
 	return &nil;
 }
 
+static struct obj *fn_set_cell(const char* name, void (*actually_set)(struct obj *cell, struct obj *value), CPS_ARGS) {
+	if (!check_args(name, obj, 2)) {
+		*ret = self->fail;
+		return &nil;
+	}
+	if (TYPE(obj->head) != CELL) {
+		fprintf(stderr, "%s: object not a pair\n", name);
+		*ret = self->fail;
+		return &nil;
+	}
+	actually_set(obj->head, obj->tail->head);
+	*ret = self->next;
+	return &nil;
+}
+
+static void do_set_car(struct obj *cell, struct obj *value) {
+	cell->head = value;
+}
+static struct obj *fn_set_car_(CPS_ARGS) {
+	return fn_set_cell("set-car!", do_set_car, self, obj, ret);
+}
+
+static void do_set_cdr(struct obj *cell, struct obj *value) {
+	cell->tail = value;
+}
+static struct obj *fn_set_cdr_(CPS_ARGS) {
+	return fn_set_cell("set-cdr!", do_set_cdr, self, obj, ret);
+}
+
 static struct obj *fn_car(CPS_ARGS) {
 	if (!check_args("car", obj, 1)) {
 		*ret = self->fail;
@@ -415,6 +444,8 @@ void add_globals(struct env *env) {
 	DEFSYM(pair?, fn_pair_, FN);
 	DEFSYM(quote, fn_quote, SPECFORM);
 	DEFSYM(set!, fn_set_, SPECFORM);
+	DEFSYM(set-car!, fn_set_car_, FN);
+	DEFSYM(set-cdr!, fn_set_cdr_, FN);
 	DEFSYM(write, fn_write, FN);
 #define REGISTER_FN(name, op, ...) DEFSYM(op, name, FN);
 	ARITH_OPS(REGISTER_FN)

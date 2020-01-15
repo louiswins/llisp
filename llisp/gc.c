@@ -3,27 +3,11 @@
 #include <stdlib.h>
 #include "cps.h"
 #include "env-private.h"
-#include "gc.h"
+#include "gc-private.h"
 #include "hashtab.h"
 #include "obj.h"
 
-struct gc_head {
-	struct gc_head *next;
-	uintptr_t marknext;
-};
-
-#define ISMARKED(o) ((o)->marknext & 0x1u)
-#define ADDMARK(o) ((o)->marknext |= 0x1u)
-#define DELMARK(o) ((o)->marknext &= ~0x1ull)
-#define NEXTTOMARK(o) ((struct gc_head*)((o)->marknext & ~0xfull))
-#define SETNEXTTOMARK(o, val) ((o)->marknext = (((o)->marknext & 0xfu) | (uintptr_t)val))
-
 #define GCTYPE(o) ((enum gctype)(((o)->marknext & 0xeu) >> 1))
-
-#define GC_FROM_OBJ(o) ((struct gc_head*)((char*)(o) - SIZE_OF_HEAD))
-#define OBJ_FROM_GC(gc) ((void*)((char*)(gc) + SIZE_OF_HEAD))
-
-#define SIZE_OF_HEAD ((sizeof(struct gc_head) + GC_ALLOC_ALIGN - 1) & ~(GC_ALLOC_ALIGN - 1))
 
 typedef char assert_alignof_obj_ok[__alignof(struct obj) <= GC_ALLOC_ALIGN ? 1 : -1];
 typedef char assert_alignof_env_ok[__alignof(struct env) <= GC_ALLOC_ALIGN ? 1 : -1];

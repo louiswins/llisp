@@ -142,6 +142,7 @@
     <ClInclude Include="cps.h" />
     <ClInclude Include="env-private.h" />
     <ClInclude Include="env.h" />
+    <ClInclude Include="gc-private.h" />
     <ClInclude Include="gc.h" />
     <ClInclude Include="globals.h" />
     <ClInclude Include="hashtab.h" />

@@ -77,6 +77,9 @@
     <ClInclude Include="hashtab.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="gc-private.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="obj.natvis" />

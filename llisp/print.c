@@ -2,19 +2,18 @@
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
+#include "gc-private.h"
 #include "obj.h"
 #include "print.h"
 
-#define MAX_RECURSION 40
+#define OBJ_MARKED(o) ISMARKED(GC_FROM_OBJ(o))
+#define MARK_OBJ(o) ADDMARK(GC_FROM_OBJ(o))
+#define DEL_OBJMARK(o) DELMARK(GC_FROM_OBJ(o))
 
-void print(struct obj *obj) { print_on(stdout, obj, 1, 0); }
-void display(struct obj *obj) { print_on(stdout, obj, 0, 0); }
+void print(struct obj *obj) { print_on(stdout, obj, 1); }
+void display(struct obj *obj) { print_on(stdout, obj, 0); }
 
-void print_on(FILE *f, struct obj *obj, int verbose, int reclvl) {
-	if (reclvl > MAX_RECURSION) {
-		fprintf(f, "...");
-		return;
-	}
+static void print_on_helper(FILE *f, struct obj *obj, int verbose) {
 	switch (TYPE(obj)) {
 	default:
 		fprintf(stderr, "<#unknown type %d>", TYPE(obj));
@@ -49,42 +48,40 @@ void print_on(FILE *f, struct obj *obj, int verbose, int reclvl) {
 		break;
 	case LAMBDA:
 		fputs("<#closure args=", f);
-		print_on(f, obj->args, verbose, reclvl + 1);
+		print_on_helper(f, obj->args, verbose);
 		putc('>', f);
 		break;
 	case MACRO:
 		fputs("<#macro args=", f);
-		print_on(f, obj->args, verbose, reclvl + 1);
+		print_on_helper(f, obj->args, verbose);
 		putc('>', f);
 		break;
 	case BUILTIN:
 		fputs(obj->builtin, f);
 		break;
 	case CELL: {
-		struct obj* tortoise = obj;
+		// We appropriate the GC marking to avoid printing cyclic objects
+		if (OBJ_MARKED(obj)) {
+			fprintf(f, "...");
+			return;
+		}
 		char prev = '(';
-		do {
-			if (TYPE(obj->tail) != CELL) break;
+		for (; TYPE(obj->tail) == CELL; obj = obj->tail) {
+			MARK_OBJ(obj);
 			putc(prev, f);
 			prev = ' ';
-			print_on(f, obj->head, verbose, reclvl + 1);
-			obj = obj->tail;
-			if (TYPE(obj->tail) != CELL) break;
-			putc(' ', f);
-			print_on(f, obj->head, verbose, reclvl + 1);
-			obj = obj->tail;
-			tortoise = tortoise->tail;
-		} while (tortoise != obj);
-		// We check prev to avoid mistaking single dotted pairs for infinite lists
-		if (prev == ' ' && tortoise == obj) {
-			fprintf(f, " ...)");
-			break;
+			print_on_helper(f, obj->head, verbose);
+			if (OBJ_MARKED(obj->tail)) {
+				fprintf(f, " ...)");
+				return;
+			}
 		}
+		MARK_OBJ(obj);
 		putc(prev, f);
-		print_on(f, obj->head, verbose, reclvl + 1);
+		print_on_helper(f, obj->head, verbose);
 		if (obj->tail != &nil) {
 			fprintf(f, " . ");
-			print_on(f, obj->tail, verbose, reclvl + 1);
+			print_on_helper(f, obj->tail, verbose);
 		}
 		putc(')', f);
 		break;
@@ -93,4 +90,26 @@ void print_on(FILE *f, struct obj *obj, int verbose, int reclvl) {
 		fputs("<#continuation>", f);
 		break;
 	}
+}
+
+static void clear_marks(struct obj *obj) {
+	switch (TYPE(obj)) {
+	case LAMBDA:
+	case MACRO:
+		clear_marks(obj->args);
+		break;
+	case CELL:
+		if (OBJ_MARKED(obj)) {
+			DEL_OBJMARK(obj);
+			clear_marks(obj->head);
+			clear_marks(obj->tail);
+		}
+		break;
+	}
+}
+
+void print_on(FILE *f, struct obj *obj, int verbose) {
+	print_on_helper(f, obj, verbose);
+	// Now that we've printed, let's clear all the marks to avoid messing up the GC
+	clear_marks(obj);
 }

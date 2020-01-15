@@ -34,12 +34,7 @@ static struct obj *evallist(CPS_ARGS);
 static struct obj *evallist_tailcons(CPS_ARGS);
 static struct obj *evallist_cons(CPS_ARGS);
 
-/* Apply a closure (macro or lambda) */
-static struct obj *apply_closure(CPS_ARGS);
 static struct obj *run_closure(CPS_ARGS);
-
-/* Apply a continuation */
-static struct obj *apply_contn(CPS_ARGS);
 
 /* obj = object to eval, return self->next(eval(obj)) */
 struct obj *eval_cps(CPS_ARGS) {
@@ -189,7 +184,7 @@ static struct obj *evallist_cons(CPS_ARGS) {
 
 
 /* obj = args, self->data = func, return self->next(func(args)) */
-static struct obj *apply_closure(CPS_ARGS) {
+struct obj *apply_closure(CPS_ARGS) {
 	/* set up environment */
 	struct env *appenv = make_env(self->data->env);
 	struct obj *params = self->data->args;
@@ -240,7 +235,7 @@ static struct obj *run_closure(CPS_ARGS) {
 }
 
 /* obj = args, self->data = contnp, return contnp(args) */
-static struct obj *apply_contn(CPS_ARGS) {
+struct obj *apply_contn(CPS_ARGS) {
 	if (obj->tail != &nil) {
 		fputs("warning: apply: too many arguments given\n", stderr);
 	}

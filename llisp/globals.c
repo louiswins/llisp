@@ -11,9 +11,16 @@
 
 int length(struct obj *obj) {
 	int ret = 0;
-	for (; TYPE(obj) == CELL; obj = obj->tail) {
+	struct obj* tortoise = obj;
+	do {
+		if (TYPE(obj) != CELL) break;
+		obj = obj->tail;
 		++ret;
-	}
+		if (TYPE(obj) != CELL) break;
+		obj = obj->tail;
+		++ret;
+		tortoise = tortoise->tail;
+	} while (tortoise != obj);
 	if (obj != &nil) return -1;
 	return ret;
 }
@@ -305,6 +312,27 @@ static struct obj *fn_error(CPS_ARGS) {
 	return obj;
 }
 
+static struct obj *fn_apply(CPS_ARGS) {
+	if (!check_args("apply", obj, 2)) {
+		*ret = self->fail;
+		return &nil;
+	}
+	struct obj* fun = obj->head;
+	*ret = dupcontn(self);
+	if (TYPE(fun) == CONTN) {
+		(*ret)->data = fun;
+		(*ret)->fn = apply_contn;
+	} else if (TYPE(fun) == FN || TYPE(fun) == SPECFORM) {
+		/* Just call the function */
+		(*ret)->data = &nil;
+		(*ret)->fn = fun->fn;
+	} else /* lambda or macro */ {
+		(*ret)->data = fun;
+		(*ret)->fn = apply_closure;
+	}
+	return obj->tail->head;
+}
+
 static struct obj *make_closure(const char *name, enum objtype type, CPS_ARGS) {
 	if (obj == &nil) {
 		fprintf(stderr, "%s: must have args\n", name);
@@ -427,6 +455,7 @@ COMPARE_OPS(COMPARE_FN)
 
 void add_globals(struct env *env) {
 #define DEFSYM(name, fn, type) definesym(env, str_from_string_lit(#name), make_fn(type, fn)); gc_cycle()
+	DEFSYM(apply, fn_apply, FN);
 	DEFSYM(begin, fn_begin, FN);
 	DEFSYM(call-with-current-continuation, fn_callcc, FN);
 	DEFSYM(car, fn_car, FN);

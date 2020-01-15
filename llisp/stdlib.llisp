@@ -8,6 +8,8 @@
 (define not (lambda (x) (if x #f #t)))
 
 (define cadr (lambda (p) (car (cdr p))))
+(define cddr (lambda (p) (cdr (cdr p))))
+(define caddr (lambda (p) (car (cdr (cdr p)))))
 
 ; bootstrap macros
 (define unquote (lambda args (error "unquote , must only be used within quasiquote `")))
@@ -71,13 +73,19 @@
 (define list (lambda args args))
 
 (define list? (lambda (lst)
+  (define list?-helper (lambda (tortoise hare)
+    (cond ((null? hare))
+          ((eq? tortoise hare) #f) ; circular
+          ((pair? hare)
+           (if (null? (cdr hare))
+               #t
+               (list?-helper (cdr tortoise) (cddr hare)))))))
   (cond ((null? lst))
-        ((pair? lst) (list? (cdr lst))))))
+        ((pair? lst) (list?-helper lst (cdr lst))))))
 
 (define let (macro (bindings . body)
   `((lambda ,(map car bindings) ,@body)
     ,@(map cadr bindings))))
-
 
 (define let* (macro (bindings . body)
   (cond ((null? bindings)
@@ -108,6 +116,7 @@
 ; (quasiquote) uses (and), so do it the long way
 (define and (macro args
   (cond ((null? args) #t) ; (and)
+        ((not (pair? args)) (error "and must be given a list")) ; (and . x)
         ((null? (cdr args)) (car args)) ; (and x)
         (else (list 'if (car args) (cons 'and (cdr args)))))))
 

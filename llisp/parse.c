@@ -18,7 +18,34 @@
 #define OBJ_TO_CHAR(o) ((char)(((273 - 19 * o) * o - 708) / 2))
 #define OBJ_ISSPECIAL(o) ((o) < GC_ALLOC_ALIGN)
 
-static int peek(FILE *f) {
+int line;
+int pos;
+int lastpos;
+
+static int readch(FILE *f) {
+	int ret = getc(f);
+	switch (ret) {
+		case EOF:
+			break;
+		case '\n':
+			++line;
+			lastpos = pos;
+			pos = 0;
+			break;
+		default:
+			lastpos = pos++;
+			break;
+	}
+	return ret;
+}
+static int unreadch(int ch, FILE *f) {
+	if (pos == 0) --line;
+	pos = lastpos;
+	return ungetc(ch, f);
+}
+
+static int peekch(FILE *f) {
+	// don't use readch/unreadch because we're not updating positions anyway
 	int ret = getc(f);
 	ungetc(ret, f);
 	return ret;
@@ -83,7 +110,7 @@ static struct obj *parse_list(char begin, FILE *f) {
 static uint32_t read_unicode_escape(FILE *f, int len) {
 	uint32_t ret = 0;
 	while (len--) {
-		int ch = getc(f);
+		int ch = readch(f);
 		if ('0' <= ch && ch <= '9') {
 			ret = (ret << 4) | (ch - '0');
 		} else if ('a' <= ch && ch <= 'f') {
@@ -126,7 +153,7 @@ static struct obj *parse_string(FILE *f) {
 	struct string *str = make_str();
 	for (;;) {
 		uint32_t codepoint;
-		int ch = getc(f);
+		int ch = readch(f);
 		if (ch == EOF) {
 			fputs("Unclosed string\n", stderr);
 			return NULL;
@@ -138,7 +165,7 @@ static struct obj *parse_string(FILE *f) {
 			str = str_append(str, (char)ch);
 			continue;
 		}
-		ch = getc(f);
+		ch = readch(f);
 		switch (ch) {
 		default:
 			fprintf(stderr, "Warning: unknown escape \\%c, treating as %c\n", ch, ch);
@@ -159,7 +186,7 @@ static struct obj *parse_string(FILE *f) {
 			break;
 		case 'u':
 		case 'U':
-			codepoint = read_unicode_escape(f, ch == 'u' ? 4 : 8);
+			codepoint = read_unicode_escape(f, 4 + 4 * (ch == 'U'));
 			if (codepoint != (uint32_t)-1) {
 				str = write_utf8(str, codepoint);
 			}
@@ -172,10 +199,10 @@ static struct obj *parsenum(int sign, FILE *f) {
 	struct string *str = make_str();
 	int ch;
 	char *endp;
-	while (isdigit((ch = getc(f))) || ch == '.' || ch == 'e' || ch == 'E' || ch == '+' || ch == '-') {
+	while (isdigit((ch = readch(f))) || ch == '.' || ch == 'e' || ch == 'E' || ch == '+' || ch == '-') {
 		str = str_append(str, (char)ch);
 	}
-	ungetc(ch, f);
+	unreadch(ch, f);
 
 	double val = strtod(str->str, &endp);
 	if (endp != str->str + str->len) {
@@ -187,20 +214,22 @@ static struct obj *parsenum(int sign, FILE *f) {
 }
 
 static uintptr_t parse_one(FILE *f) {
-	int ch;
+	int ch, startline, startpos;
 	for (;;) {
-		ch = getc(f);
+		ch = readch(f);
 		if (ch == EOF) return OBJ_NULL;
 		if (isspace(ch)) continue;
 		if (ch == ';') {
-			while ((ch = getc(f)) != EOF && ch != '\n');
+			while ((ch = readch(f)) != EOF && ch != '\n');
 			continue;
 		}
 		break;
 	}
+	startline = line;
+	startpos = pos;
 
 	if (isbegin(ch)) {
-		return (uintptr_t)parse_list((char)ch, f);
+		return (uintptr_t)locate_obj(parse_list((char)ch, f), startline, startpos);
 	}
 	if (ch == ')') return OBJ_CPAREN;
 	if (ch == '}') return OBJ_CBRACE;
@@ -208,14 +237,14 @@ static uintptr_t parse_one(FILE *f) {
 	if (ch == '.') return OBJ_DOT;
 
 	if (ch == '"') {
-		return (uintptr_t)parse_string(f);
+		return (uintptr_t)locate_obj(parse_string(f), startline, startpos);
 	}
 
 #define PARSEQUOTE(symb) \
 	do { \
 		uintptr_t tmp = parse_one(f); \
 		if (OBJ_ISSPECIAL(tmp)) return OBJ_NULL; \
-		return (uintptr_t)cons(make_symbol(str_from_string_lit(#symb)), cons((struct obj *)tmp, &nil)); \
+		return (uintptr_t)locate_obj(cons(make_symbol(str_from_string_lit(#symb)), cons((struct obj *)tmp, &nil)), startline, startpos); \
 	} while (0)
 	if (ch == '\'') {
 		PARSEQUOTE(quote);
@@ -224,34 +253,35 @@ static uintptr_t parse_one(FILE *f) {
 		PARSEQUOTE(quasiquote);
 	}
 	if (ch == ',') {
-		ch = getc(f);
+		ch = readch(f);
 		if (ch == '@') {
 			PARSEQUOTE(unquote-splicing);
 		}
-		ungetc(ch, f);
+		unreadch(ch, f);
 		PARSEQUOTE(unquote);
 	}
 #undef PARSEQUOTE
 
 	/* number */
 	if (isdigit(ch)) {
-		ungetc(ch, f);
-		return (uintptr_t)parsenum(1, f);
+		unreadch(ch, f);
+		return (uintptr_t)locate_obj(parsenum(1, f), startline, startpos);
 	}
-	if (ch == '-' && isdigit(peek(f))) {
-		return (uintptr_t)parsenum(-1, f);
+	if (ch == '-' && isdigit(peekch(f))) {
+		return (uintptr_t)locate_obj(parsenum(-1, f), startline, startpos);
 	}
 
 	/* symbol */
 	struct string *str = make_str();
 	do {
 		str = str_append(str, (char)ch);
-	} while ((ch = getc(f)) != EOF && !isspace(ch) && !isdelim(ch));
-	ungetc(ch, f);
-	return (uintptr_t)make_symbol(str);
+	} while ((ch = readch(f)) != EOF && !isspace(ch) && !isdelim(ch));
+	unreadch(ch, f);
+	return (uintptr_t)locate_obj(make_symbol(str), startline, startpos);
 }
 
 struct obj *parse(FILE *f) {
+	line = pos = lastpos = 0;
 	gc_suspend();
 	uintptr_t ret = parse_one(f);
 	gc_resume();

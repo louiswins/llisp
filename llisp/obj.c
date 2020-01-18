@@ -15,6 +15,7 @@ struct obj false_ = { BUILTIN, .builtin = "#f" };
 struct obj *make_obj(enum objtype type) {
 	struct obj *ret = gc_alloc(GC_OBJ, sizeof(*ret));
 	SETTYPE(ret, type);
+	ret->lineno = ret->pos = -1;
 	return ret;
 }
 struct obj *make_symbol(struct string *name) {
@@ -45,6 +46,11 @@ struct obj *cons(struct obj *l, struct obj *r) {
 	return ret;
 }
 
+struct obj *locate_obj(struct obj *o, int line, int pos) {
+	o->lineno = line;
+	o->pos = pos;
+	return o;
+}
 
 /* strings */
 struct string *make_str() {

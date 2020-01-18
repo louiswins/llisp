@@ -373,10 +373,10 @@ static struct obj *make_closure(const char *name, enum objtype type, CPS_ARGS) {
 }
 
 static struct obj *fn_lambda(CPS_ARGS) {
-	return make_closure("lambda", LAMBDA, self, obj, ret);
+	return locate_obj(make_closure("lambda", LAMBDA, self, obj, ret), obj->lineno, obj->pos);
 }
 static struct obj *fn_macro(CPS_ARGS) {
-	return make_closure("macro", MACRO, self, obj, ret);
+	return locate_obj(make_closure("macro", MACRO, self, obj, ret), obj->lineno, obj->pos);
 }
 
 #define ARITH_OPS(arith) \

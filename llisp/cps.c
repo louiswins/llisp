@@ -28,6 +28,9 @@ struct contn cbegin = { NULL };
 struct obj *eval_cps(CPS_ARGS);
 static struct obj *eval_doapply(CPS_ARGS);
 static struct obj *eval_macroreeval(CPS_ARGS);
+/* Try to eval directly instead of going through eval_cps
+ * Only used if it can be done in constant time */
+static int direct_eval(struct obj *obj, struct env *env, struct obj **result);
 
 /* Eval a list -> used for arguments to lambdas and cfuncs */
 static struct obj *evallist(CPS_ARGS);
@@ -35,6 +38,34 @@ static struct obj *evallist_tailcons(CPS_ARGS);
 static struct obj *evallist_cons(CPS_ARGS);
 
 static struct obj *run_closure(CPS_ARGS);
+
+int direct_eval(struct obj *obj, struct env *env, struct obj **result) {
+	if (!result) return 0;
+	switch (TYPE(obj)) {
+	default:
+		return 0;
+	case BUILTIN:
+	case NUM:
+	case SPECFORM:
+	case FN:
+	case LAMBDA:
+	case MACRO:
+	case STRING:
+	case CONTN:
+		*result = obj;
+		return 1;
+	case SYMBOL: {
+		struct obj *value = getsym(env, obj->str);
+		if (value == NULL) {
+			return 0;
+		}
+		*result = value;
+		return 1;
+	}
+	case CELL:
+		return 0;
+	}
+}
 
 /* obj = object to eval, return self->next(eval(obj)) */
 struct obj *eval_cps(CPS_ARGS) {
@@ -71,11 +102,18 @@ struct obj *eval_cps(CPS_ARGS) {
 			*ret = self->fail;
 			return &nil;
 		}
+
 		struct contn *doapply = dupcontn(self);
 		doapply->data = obj;
 		doapply->fn = eval_doapply;
 
-		/* eval obj->head */
+		struct obj *result;
+		if (direct_eval(obj->head, self->env, &result)) {
+			*ret = doapply;
+			return result;
+		}
+
+		/* direct evaluation failed - eval obj->head */
 		*ret = dupcontn(self);
 		(*ret)->next = doapply;
 		return obj->head;
@@ -83,8 +121,8 @@ struct obj *eval_cps(CPS_ARGS) {
 	}
 }
 
-/* obj = fn, self->data = (fnname . args), call self->next(fn(obj)) */
-/* We include fnname so that we can expand a macro if need be */
+/* obj = fn, self->data = (fnname . args), call self->next(fn(obj))
+ * We include fnname so that we can expand a macro if need be */
 static struct obj *eval_doapply(CPS_ARGS) {
 	if (!is_callable(TYPE(obj))) {
 		fprintf(stderr, "apply: unable to apply non-function ");
@@ -130,9 +168,9 @@ static struct obj *eval_doapply(CPS_ARGS) {
 
 /* obj = expansion, self->data = (macroname . args), call self->next(eval(obj)) */
 static struct obj *eval_macroreeval(CPS_ARGS) {
-	/* expand macro in place */
-	/* disabled due to design issues */
-	/* memcpy(self->data, obj, sizeof(*self->data)); */
+	/* expand macro in place
+	 * disabled due to design issues
+	 * memcpy(self->data, obj, sizeof(*self->data)); */
 
 	*ret = dupcontn(self);
 	(*ret)->data = &nil;
@@ -143,21 +181,25 @@ static struct obj *eval_macroreeval(CPS_ARGS) {
 
 /* obj = (fn . list to eval) */
 static struct obj *evallist(CPS_ARGS) {
+	struct obj *result;
+	if (direct_eval(obj, self->env, &result)) {
+		*ret = self->next;
+		return result;
+	}
 	if (TYPE(obj) != CELL) {
-		/* We're at the end of the list -> don't bother evaling nil */
-		if (obj == &nil) {
-			*ret = self->next;
-			return &nil;
-		} else {
-			*ret = dupcontn(self);
-			(*ret)->fn = eval_cps;
-			return obj;
-		}
+		*ret = dupcontn(self);
+		(*ret)->fn = eval_cps;
+		return obj;
 	}
 	/* call self->next(cons(eval(obj->head), evallist(obj->tail))) */
 	struct contn *tailcons = dupcontn(self);
 	tailcons->data = obj->tail;
 	tailcons->fn = evallist_tailcons;
+
+	if (direct_eval(obj->head, self->env, &result)) {
+		*ret = tailcons;
+		return result;
+	}
 
 	*ret = dupcontn(self);
 	(*ret)->next = tailcons;

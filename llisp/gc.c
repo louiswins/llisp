@@ -65,7 +65,7 @@ static void gc_mark(struct gc_head *gcitem) {
 	if (ISMARKED(gcitem)) return;
 	ADDMARK(gcitem);
 	if (GCTYPE(gcitem) == GC_STR) return; /* no pointers in a string :) */
-	if (GCTYPE(gcitem) == GC_HASHTAB) {
+	if (GCTYPE(gcitem) == GC_HTENTRY) {
 		/* Should be queued as part of its owner, because we don't have the length here */
 		/* Could be added as part of the temp roots while allocating. Hopefully if there's
 		 * anything in it it's already in the graph, because we don't have size here. */

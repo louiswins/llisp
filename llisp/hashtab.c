@@ -11,8 +11,7 @@ struct ht_entry {
 	struct obj *value;
 };
 
-void init_hashtab(struct hashtab *ht)
-{
+void init_hashtab(struct hashtab *ht) {
 	ht->size = 0;
 	ht->cap = 0;
 	ht->table = NULL;
@@ -54,7 +53,7 @@ static struct ht_entry *hashtab_find(struct ht_entry *entries, size_t cap, struc
 static void hashtab_embiggen(struct hashtab *ht) {
 	size_t i;
 	size_t newcap = ht->cap ? ht->cap + ht->cap / 2 : INITIAL_HASHTAB_CAPACITY;
-	struct ht_entry *newtab = gc_alloc(GC_HASHTAB, newcap * sizeof(*newtab));
+	struct ht_entry *newtab = gc_alloc(GC_HTENTRY, newcap * sizeof(*newtab));
 	for (i = 0; i < ht->cap; ++i) {
 		struct string *curkey = ht->table[i].key;
 		if (curkey != NULL) {

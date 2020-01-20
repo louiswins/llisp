@@ -21,7 +21,7 @@ struct string *stringdup(struct string *s);
 int stringeq(struct string *a, struct string *b); /* a == b */
 int stringcmp(struct string *a, struct string *b); /* like strcmp(a, b) */
 
-enum objtype { CELL, NUM, SYMBOL, FN, SPECFORM, LAMBDA, MACRO, BUILTIN, CONTN, STRING, MAX };
+enum objtype { CELL, NUM, SYMBOL, FN, SPECFORM, LAMBDA, MACRO, BUILTIN, CONTN, STRING };
 struct obj {
 	enum objtype typ;
 	int lineno, pos;

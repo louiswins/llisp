@@ -32,11 +32,15 @@ struct obj {
 		};
 		double num;
 		struct string *str;
-		struct obj *(*fn)(CPS_ARGS);
+		struct {
+			struct obj *(*fn)(CPS_ARGS);
+			const char *fnname;
+		};
 		struct {
 			struct obj *args;
 			struct obj *code;
 			struct env *env;
+			struct string *closurename;
 		};
 		const char *builtin;
 		struct contn *contnp;
@@ -52,7 +56,7 @@ extern struct obj false_;
 struct obj *make_obj(enum objtype type);
 struct obj *make_symbol(struct string *name);
 struct obj *make_num(double val);
-struct obj *make_fn(enum objtype type, struct obj *(*fn)(CPS_ARGS));
+struct obj *make_fn(enum objtype type, struct obj *(*fn)(CPS_ARGS), const char *name);
 struct obj *make_str_obj(struct string *val);
 
 struct obj *cons(struct obj *l, struct obj *r);

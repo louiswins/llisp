@@ -454,7 +454,7 @@ COMPARE_OPS(COMPARE_FN)
 #undef COMPARE_FN
 
 void add_globals(struct env *env) {
-#define DEFSYM(name, fn, type) definesym(env, str_from_string_lit(#name), make_fn(type, fn)); gc_cycle()
+#define DEFSYM(name, fn, type) definesym(env, str_from_string_lit(#name), make_fn(type, fn, #name)); gc_cycle()
 	DEFSYM(apply, fn_apply, FN);
 	DEFSYM(begin, fn_begin, FN);
 	DEFSYM(call-with-current-continuation, fn_callcc, FN);

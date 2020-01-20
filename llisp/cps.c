@@ -196,11 +196,22 @@ struct obj *apply_closure(CPS_ARGS) {
 			break;
 		}
 		if (params == &nil) {
-			fputs("warning: apply: too many arguments given\n", stderr);
+			fputs("warning: ", stderr);
+			if (self->data->closurename) {
+				print_str(stderr, self->data->closurename);
+			} else {
+				fputs("apply", stderr);
+			}
+			fputs(": too many arguments given\n", stderr);
 			break;
 		}
 		if (obj == &nil) {
-			fputs("apply: too few arguments given\n", stderr);
+			if (self->data->closurename) {
+				print_str(stderr, self->data->closurename);
+			} else {
+				fputs("apply", stderr);
+			}
+			fputs(": too few arguments given\n", stderr);
 			*ret = self->fail;
 			return &nil;
 		}

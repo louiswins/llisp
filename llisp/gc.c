@@ -115,6 +115,7 @@ static void gc_mark(struct gc_head *gcitem) {
 		gc_queue(obj->args);
 		gc_queue(obj->code);
 		gc_queue(obj->env);
+		gc_queue(obj->closurename);
 		return;
 	case CONTN:
 		gc_queue(obj->contnp);

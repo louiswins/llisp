@@ -12,13 +12,21 @@ struct env *make_env(struct env *parent) {
 	return ret;
 }
 
+static void set_name_if_necessary(struct string *name, struct obj *value) {
+	if (value != NULL && (TYPE(value) == LAMBDA || TYPE(value) == MACRO) && !value->closurename) {
+		value->closurename = stringdup(name);
+	}
+}
+
 void definesym(struct env *env, struct string *name, struct obj *value) {
+	set_name_if_necessary(name, value);
 	hashtab_put(&env->table, name, value);
 }
 
 int setsym(struct env *env, struct string *name, struct obj *value) {
 	for (; env != NULL; env = env->parent) {
 		if (hashtab_exists(&env->table, name)) {
+			set_name_if_necessary(name, value);
 			hashtab_put(&env->table, name, value);
 			return 1;
 		}

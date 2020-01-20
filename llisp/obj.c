@@ -28,9 +28,10 @@ struct obj *make_num(double val) {
 	ret->num = val;
 	return ret;
 }
-struct obj *make_fn(enum objtype type, struct obj *(*fn)(CPS_ARGS)) {
+struct obj *make_fn(enum objtype type, struct obj *(*fn)(CPS_ARGS), const char *name) {
 	struct obj *ret = make_obj(type);
 	ret->fn = fn;
+	ret->fnname = name;
 	return ret;
 }
 struct obj *make_str_obj(struct string *val) {

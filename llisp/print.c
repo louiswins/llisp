@@ -41,18 +41,28 @@ static void print_on_helper(FILE *f, struct obj *obj, int verbose) {
 		}
 		break;
 	case FN:
-		fputs("<#fn>", f);
+		fprintf(f, "<#fn %s>", obj->fnname);
 		break;
 	case SPECFORM:
-		fputs("<#specform>", f);
+		fprintf(f, "<#specform %s>", obj->fnname);
 		break;
 	case LAMBDA:
-		fputs("<#closure args=", f);
+		fputs("<#closure ", f);
+		if (obj->closurename) {
+			print_str(f, obj->closurename);
+			fputc(' ', f);
+		}
+		fputs("args=", f);
 		print_on_helper(f, obj->args, verbose);
 		putc('>', f);
 		break;
 	case MACRO:
-		fputs("<#macro args=", f);
+		fputs("<#macro ", f);
+		if (obj->closurename) {
+			print_str(f, obj->closurename);
+			fputc(' ', f);
+		}
+		fputs("args=", f);
 		print_on_helper(f, obj->args, verbose);
 		putc('>', f);
 		break;

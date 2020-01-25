@@ -45,12 +45,12 @@ static struct obj *fn_if(CPS_ARGS) {
 	int len = length(obj);
 	if (len < 0) {
 		fputs("if: args must be a proper list", stderr);
-		*ret = self->fail;
+		*ret = &cfail;
 		return &nil;
 	}
 	if (len < 2 || len > 3) {
 		fprintf(stderr, "if: expected 2 or 3 args, got %d\n", len);
-		*ret = self->fail;
+		*ret = &cfail;
 		return &nil;
 	}
 	struct contn *resume = dupcontn(self);
@@ -86,7 +86,7 @@ static struct obj *resumeif(CPS_ARGS) {
 
 static struct obj *fn_quote(CPS_ARGS) {
 	if (!check_args("quote", obj, 1)) {
-		*ret = self->fail;
+		*ret = &cfail;
 		return &nil;
 	}
 	*ret = self->next;
@@ -95,12 +95,12 @@ static struct obj *fn_quote(CPS_ARGS) {
 
 static struct obj *set_symbol_cps(const char *name, struct obj *(*next)(CPS_ARGS), CPS_ARGS) {
 	if (!check_args(name, obj, 2)) {
-		*ret = self->fail;
+		*ret = &cfail;
 		return &nil;
 	}
 	if (TYPE(obj->head) != SYMBOL) {
 		fprintf(stderr, "%s: must define a symbol\n", name);
-		*ret = self->fail;
+		*ret = &cfail;
 		return &nil;
 	}
 	struct contn *resume = dupcontn(self);
@@ -138,7 +138,7 @@ static struct obj *do_setsym(CPS_ARGS) {
 		fputs("set!: symbol \"", stderr);
 		print_str_escaped(stderr, self->data->str);
 		fputs("\" does not exist\n", stderr);
-		*ret = self->fail;
+		*ret = &cfail;
 		return &nil;
 	}
 	*ret = self->next;
@@ -147,12 +147,12 @@ static struct obj *do_setsym(CPS_ARGS) {
 
 static struct obj *fn_set_cell(const char* name, void (*actually_set)(struct obj *cell, struct obj *value), CPS_ARGS) {
 	if (!check_args(name, obj, 2)) {
-		*ret = self->fail;
+		*ret = &cfail;
 		return &nil;
 	}
 	if (TYPE(obj->head) != CELL) {
 		fprintf(stderr, "%s: object not a pair\n", name);
-		*ret = self->fail;
+		*ret = &cfail;
 		return &nil;
 	}
 	actually_set(obj->head, obj->tail->head);
@@ -176,12 +176,12 @@ static struct obj *fn_set_cdr_(CPS_ARGS) {
 
 static struct obj *fn_car(CPS_ARGS) {
 	if (!check_args("car", obj, 1)) {
-		*ret = self->fail;
+		*ret = &cfail;
 		return &nil;
 	}
 	if (TYPE(obj->head) != CELL) {
 		fputs("car: object not a pair\n", stderr);
-		*ret = self->fail;
+		*ret = &cfail;
 		return &nil;
 	}
 	*ret = self->next;
@@ -189,12 +189,12 @@ static struct obj *fn_car(CPS_ARGS) {
 }
 static struct obj *fn_cdr(CPS_ARGS) {
 	if (!check_args("cdr", obj, 1)) {
-		*ret = self->fail;
+		*ret = &cfail;
 		return &nil;
 	}
 	if (TYPE(obj->head) != CELL) {
 		fputs("cdr: object not a pair\n", stderr);
-		*ret = self->fail;
+		*ret = &cfail;
 		return &nil;
 	}
 	*ret = self->next;
@@ -202,7 +202,7 @@ static struct obj *fn_cdr(CPS_ARGS) {
 }
 static struct obj *fn_cons(CPS_ARGS) {
 	if (!check_args("cons", obj, 2)) {
-		*ret = self->fail;
+		*ret = &cfail;
 		return &nil;
 	}
 	*ret = self->next;
@@ -211,7 +211,7 @@ static struct obj *fn_cons(CPS_ARGS) {
 
 static struct obj *fn_pair_(CPS_ARGS) {
 	if (!check_args("pair?", obj, 1)) {
-		*ret = self->fail;
+		*ret = &cfail;
 		return &nil;
 	}
 	*ret = self->next;
@@ -245,14 +245,14 @@ static struct obj *fn_gensym(CPS_ARGS) {
 		return make_symbol(s);
 	} else {
 		fputs("gensym: expected 0 or 1 args\n", stderr);
-		*ret = self->fail;
+		*ret = &cfail;
 		return &nil;
 	}
 }
 
 static struct obj *fn_eq_(CPS_ARGS) {
 	if (!check_args("eq?", obj, 2)) {
-		*ret = self->fail;
+		*ret = &cfail;
 		return &nil;
 	}
 	*ret = self->next;
@@ -269,7 +269,7 @@ static struct obj *fn_eq_(CPS_ARGS) {
 
 static struct obj *fn_display(CPS_ARGS) {
 	if (!check_args("display", obj, 1)) {
-		*ret = self->fail;
+		*ret = &cfail;
 		return &nil;
 	}
 	display(obj->head);
@@ -278,7 +278,7 @@ static struct obj *fn_display(CPS_ARGS) {
 }
 static struct obj *fn_write(CPS_ARGS) {
 	if (!check_args("write", obj, 1)) {
-		*ret = self->fail;
+		*ret = &cfail;
 		return &nil;
 	}
 	print(obj->head);
@@ -287,7 +287,7 @@ static struct obj *fn_write(CPS_ARGS) {
 }
 static struct obj *fn_newline(CPS_ARGS) {
 	if (!check_args("newline", obj, 0)) {
-		*ret = self->fail;
+		*ret = &cfail;
 		return &nil;
 	}
 	putchar('\n');
@@ -297,7 +297,7 @@ static struct obj *fn_newline(CPS_ARGS) {
 
 static struct obj *fn_callcc(CPS_ARGS) {
 	if (!check_args("call-with-current-continuation", obj, 1)) {
-		*ret = self->fail;
+		*ret = &cfail;
 		return &nil;
 	}
 	*ret = dupcontn(self);
@@ -308,13 +308,14 @@ static struct obj *fn_callcc(CPS_ARGS) {
 }
 
 static struct obj *fn_error(CPS_ARGS) {
-	*ret = self->fail;
+	(void)self;
+	*ret = &cfail;
 	return obj;
 }
 
 static struct obj *fn_apply(CPS_ARGS) {
 	if (!check_args("apply", obj, 2)) {
-		*ret = self->fail;
+		*ret = &cfail;
 		return &nil;
 	}
 	struct obj* fun = obj->head;
@@ -336,32 +337,32 @@ static struct obj *fn_apply(CPS_ARGS) {
 static struct obj *make_closure(const char *name, enum objtype type, CPS_ARGS) {
 	if (obj == &nil) {
 		fprintf(stderr, "%s: must have args\n", name);
-		*ret = self->fail;
+		*ret = &cfail;
 		return &nil;
 	}
 	struct obj *args = obj->head;
 	if (args != &nil && TYPE(args) != SYMBOL && TYPE(args) != CELL) {
 		fprintf(stderr, "%s: expected symbol or list of symbols\n", name);
-		*ret = self->fail;
+		*ret = &cfail;
 		return &nil;
 	}
 	if (TYPE(args) == CELL) {
 		for (; TYPE(args) == CELL; args = args->tail) {
 			if (TYPE(args->head) != SYMBOL) {
 				fprintf(stderr, "%s: expected symbol or list of symbols\n", name);
-				*ret = self->fail;
+				*ret = &cfail;
 				return &nil;
 			}
 		}
 		if (args != &nil && TYPE(args) != SYMBOL) {
 			fprintf(stderr, "%s: expected symbol or list of symbols\n", name);
-			*ret = self->fail;
+			*ret = &cfail;
 			return &nil;
 		}
 	}
 	if (TYPE(obj->tail) != CELL) {
 		fprintf(stderr, "%s: invalid body\n", name);
-		*ret = self->fail;
+		*ret = &cfail;
 		return &nil;
 	}
 	*ret = self->next;
@@ -387,14 +388,14 @@ static struct obj *fn_macro(CPS_ARGS) {
 #define NONNUM(arg, op) \
 	if (TYPE(arg) != NUM) { \
 		fputs(#op ": argument not a number\n", stderr); \
-		*ret = self->fail; \
+		*ret = &cfail; \
 		return &nil; \
 	}
 #define ARITH_FN(name, op, ...) \
 static struct obj *name(CPS_ARGS) { \
 	if (obj == &nil) { \
 		fputs(#op ": no arguments given\n", stderr); \
-		*ret = self->fail; \
+		*ret = &cfail; \
 		return &nil; \
 	} \
 	NONNUM(obj->head, op) \
@@ -418,12 +419,12 @@ ARITH_OPS(ARITH_FN)
 #undef NONNUM
 static struct obj *fn_mod(CPS_ARGS) {
 	if (!check_args("%", obj, 2)) {
-		*ret = self->fail;
+		*ret = &cfail;
 		return &nil;
 	}
 	if (TYPE(obj->head) != NUM || TYPE(obj->tail->head) != NUM) {
 		fputs("%: argument not a number\n", stderr);
-		*ret = self->fail;
+		*ret = &cfail;
 		return &nil;
 	}
 	*ret = self->next;
@@ -439,12 +440,12 @@ static struct obj *fn_mod(CPS_ARGS) {
 #define COMPARE_FN(cname, lispname, op) \
 static struct obj *cname(CPS_ARGS) { \
 	if (!check_args(#lispname, obj, 2)) { \
-		*ret = self->fail; \
+		*ret = &cfail; \
 		return &nil; \
 	} \
 	if (TYPE(obj->head) != NUM || TYPE(obj->tail->head) != NUM) { \
 		fputs(#lispname ": argument not a number\n", stderr); \
-		*ret = self->fail; \
+		*ret = &cfail; \
 		return &nil; \
 	} \
 	*ret = self->next; \

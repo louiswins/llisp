@@ -19,7 +19,6 @@ struct contn {
 	struct obj *data;
 	struct env *env;
 	struct contn *next;
-	struct contn *fail;
 	struct obj *(*fn)(CPS_ARGS);
 };
 /* duplicate an existing continuation */

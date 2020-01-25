@@ -10,8 +10,9 @@
 
 static int repl_done = 0;
 static struct obj *fn_quit(CPS_ARGS) {
+	(void)self;
 	repl_done = 1;
-	*ret = self->fail;
+	*ret = &cfail;
 	return obj;
 }
 

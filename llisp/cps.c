@@ -72,7 +72,7 @@ struct obj *eval_cps(CPS_ARGS) {
 	switch (TYPE(obj)) {
 	default:
 		fprintf(stderr, "eval: unknown type %d\n", TYPE(obj));
-		*ret = self->fail;
+		*ret = &cfail;
 		return &nil;
 	case BUILTIN:
 	case NUM:
@@ -90,7 +90,7 @@ struct obj *eval_cps(CPS_ARGS) {
 			fputs("eval: unknown symbol \"", stderr);
 			print_str_escaped(stderr, obj->str);
 			fputs("\"\n", stderr);
-			*ret = self->fail;
+			*ret = &cfail;
 			return &nil;
 		}
 		*ret = self->next;
@@ -99,7 +99,7 @@ struct obj *eval_cps(CPS_ARGS) {
 	case CELL: {
 		if (obj->tail != &nil && TYPE(obj->tail) != CELL) {
 			fputs("eval: function must be applied to proper list\n", stderr);
-			*ret = self->fail;
+			*ret = &cfail;
 			return &nil;
 		}
 
@@ -128,7 +128,7 @@ static struct obj *eval_doapply(CPS_ARGS) {
 		fprintf(stderr, "apply: unable to apply non-function ");
 		print_on(stderr, obj, 1 /*verbose*/);
 		fputc('\n', stderr);
-		*ret = self->fail;
+		*ret = &cfail;
 		return &nil;
 	}
 
@@ -254,7 +254,7 @@ struct obj *apply_closure(CPS_ARGS) {
 				fputs("apply", stderr);
 			}
 			fputs(": too few arguments given\n", stderr);
-			*ret = self->fail;
+			*ret = &cfail;
 			return &nil;
 		}
 		definesym(appenv, params->head->str, obj->head);
@@ -299,7 +299,6 @@ struct obj *apply_contn(CPS_ARGS) {
 struct obj *run_cps(struct obj *obj, struct env *env) {
 	cbegin.env = env;
 	cbegin.next = &cend;
-	cbegin.fail = &cfail;
 	cbegin.fn = eval_cps;
 	gc_current_contn = &cbegin;
 	gc_current_obj = obj;

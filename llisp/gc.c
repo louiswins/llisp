@@ -88,7 +88,6 @@ static void gc_mark(struct gc_head *gcitem) {
 		gc_queue(contn->data);
 		gc_queue(contn->env);
 		gc_queue(contn->next);
-		gc_queue(contn->fail);
 		return;
 	}
 	assert(GCTYPE(gcitem) == GC_OBJ);

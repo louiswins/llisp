@@ -56,7 +56,6 @@
       <Item Name="Data">data</Item>
       <Item Name="Env">env</Item>
       <Item Name="Next" Condition="next">next</Item>
-      <Item Name="Fail" Condition="fail">fail</Item>
       <Item Name="Fn" Condition="fn">fn,na</Item>
     </Expand>
   </Type>

@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include "cps.h"
 #include "env.h"
+#include "hashtab.h"
 
 struct string {
 	char *str;
@@ -53,6 +54,8 @@ struct obj {
 extern struct obj nil;
 extern struct obj true_;
 extern struct obj false_;
+// Weak references to every symbol
+extern struct hashtab interned_symbols;
 
 struct obj *make_obj(enum objtype type);
 struct obj *make_symbol(struct string *name);

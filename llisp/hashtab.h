@@ -19,6 +19,9 @@ struct hashtab {
 /* Initialize an empty hashtable */
 void init_hashtab(struct hashtab *ht);
 
+/* Statically initialize hashtable */
+#define EMPTY_HASHTAB { 0, 0, NULL }
+
 /* Does this key exist in the hashtable?
  * If you know that you'll never put a null value in the hashtable
  * you can just skip to `hashtab_get`. */

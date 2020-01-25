@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <limits.h>
 #include <math.h>
 #include <stdio.h>
@@ -235,13 +236,11 @@ static struct obj *fn_gensym(CPS_ARGS) {
 		len = 0;
 	}
 	if (len == 0) {
-		static const char symformat[] = " gensym%d";
-		static size_t maxsymsize = 0;
-		if (!maxsymsize) maxsymsize = snprintf(NULL, 0, symformat, INT_MAX) + 1; /* +1 because snprintf always writes a '\0' */
-
-		struct string *s = make_str_cap(maxsymsize);
-		s->len = snprintf(s->str, s->cap, symformat, ++symnum); /* No +1 because we don't want the '\0' */
+		struct string *s = make_str_cap(32); // more than enough
+		s->len = snprintf(s->str, s->cap, " gensym%d", ++symnum); /* snprintf returns the actual length without '\0' (although it writes it) */
+		assert(s->len < s->cap);
 		*ret = self->next;
+		/* TODO: consider not interning this symbol? */
 		return make_symbol(s);
 	} else {
 		fputs("gensym: expected 0 or 1 args\n", stderr);
@@ -261,7 +260,7 @@ static struct obj *fn_eq_(CPS_ARGS) {
 	if (TYPE(a) == NUM && TYPE(b) == NUM) {
 		return a->num == b->num ? &true_ : &false_;
 	}
-	if ((TYPE(a) == SYMBOL && TYPE(b) == SYMBOL) || (TYPE(a) == STRING && TYPE(b) == STRING)) {
+	if (TYPE(a) == STRING && TYPE(b) == STRING) {
 		return stringeq(a->str, b->str) ? &true_ : &false_;
 	}
 	return a == b ? &true_ : &false_;

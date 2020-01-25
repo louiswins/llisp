@@ -10,7 +10,7 @@
 struct obj nil = { BUILTIN, .builtin = "()" };
 struct obj true_ = { BUILTIN, .builtin = "#t" };
 struct obj false_ = { BUILTIN, .builtin = "#f" };
-
+struct hashtab interned_symbols = EMPTY_HASHTAB;
 
 struct obj *make_obj(enum objtype type) {
 	struct obj *ret = gc_alloc(GC_OBJ, sizeof(*ret));
@@ -19,9 +19,16 @@ struct obj *make_obj(enum objtype type) {
 	return ret;
 }
 struct obj *make_symbol(struct string *name) {
-	struct obj *ret = make_obj(SYMBOL);
-	ret->str = stringdup(name);
-	return ret;
+	struct obj *existing = hashtab_get(&interned_symbols, name);
+	// TODO: remove check for nil after implementing hashtable deletion
+	if (existing && existing != &nil) {
+		return existing;
+	} else {
+		struct obj *ret = make_obj(SYMBOL);
+		ret->str = stringdup(name);
+		hashtab_put(&interned_symbols, name, ret);
+		return ret;
+	}
 }
 struct obj *make_num(double val) {
 	struct obj *ret = make_obj(NUM);

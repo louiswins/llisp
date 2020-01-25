@@ -61,6 +61,13 @@ static void gc_queue_hashtab_entry(struct string *key, struct obj *value, void *
 	ADDMARK(GC_FROM_OBJ(key)); /* I know it's a string */
 	gc_queue(value);
 }
+/* TODO: delete this after implementing hashtable deletion - no reason to keep
+ * the keys alive once we can actually remove them. */
+static void gc_queue_hashtab_entry_weak(struct string *key, struct obj *value, void *ignored) {
+	(void)value;
+	(void)ignored;
+	ADDMARK(GC_FROM_OBJ(key));
+}
 static void gc_mark(struct gc_head *gcitem) {
 	if (ISMARKED(gcitem)) return;
 	ADDMARK(gcitem);
@@ -144,6 +151,12 @@ void gc_collect() {
 	for (size_t i = 0; i < ntemproots; ++i) {
 		gc_queue(temp_roots[i]);
 	}
+	/* DON'T queue this normally as it's full of weak references */
+	if (interned_symbols.cap != 0) {
+		ADDMARK(GC_FROM_OBJ(interned_symbols.table));
+		/* TODO: remove the following line after implementing hashtable deletion */
+		hashtab_foreach(&interned_symbols, gc_queue_hashtab_entry_weak, NULL);
+	}
 	/* mark */
 	while (objs_to_mark != NULL) {
 		struct gc_head *cur = objs_to_mark;
@@ -161,6 +174,15 @@ void gc_collect() {
 		} else {
 			struct gc_head *leaked = *cur;
 			*cur = leaked->next;
+			if (GCTYPE(leaked) == GC_OBJ) {
+				/* Clear out weak reference in interned_symbols if necessary
+				 * We'll have to figure out something better in case we add weak references somewhere else */
+				struct obj *leaked_obj = (struct obj *)OBJ_FROM_GC(leaked);
+				if (TYPE(leaked_obj) == SYMBOL && hashtab_get(&interned_symbols, leaked_obj->str) == leaked_obj) {
+					/* TODO: implement hashtable deletion */
+					hashtab_put(&interned_symbols, leaked_obj->str, &nil);
+				}
+			}
 			free(leaked);
 #ifdef GC_STATS
 			++gc_total_frees;

@@ -10,8 +10,10 @@
     <DisplayString Condition="typ == NUM">{num}</DisplayString>
     <DisplayString Condition="typ == SYMBOL || typ == STRING">{str}</DisplayString>
     <DisplayString Condition="typ == FN || typ == SPECFORM">{fn,na}</DisplayString>
-    <DisplayString Condition="typ == LAMBDA">[lambda args={*args}]</DisplayString>
-    <DisplayString Condition="typ == MACRO">[macro args={*args}]</DisplayString>
+    <DisplayString Condition="typ == LAMBDA &amp;&amp; !closurename">[lambda args={*args}]</DisplayString>
+    <DisplayString Condition="typ == LAMBDA &amp;&amp; closurename">[lambda {closurename,na} args={*args}]</DisplayString>
+    <DisplayString Condition="typ == MACRO &amp;&amp; !closurename">[macro args={*args}]</DisplayString>
+    <DisplayString Condition="typ == MACRO &amp;&amp; closurename">[macro {closurename,na} args={*args}]</DisplayString>
     <DisplayString Condition="typ == BUILTIN">{builtin,sb}</DisplayString>
     <DisplayString Condition="typ == CONTN">{*contnp}</DisplayString>
     <Expand>
@@ -23,10 +25,12 @@
       <Item Name="Num" Condition="typ == NUM">num</Item>
       
       <Item Name="Symbol" Condition="typ == SYMBOL">str</Item>
-      
+
       <Item Name="Fn" Condition="typ == FN || typ == SPECFORM">fn,na</Item>
+      <Item Name="Name" Condition="typ == FN || typ == SPECFORM">fnname,na</Item>
       
       <Item Name="Args" Condition="typ == LAMBDA || typ == MACRO">*args</Item>
+      <Item Name="Name" Condition="typ == LAMBDA || typ == MACRO">closurename,na</Item>
       <Item Name="Code" Condition="typ == LAMBDA || typ == MACRO">*code</Item>
 
       <Item Name="Builtin" Condition="typ == BUILTIN">builtin,sb</Item>

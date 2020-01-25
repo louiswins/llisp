@@ -17,6 +17,7 @@ struct string *make_str_from_ptr_len(const char *c, size_t len); /* Copies */
 void print_str(FILE *f, struct string *s);
 void print_str_escaped(FILE *f, struct string *s);
 struct string *str_append(struct string *s, char ch);
+struct string *str_append_str(struct string *s, struct string *s2);
 struct string *stringdup(struct string *s);
 int stringeq(struct string *a, struct string *b); /* a == b */
 int stringcmp(struct string *a, struct string *b); /* like strcmp(a, b) */

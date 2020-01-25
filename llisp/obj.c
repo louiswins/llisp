@@ -57,11 +57,11 @@ struct obj *locate_obj(struct obj *o, int line, int pos) {
 struct string *make_str() {
 	return make_str_cap(32); /* 32 is a good initial size */
 }
-struct string *make_str_cap(size_t len) {
-	struct string *s = gc_alloc(GC_STR, sizeof(*s) + len);
+struct string *make_str_cap(size_t cap) {
+	struct string *s = gc_alloc(GC_STR, sizeof(*s) + cap);
 	s->str = ((char *)s) + sizeof(*s);
 	s->len = 0;
-	s->cap = len;
+	s->cap = cap;
 	return s;
 }
 struct string *make_str_ref(const char *c) {
@@ -123,6 +123,23 @@ struct string *str_append(struct string *s, char ch) {
 		}
 		s->str[s->len++] = ch;
 	}
+	return s;
+}
+
+struct string *str_append_str(struct string *s, struct string *s2) {
+	if (!s->cap || s->cap - s->len < s2->len) {
+		size_t newcap = s->cap ? (s->cap + s->cap / 2) : (s->len + s->len / 2);
+		if (newcap - s->len < s2->len) {
+			// Still not big enough... we'll give it room to breathe though.
+			newcap += s2->len;
+		}
+		struct string *newstr = make_str_cap(newcap);
+		memcpy(newstr->str, s->str, s->len);
+		newstr->len = s->len;
+		s = newstr;
+	}
+	memcpy(s->str + s->len, s2->str, s2->len);
+	s->len += s2->len;
 	return s;
 }
 

@@ -380,6 +380,15 @@ static struct obj *fn_macro(CPS_ARGS) {
 	return locate_obj(make_closure("macro", MACRO, self, obj, ret), obj->lineno, obj->pos);
 }
 
+static struct obj *fn_number_(CPS_ARGS) {
+	if (!check_args("number?", obj, 1)) {
+		*ret = &cfail;
+		return &nil;
+	}
+	*ret = self->next;
+	return TYPE(obj) == NUM ? &true_ : &false_;
+}
+
 #define ARITH_OPS(arith) \
 	arith(fn_plus, +) \
 	arith(fn_minus, -) \
@@ -454,6 +463,148 @@ static struct obj *cname(CPS_ARGS) { \
 COMPARE_OPS(COMPARE_FN)
 #undef COMPARE_FN
 
+static struct obj *fn_string_(CPS_ARGS) {
+	if (!check_args("string?", obj, 1)) {
+		*ret = &cfail;
+		return &nil;
+	}
+	*ret = self->next;
+	return TYPE(obj->head) == STRING ? &true_ : &false_;
+}
+
+static struct obj *fn_string_append(CPS_ARGS) {
+	if (length(obj) < 0) {
+		fputs("string-append: args must be a proper list\n", stderr);
+		*ret = &cfail;
+		return &nil;
+	}
+	struct obj *cur = obj;
+	size_t cap = 0;
+	for (; cur != &nil; cur = cur->tail) {
+		if (TYPE(cur->head) != STRING) {
+			fputs("string-append: expected string, given ", stderr);
+			print_on(stderr, cur->head, 1);
+			fputc('\n', stderr);
+			*ret = &cfail;
+			return &nil;
+		}
+		cap += cur->head->str->len;
+	}
+	struct string *result = make_str_cap(cap);
+	cur = obj;
+	for (cur = obj; cur != &nil; cur = cur->tail) {
+		result = str_append_str(result, cur->head->str);
+	}
+	*ret = self->next;
+	return make_str_obj(result);
+}
+
+static struct obj *fn_string_compare(CPS_ARGS) {
+	if (!check_args("string-compare", obj, 2)) {
+		*ret = &cfail;
+		return &nil;
+	}
+	if (TYPE(obj->head) != STRING || TYPE(obj->tail->head) != STRING) {
+		fputs("string-compare: expected string, given ", stderr);
+		if (TYPE(obj->head) != STRING) {
+			print_on(stderr, obj->head, 1);
+		} else {
+			print_on(stderr, obj->tail->head, 1);
+		}
+		fputc('\n', stderr);
+		*ret = &cfail;
+		return &nil;
+	}
+	*ret = self->next;
+	return make_num(stringcmp(obj->head->str, obj->tail->head->str));
+}
+
+static struct obj *fn_string_length(CPS_ARGS) {
+	if (!check_args("string-length", obj, 1)) {
+		*ret = &cfail;
+		return &nil;
+	}
+	if (TYPE(obj->head) != STRING) {
+		fputs("string-length: expected string, given ", stderr);
+		print_on(stderr, obj->head, 1);
+		fputc('\n', stderr);
+		*ret = &cfail;
+		return &nil;
+	}
+	*ret = self->next;
+	return make_num((double)(obj->head->str->len));
+}
+
+static struct obj *fn_substring(CPS_ARGS) {
+	int nargs = length(obj);
+	if (nargs < 0) {
+		fputs("substring: args must be a proper list", stderr);
+		*ret = &cfail;
+		return &nil;
+	}
+	if (nargs < 2 || nargs > 3) {
+		fprintf(stderr, "substring: expected 2 or 3 args, got %d\n", nargs);
+		*ret = &cfail;
+		return &nil;
+	}
+	if (TYPE(obj->head) != STRING) {
+		fputs("substring: expected string, given ", stderr);
+		print_on(stderr, obj->head, 1);
+		fputc('\n', stderr);
+		*ret = &cfail;
+		return &nil;
+	}
+	if (TYPE(obj->tail->head) != NUM || (nargs == 3 && TYPE(obj->tail->tail->head) != NUM)) {
+		fputs("substring: expected number, given ", stderr);
+		if (TYPE(obj->tail->head) != NUM) {
+			print_on(stderr, obj->tail->head, 1);
+		} else {
+			print_on(stderr, obj->tail->tail->head, 1);
+		}
+		fputc('\n', stderr);
+		*ret = &cfail;
+		return &nil;
+	}
+	size_t len = obj->head->str->len;
+
+	double startd = obj->tail->head->num;
+	if (startd < 0) {
+		fputs("substring: given negative start\n", stderr);
+		*ret = &cfail;
+		return &nil;
+	}
+	size_t start = (size_t)startd;
+	if (startd != round(startd)) {
+		fprintf(stderr, "Warning: substring: given non-integer %f, treating as %zu\n", startd, start);
+	}
+	if (start > len) {
+		fprintf(stderr, "substring: start %zu greater than string length %zu\n", start, len);
+		*ret = &cfail;
+		return &nil;
+	}
+
+	size_t end = obj->head->str->len;
+	if (nargs == 3) {
+		double endd = obj->tail->tail->head->num;
+		end = (size_t)endd;
+		if (endd != round(endd)) {
+			fprintf(stderr, "Warning: substring: given non-integer %f, treating as %zu\n", endd, end);
+		}
+		if (end < start) {
+			fprintf(stderr, "substring: end %zu before start %zu\n", end, start);
+			*ret = &cfail;
+			return &nil;
+		}
+		if (end > len) {
+			fprintf(stderr, "substring: end %zu greater than string length %zu\n", end, len);
+			*ret = &cfail;
+			return &nil;
+		}
+	}
+	*ret = self->next;
+	return make_str_obj(make_str_from_ptr_len(obj->head->str->str + start, end - start));
+}
+
 void add_globals(struct env *env) {
 #define DEFSYM(name, fn, type) definesym(env, str_from_string_lit(#name), make_fn(type, fn, #name)); gc_cycle()
 	DEFSYM(apply, fn_apply, FN);
@@ -471,11 +622,17 @@ void add_globals(struct env *env) {
 	DEFSYM(lambda, fn_lambda, SPECFORM);
 	DEFSYM(macro, fn_macro, SPECFORM);
 	DEFSYM(newline, fn_newline, FN);
+	DEFSYM(number?, fn_number_, FN);
 	DEFSYM(pair?, fn_pair_, FN);
 	DEFSYM(quote, fn_quote, SPECFORM);
 	DEFSYM(set!, fn_set_, SPECFORM);
 	DEFSYM(set-car!, fn_set_car_, FN);
 	DEFSYM(set-cdr!, fn_set_cdr_, FN);
+	DEFSYM(string?, fn_string_, FN);
+	DEFSYM(string-append, fn_string_append, FN);
+	DEFSYM(string-compare, fn_string_compare, FN);
+	DEFSYM(string-length, fn_string_length, FN);
+	DEFSYM(substring, fn_substring, FN);
 	DEFSYM(write, fn_write, FN);
 #define REGISTER_FN(name, op, ...) DEFSYM(op, name, FN);
 	ARITH_OPS(REGISTER_FN)

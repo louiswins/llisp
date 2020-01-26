@@ -58,6 +58,12 @@ static struct obj *fn_if(CPS_ARGS) {
 	resume->data = obj->tail;
 	resume->fn = resumeif;
 
+	struct obj *result;
+	if (direct_eval(obj->head, self->env, &result)) {
+		*ret = resume;
+		return result;
+	}
+
 	*ret = dupcontn(self);
 	(*ret)->next = resume;
 	(*ret)->fn = eval_cps;
@@ -68,12 +74,24 @@ static struct obj *fn_if(CPS_ARGS) {
 static struct obj *resumeif(CPS_ARGS) {
 	if (obj != &false_) {
 		/* eval then */
+		struct obj *result;
+		if (direct_eval(self->data->head, self->env, &result)) {
+			*ret = self->next;
+			return result;
+		}
+
 		*ret = dupcontn(self);
 		(*ret)->data = &nil;
 		(*ret)->fn = eval_cps;
 		return self->data->head;
 	} else if (self->data->tail != &nil) {
 		/* eval else */
+		struct obj *result;
+		if (direct_eval(self->data->head, self->env, &result)) {
+			*ret = self->next;
+			return result;
+		}
+
 		*ret = dupcontn(self);
 		(*ret)->data = &nil;
 		(*ret)->fn = eval_cps;
@@ -108,31 +126,28 @@ static struct obj *set_symbol_cps(const char *name, struct obj *(*next)(CPS_ARGS
 	resume->data = obj->head;
 	resume->fn = next;
 
+	struct obj *result;
+	if (direct_eval(obj->tail->head, self->env, &result)) {
+		*ret = resume;
+		return result;
+	}
+
 	*ret = dupcontn(self);
 	(*ret)->next = resume;
 	(*ret)->fn = eval_cps;
 	return obj->tail->head;
 }
 
-static struct obj *fn_define(CPS_ARGS);
-static struct obj *do_definesym(CPS_ARGS);
-
-static struct obj *fn_define(CPS_ARGS) {
-	return set_symbol_cps("define", do_definesym, self, obj, ret);
-}
 /* obj = eval(defn), self->data = sym */
 static struct obj *do_definesym(CPS_ARGS) {
 	definesym(self->env, self->data->str, obj);
 	*ret = self->next;
 	return &nil;
 }
-
-static struct obj *fn_set_(CPS_ARGS);
-static struct obj *do_setsym(CPS_ARGS);
-
-static struct obj *fn_set_(CPS_ARGS) {
-	return set_symbol_cps("set!", do_setsym, self, obj, ret);
+static struct obj *fn_define(CPS_ARGS) {
+	return set_symbol_cps("define", do_definesym, self, obj, ret);
 }
+
 /* obj = eval(defn), self->data = sym */
 static struct obj *do_setsym(CPS_ARGS) {
 	if (!setsym(self->env, self->data->str, obj)) {
@@ -144,6 +159,9 @@ static struct obj *do_setsym(CPS_ARGS) {
 	}
 	*ret = self->next;
 	return &nil;
+}
+static struct obj *fn_set_(CPS_ARGS) {
+	return set_symbol_cps("set!", do_setsym, self, obj, ret);
 }
 
 static struct obj *fn_set_cell(const char* name, void (*actually_set)(struct obj *cell, struct obj *value), CPS_ARGS) {

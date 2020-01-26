@@ -32,6 +32,10 @@ struct obj* apply_closure(CPS_ARGS);
 /* Apply a continuation */
 struct obj* apply_contn(CPS_ARGS);
 
+/* Try to eval directly instead of going through eval_cps
+ * Only used if it can be done in constant time */
+int direct_eval(struct obj *obj, struct env *env, struct obj **result);
+
 /* Evaluate obj in env in a continuation-passing style
  * Suitable for calling at the top-level outside of any other
  * llisp computation */

@@ -26,7 +26,6 @@ int stringcmp(struct string *a, struct string *b); /* like strcmp(a, b) */
 enum objtype { CELL, NUM, SYMBOL, FN, SPECFORM, LAMBDA, MACRO, BUILTIN, CONTN, STRING };
 struct obj {
 	enum objtype typ;
-	int lineno, pos;
 	union {
 		struct {
 			struct obj *head;
@@ -64,5 +63,3 @@ struct obj *make_fn(enum objtype type, struct obj *(*fn)(CPS_ARGS), const char *
 struct obj *make_str_obj(struct string *val);
 
 struct obj *cons(struct obj *l, struct obj *r);
-
-struct obj *locate_obj(struct obj* o, int line, int pos);

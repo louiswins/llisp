@@ -15,7 +15,6 @@ struct hashtab interned_symbols = EMPTY_HASHTAB;
 struct obj *make_obj(enum objtype type) {
 	struct obj *ret = gc_alloc(GC_OBJ, sizeof(*ret));
 	SETTYPE(ret, type);
-	ret->lineno = ret->pos = -1;
 	return ret;
 }
 struct obj *make_symbol(struct string *name) {
@@ -52,12 +51,6 @@ struct obj *cons(struct obj *l, struct obj *r) {
 	ret->head = l;
 	ret->tail = r;
 	return ret;
-}
-
-struct obj *locate_obj(struct obj *o, int line, int pos) {
-	o->lineno = line;
-	o->pos = pos;
-	return o;
 }
 
 /* strings */
@@ -104,7 +97,7 @@ unsigned char print_chars[] = {
 #undef BACKSLASH
 void print_str_escaped(FILE *f, struct string *s) {
 	for (size_t i = 0; i < s->len; ++i) {
-		char ch = s->str[i];
+		unsigned char ch = s->str[i];
 		if (ch < 0x80 && print_chars[ch]) {
 			/* printable, with a possible escape */
 			if (print_chars[ch] & 0x80)

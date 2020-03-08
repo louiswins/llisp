@@ -9,6 +9,7 @@ void add_stdlib(struct env *env) {
 		fputs("Warning: unable to locate standard library\n", stderr);
 		return;
 	}
+	init_parser();
 	struct obj *obj;
 	while ((obj = parse(stdlib)) != NULL) {
 		run_cps(obj, env);

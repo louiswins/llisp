@@ -70,13 +70,14 @@
       <Item Name="Type">(gctype)((marknext &amp; 0xeu) >> 1)</Item>
       <Item Name="Next">next</Item>
       <Item Name="MarkNext">(gc_head*)(marknext &amp; ~0xfull)</Item>
-      <Item Name="Obj" Condition="((marknext &amp; 0x6u) >> 1) == GC_OBJ">*(struct obj*)((char*)this+0x10)</Item>
-      <Item Name="Str" Condition="((marknext &amp; 0x6u) >> 1) == GC_STR">*(string*)((char*)this+0x10)</Item>
+      <Item Name="Obj" Condition="((marknext &amp; 0x6u) >> 1) == GC_OBJ">*(struct obj*)(this)</Item>
+      <Item Name="Str" Condition="((marknext &amp; 0x6u) >> 1) == GC_STR">*(string*)(this)</Item>
     </Expand>
   </Type>
 
   <Type Name="string">
     <DisplayString>{str,[len]s8}</DisplayString>
+    <StringView>str,[len]s8</StringView>
     <Expand>
       <Item Name="str">str,[len]s8</Item>
       <Item Name="len">len</Item>
@@ -94,8 +95,8 @@
         <Variable Name="cur" InitialValue="0" />
         <Size>size</Size>
         <Loop>
-          <Exec>cur += __findnonnull(table + cur, cap*2 - cur) / 2</Exec>
-          <Item>table[cur]</Item>
+          <Exec>cur += __findnonnull(e->entries + cur, cap*2 - cur) / 2</Exec>
+          <Item>e->entries[cur]</Item>
           <Exec>cur++</Exec>
         </Loop>
       </CustomListItems>

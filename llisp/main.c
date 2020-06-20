@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 #include "cps.h"
 #include "env.h"
 #include "gc.h"
@@ -41,6 +42,7 @@ int main() {
 	printf("Total allocations:               %llu\n", gc_total_allocs);
 	printf("Total frees (before collection): %llu\n", gc_total_frees);
 	gc_global_env = NULL; gc_current_contn = NULL; gc_current_obj = NULL;
+	memset(&interned_symbols, 0, sizeof(interned_symbols));
 	gc_cycle(); gc_collect();
 	printf("Total frees (after collection):  %llu\n", gc_total_frees);
 	printf("Leaked memory:                   %llu\n", gc_total_allocs - gc_total_frees);

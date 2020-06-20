@@ -385,11 +385,12 @@ static struct obj *parse_one(FILE *f) {
 }
 
 struct obj *parse(FILE *f) {
+	struct obj *ret = NULL;
 	gc_suspend();
 	read_token(f);
-	if (curtok.type == TT_EOF)
-		return NULL;
-	struct obj *ret = parse_one(f);
+	if (curtok.type != TT_EOF) {
+		ret = parse_one(f);
+	}
 	gc_resume();
 	return ret;
 }

@@ -2,9 +2,11 @@
 #include <stdio.h>
 #include "cps.h"
 #include "env.h"
+#include "gc.h"
 #include "hashtab.h"
 
 struct string {
+	struct gc_head gc;
 	char *str;
 	size_t len;
 	size_t cap; /* 0 if ref */
@@ -25,6 +27,7 @@ int stringcmp(struct string *a, struct string *b); /* like strcmp(a, b) */
 
 enum objtype { CELL, NUM, SYMBOL, FN, SPECFORM, LAMBDA, MACRO, BUILTIN, CONTN, STRING };
 struct obj {
+	struct gc_head gc;
 	enum objtype typ;
 	union {
 		struct {

@@ -11,13 +11,18 @@ struct ht_entry {
 	struct obj *value;
 };
 
+struct ht_entryarr {
+	struct gc_head gc;
+	struct ht_entry entries[1];
+};
+
 void init_hashtab(struct hashtab *ht) {
 	ht->size = 0;
 	ht->cap = 0;
-	ht->table = NULL;
+	ht->e = NULL;
 }
 
-/* Implementation of Jenkins's one-at-a-time hash taken from
+/* Implementation of Bob Jenkins's one-at-a-time hash taken from
  * https://en.wikipedia.org/wiki/Jenkins_hash_function */
 uint32_t jenkins_oaat_hash(struct string *key) {
 	char *cur = key->str;
@@ -53,24 +58,24 @@ static struct ht_entry *hashtab_find(struct ht_entry *entries, size_t cap, struc
 static void hashtab_embiggen(struct hashtab *ht) {
 	size_t i;
 	size_t newcap = ht->cap ? ht->cap + ht->cap / 2 : INITIAL_HASHTAB_CAPACITY;
-	struct ht_entry *newtab = gc_alloc(GC_HTENTRY, newcap * sizeof(*newtab));
+	struct ht_entryarr *newtab = gc_alloc(GC_HTENTRY, sizeof(*newtab) + (newcap - 1) * sizeof(*newtab));
 	for (i = 0; i < ht->cap; ++i) {
-		struct string *curkey = ht->table[i].key;
+		struct string *curkey = ht->e->entries[i].key;
 		if (curkey != NULL) {
-			struct ht_entry *target = hashtab_find(newtab, newcap, curkey);
+			struct ht_entry *target = hashtab_find(newtab->entries, newcap, curkey);
 			target->key = curkey;
-			target->value = ht->table[i].value;
+			target->value = ht->e->entries[i].value;
 		}
 	}
 	ht->cap = newcap;
-	ht->table = newtab;
+	ht->e = newtab;
 }
 
 void hashtab_put(struct hashtab *ht, struct string *key, struct obj *value) {
 	if (ht->cap == 0 || (double)ht->size / (double)ht->cap >= MAX_LOAD_FACTOR) {
 		hashtab_embiggen(ht);
 	}
-	struct ht_entry *e = hashtab_find(ht->table, ht->cap, key);
+	struct ht_entry *e = hashtab_find(ht->e->entries, ht->cap, key);
 	if (e->key == NULL) {
 		++ht->size;
 		e->key = stringdup(key);
@@ -79,17 +84,17 @@ void hashtab_put(struct hashtab *ht, struct string *key, struct obj *value) {
 }
 
 int hashtab_exists(struct hashtab *ht, struct string *key) {
-	struct ht_entry* entry = hashtab_find(ht->table, ht->cap, key);
+	struct ht_entry* entry = hashtab_find(ht->e->entries, ht->cap, key);
 	return entry && entry->key;
 }
 struct obj *hashtab_get(struct hashtab *ht, struct string *key) {
-	struct ht_entry* entry = hashtab_find(ht->table, ht->cap, key);
+	struct ht_entry* entry = hashtab_find(ht->e->entries, ht->cap, key);
 	return entry ? entry->value : NULL;
 }
 
 void hashtab_foreach(struct hashtab *ht, visit_entry f, void *context) {
 	if (ht->cap == 0) return;
-	struct ht_entry *cur = ht->table, *end = ht->table + ht->cap;
+	struct ht_entry *cur = ht->e->entries, *end = ht->e->entries + ht->cap;
 	for (; cur != end; ++cur) {
 		if (cur->key != NULL) {
 			f(cur->key, cur->value, context);

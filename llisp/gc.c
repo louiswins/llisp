@@ -84,7 +84,7 @@ static void gc_mark(struct gc_head *gcitem) {
 		/* If we allocate the environment but then need to collect when trying to allocate
 		 * the initial hashtable, we don't have anything to mark yet. */
 		if (env->table.cap) {
-			ADDMARK(GC_FROM_OBJ(env->table.table));
+			ADDMARK(GC_FROM_OBJ(env->table.e));
 			hashtab_foreach(&env->table, gc_queue_hashtab_entry, NULL);
 		}
 		gc_queue(env->parent);
@@ -153,7 +153,7 @@ void gc_collect() {
 	}
 	/* DON'T queue this normally as it's full of weak references */
 	if (interned_symbols.cap != 0) {
-		ADDMARK(GC_FROM_OBJ(interned_symbols.table));
+		ADDMARK(GC_FROM_OBJ(interned_symbols.e));
 		/* TODO: remove the following line after implementing hashtable deletion */
 		hashtab_foreach(&interned_symbols, gc_queue_hashtab_entry_weak, NULL);
 	}
@@ -197,10 +197,10 @@ void *gc_alloc(enum gctype typ, size_t size) {
 	static unsigned char num_allocs = 0;
 	if (!++num_allocs) { gc_collect(); }
 #endif
-	struct gc_head *ret = calloc(1, SIZE_OF_HEAD + size);
+	struct gc_head *ret = calloc(1, size);
 	if (ret == NULL) {
 		gc_collect();
-		ret = calloc(1, SIZE_OF_HEAD + size);
+		ret = calloc(1, size);
 		if (ret == NULL) {
 			fputs("Out of memory\n", stderr);
 			abort();

@@ -1,4 +1,5 @@
 #pragma once
+#include "gc.h"
 
 struct env;
 struct obj;
@@ -16,6 +17,7 @@ struct obj;
 #define CPS_ARGS struct contn *self, struct obj *obj, struct contn **ret
 
 struct contn {
+	struct gc_head gc;
 	struct obj *data;
 	struct env *env;
 	struct contn *next;

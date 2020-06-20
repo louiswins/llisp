@@ -7,9 +7,9 @@
 #include "cps.h"
 
 /* static objects */
-struct obj nil = { BUILTIN, .builtin = "()" };
-struct obj true_ = { BUILTIN, .builtin = "#t" };
-struct obj false_ = { BUILTIN, .builtin = "#f" };
+struct obj nil = { NO_GC_HEAD, BUILTIN, .builtin = "()" };
+struct obj true_ = { NO_GC_HEAD, BUILTIN, .builtin = "#t" };
+struct obj false_ = { NO_GC_HEAD, BUILTIN, .builtin = "#f" };
 struct hashtab interned_symbols = EMPTY_HASHTAB;
 
 struct obj *make_obj(enum objtype type) {

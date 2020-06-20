@@ -1,7 +1,7 @@
 #pragma once
 #include <stdlib.h>
 
-struct ht_entry;
+struct ht_entryarr;
 struct obj;
 struct string;
 
@@ -13,7 +13,7 @@ struct hashtab {
 	/* Capacity of table */
 	size_t cap;
 	/* Array of entries */
-	struct ht_entry *table;
+	struct ht_entryarr *e;
 };
 
 /* Initialize an empty hashtable */

@@ -8,7 +8,7 @@
 
 struct contn *dupcontn(struct contn *c) {
 	struct contn *ret = gc_alloc(GC_CONTN, sizeof(*ret));
-	memcpy(ret, c, sizeof(*ret));
+	memcpy(&ret->data, &c->data, sizeof(*ret) - sizeof(ret->gc));
 	return ret;
 }
 

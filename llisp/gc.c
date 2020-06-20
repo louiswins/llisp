@@ -7,12 +7,7 @@
 #include "hashtab.h"
 #include "obj.h"
 
-#define GCTYPE(o) ((enum gctype)(((o)->marknext & 0xeu) >> 1))
-
-typedef char assert_alignof_obj_ok[__alignof(struct obj) <= GC_ALLOC_ALIGN ? 1 : -1];
-typedef char assert_alignof_env_ok[__alignof(struct env) <= GC_ALLOC_ALIGN ? 1 : -1];
-typedef char assert_alignof_contn_ok[__alignof(struct contn) <= GC_ALLOC_ALIGN ? 1 : -1];
-typedef char assert_room_for_tagbits[4 < __alignof(void*) ? 1 : -1];
+#define GCTYPE(o) ((o)->type)
 
 /* GC roots */
 struct contn *gc_current_contn = NULL;
@@ -192,7 +187,6 @@ void gc_collect() {
 }
 
 void *gc_alloc(enum gctype typ, size_t size) {
-	size = (size - 1 + GC_ALLOC_ALIGN) & ~(GC_ALLOC_ALIGN - 1);
 #ifdef DEBUG_GC
 	static unsigned char num_allocs = 0;
 	if (!++num_allocs) { gc_collect(); }
@@ -207,7 +201,7 @@ void *gc_alloc(enum gctype typ, size_t size) {
 		}
 	}
 	ret->next = all_objects;
-	ret->marknext = (uintptr_t)typ << 1;
+	ret->type = typ;
 	typedef char assert_intptr_NULL_is_0[(uintptr_t)NULL == 0u ? 1 : -1];
 	all_objects = ret;
 #ifdef GC_STATS

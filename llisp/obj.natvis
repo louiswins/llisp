@@ -61,17 +61,17 @@
   </Type>
 
   <Type Name="gc_head">
-    <DisplayString Condition="next" IncludeView="tail">{marknext &amp; 0x1u}{*next,view(tail)}</DisplayString>
-    <DisplayString Condition="next" ExcludeView="tail">{(gctype)((marknext &amp; 0xeu) >> 1)} : {marknext &amp; 0x1u}{*next,view(tail)}</DisplayString>
-    <DisplayString Condition="!next" IncludeView="tail">{marknext &amp; 0x1u}</DisplayString>
-    <DisplayString Condition="!next" ExcludeView="tail">{(gctype)((marknext &amp; 0xeu) >> 1)} : {marknext &amp; 0x1u}</DisplayString>
+    <DisplayString Condition="next" IncludeView="tail">{marked}{*next,view(tail)}</DisplayString>
+    <DisplayString Condition="next" ExcludeView="tail">{type} : {marked}{*next,view(tail)}</DisplayString>
+    <DisplayString Condition="!next" IncludeView="tail">{marked}</DisplayString>
+    <DisplayString Condition="!next" ExcludeView="tail">{type} : {marked}</DisplayString>
     <Expand>
-      <Item Name="Marked">(bool)(marknext &amp; 0x1u)</Item>
-      <Item Name="Type">(gctype)((marknext &amp; 0xeu) >> 1)</Item>
+      <Item Name="Marked">marked</Item>
+      <Item Name="Type">type</Item>
       <Item Name="Next">next</Item>
-      <Item Name="MarkNext">(gc_head*)(marknext &amp; ~0xfull)</Item>
-      <Item Name="Obj" Condition="((marknext &amp; 0x6u) >> 1) == GC_OBJ">*(struct obj*)(this)</Item>
-      <Item Name="Str" Condition="((marknext &amp; 0x6u) >> 1) == GC_STR">*(string*)(this)</Item>
+      <Item Name="MarkNext">marknext</Item>
+      <Item Name="Obj" Condition="type == GC_OBJ">*(struct obj*)(this)</Item>
+      <Item Name="Str" Condition="type == GC_STR">*(string*)(this)</Item>
     </Expand>
   </Type>
 

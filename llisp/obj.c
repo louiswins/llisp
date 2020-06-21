@@ -24,7 +24,7 @@ struct obj *make_symbol(struct string *name) {
 		return existing;
 	} else {
 		struct obj *ret = make_obj(SYMBOL);
-		ret->str = stringdup(name);
+		ret->str = name;
 		hashtab_put(&interned_symbols, name, ret);
 		return ret;
 	}
@@ -42,7 +42,7 @@ struct obj *make_fn(enum objtype type, struct obj *(*fn)(CPS_ARGS), const char *
 }
 struct obj *make_str_obj(struct string *val) {
 	struct obj *ret = make_obj(STRING);
-	ret->str = stringdup(val);
+	ret->str = val;
 	return ret;
 }
 
@@ -54,34 +54,18 @@ struct obj *cons(struct obj *l, struct obj *r) {
 }
 
 /* strings */
-struct string *make_str() {
-	return make_str_cap(32); /* 32 is a good initial size */
-}
-struct string *make_str_cap(size_t cap) {
-	struct string *s = gc_alloc(GC_STR, sizeof(*s) + cap);
-	s->str = ((char *)s) + sizeof(*s);
-	s->len = 0;
-	s->cap = cap;
-	return s;
-}
-struct string *make_str_ref(const char *c) {
-	return make_str_ref_len(c, 0);
-}
-struct string *make_str_ref_len(const char *c, size_t len) {
-	struct string *s = gc_alloc(GC_STR, sizeof(*s));
-	s->str = (char *)c; /* it's ok: we won't actually try to modify it because cap == 0 */
+struct string *unsafe_make_uninitialized_str(size_t len) {
+	struct string *s = gc_alloc(GC_STR, offsetof(struct string, data) + len);
 	s->len = len;
-	s->cap = 0;
 	return s;
 }
 struct string *make_str_from_ptr_len(const char *c, size_t len) {
-	struct string *ret = make_str_cap(len);
-	memcpy(ret->str, c, len);
-	ret->len = len;
+	struct string *ret = unsafe_make_uninitialized_str(len);
+	memcpy(STRING_DATA(ret), c, len);
 	return ret;
 }
 void print_str(FILE *f, struct string *s) {
-	fwrite(s->str, 1, s->len, f);
+	fwrite(STRING_DATA(s), 1, s->len, f);
 }
 #define BACKSLASH(ch) ((unsigned char)((ch) | 0x80))
 unsigned char print_chars[] = {
@@ -95,9 +79,9 @@ unsigned char print_chars[] = {
 	'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '{', '|', '}', '~', 0
 };
 #undef BACKSLASH
-void print_str_escaped(FILE *f, struct string *s) {
-	for (size_t i = 0; i < s->len; ++i) {
-		unsigned char ch = s->str[i];
+static void print_str_escaped_impl(FILE *f, char *s, size_t len) {
+	for (size_t i = 0; i < len; ++i) {
+		unsigned char ch = s[i];
 		if (ch < 0x80 && print_chars[ch]) {
 			/* printable, with a possible escape */
 			if (print_chars[ch] & 0x80)
@@ -109,59 +93,45 @@ void print_str_escaped(FILE *f, struct string *s) {
 		}
 	}
 }
-
-struct string *str_append(struct string *s, char ch) {
-	if (!s->cap) {
-		assert(s->str[s->len] == ch);
-		++s->len;
-	} else {
-		if (s->len == s->cap) {
-			struct string *newstr = make_str_cap(s->cap + s->cap / 2);
-			memcpy(newstr->str, s->str, s->len);
-			newstr->len = s->len;
-			s = newstr;
-		}
-		s->str[s->len++] = ch;
-	}
-	return s;
+void print_str_escaped(FILE *f, struct string *s) {
+	print_str_escaped_impl(f, STRING_DATA(s), s->len);
+}
+void print_string_builder_escaped(FILE *f, struct string_builder *sb) {
+	print_str_escaped_impl(f, STRING_DATA(sb->data), sb->used);
 }
 
-struct string *str_append_str(struct string *s, struct string *s2) {
-	if (!s->cap || s->cap - s->len < s2->len) {
-		size_t newcap = s->cap ? (s->cap + s->cap / 2) : (s->len + s->len / 2);
-		if (newcap - s->len < s2->len) {
-			// Still not big enough... we'll give it room to breathe though.
-			newcap += s2->len;
-		}
-		struct string *newstr = make_str_cap(newcap);
-		memcpy(newstr->str, s->str, s->len);
-		newstr->len = s->len;
-		s = newstr;
-	}
-	memcpy(s->str + s->len, s2->str, s2->len);
-	s->len += s2->len;
-	return s;
-}
-
-struct string *stringdup(struct string *s) {
-	if (s->cap) return s;
-	struct string *ret = make_str_cap(s->len);
-	memcpy(ret->str, s->str, s->len);
-	ret->len = ret->cap = s->len;
-	return ret;
-}
 int stringeq(struct string *a, struct string *b) {
 	if (a == b) return 1;
 	if (!a || !b) return 0;
 	if (a->len != b->len) return 0;
-	return memcmp(a->str, b->str, a->len) == 0;
+	return memcmp(STRING_DATA(a), STRING_DATA(b), a->len) == 0;
 }
 int stringcmp(struct string *a, struct string *b) {
 	if (a == b) return 0;
 	if (!a) return -1;
 	if (!b) return 1;
 	size_t minsize = a->len < b->len ? a->len : b->len;
-	int ret = memcmp(a->str, b->str, minsize);
+	int ret = memcmp(STRING_DATA(a), STRING_DATA(b), minsize);
 	if (ret) return ret;
 	return (a->len < b->len) ? -1 : (a->len > b->len) ? 1 : 0;
+}
+
+void init_string_builder(struct string_builder *sb) {
+	sb->data = unsafe_make_uninitialized_str(32); /* 32 is a good initial size */
+	sb->used = 0;
+}
+void string_builder_append(struct string_builder *sb, char ch) {
+	size_t cap = sb->data->len;
+	if (sb->used == cap) {
+		struct string *newdata = unsafe_make_uninitialized_str(cap + cap / 2);
+		memcpy(STRING_DATA(newdata), STRING_DATA(sb->data), sb->used);
+		sb->data = newdata;
+	}
+	STRING_DATA(sb->data)[sb->used++] = ch;
+}
+struct string *finish_string_builder(struct string_builder *sb) {
+	if (sb->used == sb->data->len) {
+		return sb->data;
+	}
+	return make_str_from_ptr_len(STRING_DATA(sb->data), sb->used);
 }

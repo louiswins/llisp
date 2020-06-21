@@ -235,18 +235,18 @@ static struct obj *fn_gensym(CPS_ARGS) {
 		fputs("gensym: custom prefix not yet implemented, using \" gensym\"\n", stderr);
 		len = 0;
 	}
-	if (len == 0) {
-		struct string *s = make_str_cap(32); // more than enough
-		s->len = snprintf(s->str, s->cap, " gensym%d", ++symnum); /* snprintf returns the actual length without '\0' (although it writes it) */
-		assert(s->len < s->cap);
-		*ret = self->next;
-		/* TODO: consider not interning this symbol? */
-		return make_symbol(s);
-	} else {
+	if (len) {
 		fputs("gensym: expected 0 or 1 args\n", stderr);
 		*ret = &cfail;
 		return &nil;
 	}
+
+	char buf[32];
+	int slen = snprintf(buf, 32, " gensym%d", ++symnum); /* snprintf returns the actual length without '\0' (although it writes it) */
+	assert(slen < 32);
+	*ret = self->next;
+	/* TODO: consider not interning this symbol? */
+	return make_symbol(make_str_from_ptr_len(buf, slen));
 }
 
 static struct obj *fn_eq_(CPS_ARGS) {
@@ -489,10 +489,12 @@ static struct obj *fn_string_append(CPS_ARGS) {
 		}
 		cap += cur->head->str->len;
 	}
-	struct string *result = make_str_cap(cap);
+	struct string *result = unsafe_make_uninitialized_str(cap);
 	cur = obj;
+	char *dest = STRING_DATA(result);
 	for (cur = obj; cur != &nil; cur = cur->tail) {
-		result = str_append_str(result, cur->head->str);
+		memcpy(dest, STRING_DATA(cur->head->str), cur->head->str->len);
+		dest += cur->head->str->len;
 	}
 	*ret = self->next;
 	return make_str_obj(result);
@@ -601,7 +603,7 @@ static struct obj *fn_substring(CPS_ARGS) {
 		}
 	}
 	*ret = self->next;
-	return make_str_obj(make_str_from_ptr_len(obj->head->str->str + start, end - start));
+	return make_str_obj(make_str_from_ptr_len(STRING_DATA(obj->head->str) + start, end - start));
 }
 
 void add_globals(struct env *env) {

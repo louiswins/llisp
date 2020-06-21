@@ -76,12 +76,21 @@
   </Type>
 
   <Type Name="string">
-    <DisplayString>{str,[len]s8}</DisplayString>
-    <StringView>str,[len]s8</StringView>
+    <DisplayString>{data,[len]s8}</DisplayString>
+    <StringView>data,[len]s8</StringView>
     <Expand>
-      <Item Name="str">str,[len]s8</Item>
+      <Item Name="str">data,[len]s8</Item>
       <Item Name="len">len</Item>
-      <Item Name="cap">cap</Item>
+    </Expand>
+  </Type>
+
+  <Type Name="string_builder">
+    <DisplayString>{data->data,[used]s8}</DisplayString>
+    <StringView>data->data,[used]s8</StringView>
+    <Expand>
+      <Item Name="str">data->data,[used]s8</Item>
+      <Item Name="cap">data->len</Item>
+      <Item Name="len">used</Item>
     </Expand>
   </Type>
 

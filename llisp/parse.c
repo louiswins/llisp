@@ -76,27 +76,27 @@ static uint32_t read_unicode_escape(FILE *f, int len) {
 	return ret;
 }
 
-static int write_utf8(struct string **s, uint32_t codepoint) {
+static int write_utf8(struct string_builder *sb, uint32_t codepoint) {
 	if (codepoint <= 0x7f) {
-		*s = str_append(*s, (char)codepoint);
+		string_builder_append(sb, (char)codepoint);
 		return 1;
 	}
 	if (codepoint <= 0x7ff) {
-		*s = str_append(*s, (char)(0xc0u | (codepoint >> 6)));
-		*s = str_append(*s, (char)(0x80u | (codepoint & 0x3fu)));
+		string_builder_append(sb, (char)(0xc0u | (codepoint >> 6)));
+		string_builder_append(sb, (char)(0x80u | (codepoint & 0x3fu)));
 		return 1;
 	}
 	if (codepoint <= 0xffff) {
-		*s = str_append(*s, (char)(0xe0u | (codepoint >> 12)));
-		*s = str_append(*s, (char)(0x80u | ((codepoint >> 6) & 0x3fu)));
-		*s = str_append(*s, (char)(0x80u | (codepoint & 0x3fu)));
+		string_builder_append(sb, (char)(0xe0u | (codepoint >> 12)));
+		string_builder_append(sb, (char)(0x80u | ((codepoint >> 6) & 0x3fu)));
+		string_builder_append(sb, (char)(0x80u | (codepoint & 0x3fu)));
 		return 1;
 	}
 	if (codepoint <= 0x10ffff) {
-		*s = str_append(*s, (char)(0xf0u | (codepoint >> 18)));
-		*s = str_append(*s, (char)(0x80u | ((codepoint >> 12) & 0x3fu)));
-		*s = str_append(*s, (char)(0x80u | ((codepoint >> 6) & 0x3fu)));
-		*s = str_append(*s, (char)(0x80u | (codepoint & 0x3fu)));
+		string_builder_append(sb, (char)(0xf0u | (codepoint >> 18)));
+		string_builder_append(sb, (char)(0x80u | ((codepoint >> 12) & 0x3fu)));
+		string_builder_append(sb, (char)(0x80u | ((codepoint >> 6) & 0x3fu)));
+		string_builder_append(sb, (char)(0x80u | (codepoint & 0x3fu)));
 		return 1;
 	}
 	fprintf(stderr, "Invalid unicode codepoint %" PRIu32 "\n", codepoint);
@@ -105,7 +105,8 @@ static int write_utf8(struct string **s, uint32_t codepoint) {
 
 static void read_string(FILE *f) {
 	int haserror = 0;
-	struct string *str = make_str();
+	struct string_builder sb;
+	init_string_builder(&sb);
 	for (;;) {
 		uint32_t codepoint;
 		int ch = readch(f);
@@ -119,12 +120,12 @@ static void read_string(FILE *f) {
 				curtok.type = TT_ERROR;
 			} else {
 				curtok.type = TT_STRING;
-				curtok.as.str = str;
+				curtok.as.str = finish_string_builder(&sb);
 			}
 			return;
 		}
 		if (ch != '\\') {
-			str = str_append(str, (char)ch);
+			string_builder_append(&sb, (char)ch);
 			continue;
 		}
 		int escape_line = line;
@@ -136,22 +137,22 @@ static void read_string(FILE *f) {
 		case '\\':
 		case '\'':
 		case '"':
-			str = str_append(str, (char)ch);
+			string_builder_append(&sb, (char)ch);
 			break;
 		case 'r':
-			str = str_append(str, '\r');
+			string_builder_append(&sb, '\r');
 			break;
 		case 'n':
-			str = str_append(str, '\n');
+			string_builder_append(&sb, '\n');
 			break;
 		case 't':
-			str = str_append(str, '\t');
+			string_builder_append(&sb, '\t');
 			break;
 		case 'u':
 		case 'U':
 			codepoint = read_unicode_escape(f, 4 + 4 * (ch == 'U'));
 			if (codepoint != (uint32_t)-1) {
-				if (!write_utf8(&str, codepoint)) {
+				if (!write_utf8(&sb, codepoint)) {
 					haserror = 1;
 				}
 			} else {
@@ -214,36 +215,37 @@ static void read_token(FILE *f) {
 
 	// identifier, number, or .
 	int validident = 1;
-	struct string* str = make_str();
+	struct string_builder sb;
+	init_string_builder(&sb);
 	do {
 		if (!isprint(ch)) {
 			validident = 0;
 		}
-		str = str_append(str, (char) ch);
+		string_builder_append(&sb, (char) ch);
 	} while ((ch = readch(f)) != EOF && !isdelimiter((char) ch));
 	unreadch(ch, f);
 	if (!validident) {
 		fprintf(stderr, "[line %d]: invalid identifier ", curtok.line);
-		print_str_escaped(stderr, str);
+		print_string_builder_escaped(stderr, &sb);
 		fputc('\n', stderr);
 		curtok.type = TT_ERROR;
 		return;
 	}
-	if (str->len == 1 && str->str[0] == '.') {
+	if (sb.used == 1 && STRING_DATA(sb.data)[0] == '.') {
 		curtok.type = TT_DOT;
 		return;
 	}
-	if (can_begin_num(str->str[0])) {
+	if (can_begin_num(STRING_DATA(sb.data)[0])) {
 		char* endp;
-		double val = strtod(str->str, &endp);
-		if (endp == str->str + str->len) {
+		double val = strtod(STRING_DATA(sb.data), &endp);
+		if (endp == STRING_DATA(sb.data) + sb.used) {
 			curtok.type = TT_NUMBER;
 			curtok.as.num = val;
 			return;
 		}
 	}
 	curtok.type = TT_IDENT;
-	curtok.as.str = str;
+	curtok.as.str = finish_string_builder(&sb);
 }
 
 static void print_curtok(FILE *f) {

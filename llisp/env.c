@@ -14,7 +14,7 @@ struct env *make_env(struct env *parent) {
 
 static void set_name_if_necessary(struct string *name, struct obj *value) {
 	if (value != NULL && (TYPE(value) == LAMBDA || TYPE(value) == MACRO) && !value->closurename) {
-		value->closurename = stringdup(name);
+		value->closurename = name;
 	}
 }
 

@@ -7,23 +7,28 @@
 
 struct string {
 	struct gc_head gc;
-	char *str;
 	size_t len;
-	size_t cap; /* 0 if ref */
+	char data[1];
 };
-struct string *make_str();
-struct string *make_str_cap(size_t cap);
-struct string *make_str_ref(const char *c); /* Defaults to length 0 */
-struct string *make_str_ref_len(const char *c, size_t len);
-struct string *make_str_from_ptr_len(const char *c, size_t len); /* Copies */
+#define STRING_DATA(str) (&(str)->data[0])
+
+struct string *unsafe_make_uninitialized_str(size_t len);
+struct string *make_str_from_ptr_len(const char *c, size_t len);
 #define str_from_string_lit(lit) make_str_from_ptr_len(lit, sizeof(lit)-1)
 void print_str(FILE *f, struct string *s);
 void print_str_escaped(FILE *f, struct string *s);
-struct string *str_append(struct string *s, char ch);
-struct string *str_append_str(struct string *s, struct string *s2);
-struct string *stringdup(struct string *s);
 int stringeq(struct string *a, struct string *b); /* a == b */
 int stringcmp(struct string *a, struct string *b); /* like strcmp(a, b) */
+
+struct string_builder {
+	struct string *data;
+	size_t used;
+};
+
+void init_string_builder(struct string_builder *sb);
+void string_builder_append(struct string_builder *sb, char ch);
+struct string *finish_string_builder(struct string_builder *sb);
+void print_string_builder_escaped(FILE *f, struct string_builder *sb);
 
 enum objtype { CELL, NUM, SYMBOL, FN, SPECFORM, LAMBDA, MACRO, BUILTIN, CONTN, STRING };
 struct obj {

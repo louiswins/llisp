@@ -25,7 +25,7 @@ void init_hashtab(struct hashtab *ht) {
 /* Implementation of Bob Jenkins's one-at-a-time hash taken from
  * https://en.wikipedia.org/wiki/Jenkins_hash_function */
 uint32_t jenkins_oaat_hash(struct string *key) {
-	char *cur = key->str;
+	char *cur = STRING_DATA(key);
 	char *end = cur + key->len;
 	uint32_t hash = 0;
 	while (cur != end) {
@@ -78,7 +78,7 @@ void hashtab_put(struct hashtab *ht, struct string *key, struct obj *value) {
 	struct ht_entry *e = hashtab_find(ht->e->entries, ht->cap, key);
 	if (e->key == NULL) {
 		++ht->size;
-		e->key = stringdup(key);
+		e->key = key;
 	}
 	e->value = value;
 }

@@ -8,9 +8,8 @@
 struct string {
 	struct gc_head gc;
 	size_t len;
-	char data[1];
+	char str[1];
 };
-#define STRING_DATA(str) (&(str)->data[0])
 
 struct string *unsafe_make_uninitialized_str(size_t len);
 struct string *make_str_from_ptr_len(const char *c, size_t len);
@@ -21,7 +20,7 @@ int stringeq(struct string *a, struct string *b); /* a == b */
 int stringcmp(struct string *a, struct string *b); /* like strcmp(a, b) */
 
 struct string_builder {
-	struct string *data;
+	struct string *buf;
 	size_t used;
 };
 

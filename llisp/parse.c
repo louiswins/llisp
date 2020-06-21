@@ -231,14 +231,14 @@ static void read_token(FILE *f) {
 		curtok.type = TT_ERROR;
 		return;
 	}
-	if (sb.used == 1 && STRING_DATA(sb.data)[0] == '.') {
+	if (sb.used == 1 && sb.buf->str[0] == '.') {
 		curtok.type = TT_DOT;
 		return;
 	}
-	if (can_begin_num(STRING_DATA(sb.data)[0])) {
+	if (can_begin_num(sb.buf->str[0])) {
 		char* endp;
-		double val = strtod(STRING_DATA(sb.data), &endp);
-		if (endp == STRING_DATA(sb.data) + sb.used) {
+		double val = strtod(sb.buf->str, &endp);
+		if (endp == sb.buf->str + sb.used) {
 			curtok.type = TT_NUMBER;
 			curtok.as.num = val;
 			return;

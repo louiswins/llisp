@@ -491,9 +491,9 @@ static struct obj *fn_string_append(CPS_ARGS) {
 	}
 	struct string *result = unsafe_make_uninitialized_str(cap);
 	cur = obj;
-	char *dest = STRING_DATA(result);
+	char *dest = result->str;
 	for (cur = obj; cur != &nil; cur = cur->tail) {
-		memcpy(dest, STRING_DATA(cur->head->str), cur->head->str->len);
+		memcpy(dest, cur->head->str->str, cur->head->str->len);
 		dest += cur->head->str->len;
 	}
 	*ret = self->next;
@@ -603,7 +603,7 @@ static struct obj *fn_substring(CPS_ARGS) {
 		}
 	}
 	*ret = self->next;
-	return make_str_obj(make_str_from_ptr_len(STRING_DATA(obj->head->str) + start, end - start));
+	return make_str_obj(make_str_from_ptr_len(obj->head->str->str + start, end - start));
 }
 
 void add_globals(struct env *env) {

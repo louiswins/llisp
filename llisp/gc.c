@@ -133,6 +133,16 @@ static void clear_marks() {
 }
 #endif
 
+struct gc_reverse_lookup_context {
+	struct obj *value;
+	struct string *key;
+};
+static void gc_reverse_hashtab_lookup(struct string *key, struct obj *value, void *context) {
+	struct gc_reverse_lookup_context *rlc = context;
+	if (value == rlc->value) {
+		rlc->key = key;
+	}
+}
 void gc_collect() {
 	if (!gc_active || !all_objects) return;
 #ifdef DEBUG_GC
@@ -173,9 +183,14 @@ void gc_collect() {
 				/* Clear out weak reference in interned_symbols if necessary
 				 * We'll have to figure out something better in case we add weak references somewhere else */
 				struct obj *leaked_obj = (struct obj *)OBJ_FROM_GC(leaked);
-				if (TYPE(leaked_obj) == SYMBOL && hashtab_get(&interned_symbols, leaked_obj->str) == leaked_obj) {
-					/* TODO: implement hashtable deletion */
-					hashtab_put(&interned_symbols, leaked_obj->str, &nil);
+				if (TYPE(leaked_obj) == SYMBOL) {
+					struct gc_reverse_lookup_context context = { NULL };
+					context.value = leaked_obj;
+					hashtab_foreach(&interned_symbols, gc_reverse_hashtab_lookup, &context);
+					if (context.key) {
+						/* TODO: implement hashtable deletion */
+						hashtab_put(&interned_symbols, context.key, &nil);
+					}
 				}
 			}
 			free(leaked);

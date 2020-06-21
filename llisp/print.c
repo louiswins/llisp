@@ -31,7 +31,7 @@ static void print_on_helper(FILE *f, struct obj *obj, int verbose) {
 	case SYMBOL:
 		print_str(f, obj->str);
 		break;
-	case STRING:
+	case OBJ_STRING:
 		if (verbose) {
 			putc('"', f);
 			print_str_escaped(f, obj->str);
@@ -96,7 +96,7 @@ static void print_on_helper(FILE *f, struct obj *obj, int verbose) {
 		putc(')', f);
 		break;
 	}
-	case CONTN:
+	case OBJ_CONTN:
 		fputs("<#continuation>", f);
 		break;
 	}

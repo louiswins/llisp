@@ -1,26 +1,16 @@
 #pragma once
 #include <stdlib.h>
+#include "obj.h"
 struct contn;
 struct env;
-struct obj;
 
 /* GC roots */
 extern struct contn *gc_current_contn;
 extern struct obj *gc_current_obj;
 extern struct env *gc_global_env;
 
-enum gctype { GC_OBJ, GC_CONTN, GC_ENV, GC_STR, GC_HTENTRY };
-
-struct gc_head {
-	struct gc_head *next;
-	struct gc_head *marknext;
-	enum gctype type;
-	_Bool marked;
-};
-#define NO_GC_HEAD { NULL, NULL, GC_OBJ, 0 }
-
 /* Allocate an object of type `typ' and size `size' */
-void *gc_alloc(enum gctype typ, size_t size);
+void *gc_alloc(enum objtype typ, size_t size);
 /* Assert that every allocated object is reachable from the three
  * roots above. This is cheap - in particular, it doesn't collect
  * garbage. */

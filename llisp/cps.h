@@ -1,30 +1,5 @@
 #pragma once
-#include "gc.h"
-
-struct env;
-struct obj;
-
-/*
- * A continuation expects to be given a simple llisp value. This is the obj pointer.
- * Instead of returning, the continuation invokes another continuation, giving it
- * another obj pointer. This is done by filling in the `ret' out param with the
- * continuation to invoke, and returning the argument.
- *
- * A continuation may have some associated data and an environment. It knows what to
- * do next and how to fail in the proper way.
- */
-
-#define CPS_ARGS struct contn *self, struct obj *obj, struct contn **ret
-
-struct contn {
-	struct gc_head gc;
-	struct obj *data;
-	struct env *env;
-	struct contn *next;
-	struct obj *(*fn)(CPS_ARGS);
-};
-/* duplicate an existing continuation */
-struct contn *dupcontn(struct contn *c);
+#include "obj.h"
 
 /* Evaluate obj in a continuation-passing style
  * Suitable for calling from specforms */

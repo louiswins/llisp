@@ -7,14 +7,13 @@
 #include "cps.h"
 
 /* static objects */
-struct obj nil = { NO_GC_HEAD, BUILTIN, .builtin = "()" };
-struct obj true_ = { NO_GC_HEAD, BUILTIN, .builtin = "#t" };
-struct obj false_ = { NO_GC_HEAD, BUILTIN, .builtin = "#f" };
+struct obj nil = { NO_GC_HEAD(BUILTIN), .builtin = "()" };
+struct obj true_ = { NO_GC_HEAD(BUILTIN), .builtin = "#t" };
+struct obj false_ = { NO_GC_HEAD(BUILTIN), .builtin = "#f" };
 struct hashtab interned_symbols = EMPTY_HASHTAB;
 
 struct obj *make_obj(enum objtype type) {
-	struct obj *ret = gc_alloc(GC_OBJ, sizeof(*ret));
-	SETTYPE(ret, type);
+	struct obj *ret = gc_alloc(type, sizeof(*ret));
 	return ret;
 }
 struct obj *make_symbol(struct string *name) {
@@ -41,7 +40,7 @@ struct obj *make_fn(enum objtype type, struct obj *(*fn)(CPS_ARGS), const char *
 	return ret;
 }
 struct obj *make_str_obj(struct string *val) {
-	struct obj *ret = make_obj(STRING);
+	struct obj *ret = make_obj(OBJ_STRING);
 	ret->str = val;
 	return ret;
 }
@@ -55,7 +54,7 @@ struct obj *cons(struct obj *l, struct obj *r) {
 
 /* strings */
 struct string *unsafe_make_uninitialized_str(size_t len) {
-	struct string *s = gc_alloc(GC_STR, offsetof(struct string, str) + len);
+	struct string *s = gc_alloc(BARE_STR, offsetof(struct string, str) + len);
 	s->len = len;
 	return s;
 }

@@ -260,7 +260,7 @@ static struct obj *fn_eq_(CPS_ARGS) {
 	if (TYPE(a) == NUM && TYPE(b) == NUM) {
 		return a->num == b->num ? &true_ : &false_;
 	}
-	if (TYPE(a) == STRING && TYPE(b) == STRING) {
+	if (TYPE(a) == OBJ_STRING && TYPE(b) == OBJ_STRING) {
 		return stringeq(a->str, b->str) ? &true_ : &false_;
 	}
 	return a == b ? &true_ : &false_;
@@ -301,7 +301,7 @@ static struct obj *fn_callcc(CPS_ARGS) {
 	}
 	*ret = dupcontn(self);
 	(*ret)->fn = eval_cps;
-	struct obj *contp = make_obj(CONTN);
+	struct obj *contp = make_obj(OBJ_CONTN);
 	contp->contnp = self->next;
 	return cons(obj->head, cons(contp, &nil));
 }
@@ -319,7 +319,7 @@ static struct obj *fn_apply(CPS_ARGS) {
 	}
 	struct obj* fun = obj->head;
 	*ret = dupcontn(self);
-	if (TYPE(fun) == CONTN) {
+	if (TYPE(fun) == OBJ_CONTN) {
 		(*ret)->data = fun;
 		(*ret)->fn = apply_contn;
 	} else if (TYPE(fun) == FN || TYPE(fun) == SPECFORM) {
@@ -468,7 +468,7 @@ static struct obj *fn_string_(CPS_ARGS) {
 		return &nil;
 	}
 	*ret = self->next;
-	return TYPE(obj->head) == STRING ? &true_ : &false_;
+	return TYPE(obj->head) == OBJ_STRING ? &true_ : &false_;
 }
 
 static struct obj *fn_string_append(CPS_ARGS) {
@@ -480,7 +480,7 @@ static struct obj *fn_string_append(CPS_ARGS) {
 	struct obj *cur = obj;
 	size_t cap = 0;
 	for (; cur != &nil; cur = cur->tail) {
-		if (TYPE(cur->head) != STRING) {
+		if (TYPE(cur->head) != OBJ_STRING) {
 			fputs("string-append: expected string, given ", stderr);
 			print_on(stderr, cur->head, 1);
 			fputc('\n', stderr);
@@ -505,9 +505,9 @@ static struct obj *fn_string_compare(CPS_ARGS) {
 		*ret = &cfail;
 		return &nil;
 	}
-	if (TYPE(obj->head) != STRING || TYPE(obj->tail->head) != STRING) {
+	if (TYPE(obj->head) != OBJ_STRING || TYPE(obj->tail->head) != OBJ_STRING) {
 		fputs("string-compare: expected string, given ", stderr);
-		if (TYPE(obj->head) != STRING) {
+		if (TYPE(obj->head) != OBJ_STRING) {
 			print_on(stderr, obj->head, 1);
 		} else {
 			print_on(stderr, obj->tail->head, 1);
@@ -525,7 +525,7 @@ static struct obj *fn_string_length(CPS_ARGS) {
 		*ret = &cfail;
 		return &nil;
 	}
-	if (TYPE(obj->head) != STRING) {
+	if (TYPE(obj->head) != OBJ_STRING) {
 		fputs("string-length: expected string, given ", stderr);
 		print_on(stderr, obj->head, 1);
 		fputc('\n', stderr);
@@ -548,7 +548,7 @@ static struct obj *fn_substring(CPS_ARGS) {
 		*ret = &cfail;
 		return &nil;
 	}
-	if (TYPE(obj->head) != STRING) {
+	if (TYPE(obj->head) != OBJ_STRING) {
 		fputs("substring: expected string, given ", stderr);
 		print_on(stderr, obj->head, 1);
 		fputc('\n', stderr);

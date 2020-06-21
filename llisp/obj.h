@@ -1,9 +1,36 @@
 #pragma once
 #include <stdio.h>
-#include "cps.h"
 #include "env.h"
-#include "gc.h"
 #include "hashtab.h"
+
+#define CPS_ARGS struct contn *self, struct obj *obj, struct contn **ret
+
+enum objtype {
+	CELL,
+	NUM,
+	SYMBOL,
+	FN,
+	SPECFORM,
+	LAMBDA,
+	MACRO,
+	BUILTIN,
+	OBJ_CONTN,
+	OBJ_STRING,
+
+	BARE_CONTN,
+	BARE_STR,
+	ENV,
+	HASHTABARR
+};
+#define TYPEISOBJ(type) ((type) >= CELL && (type) <= OBJ_STRING)
+
+struct gc_head {
+	struct gc_head *next;
+	struct gc_head *marknext;
+	enum objtype type;
+	_Bool marked;
+};
+#define NO_GC_HEAD(type) { NULL, NULL, type, 0 }
 
 struct string {
 	struct gc_head gc;
@@ -29,10 +56,28 @@ void string_builder_append(struct string_builder *sb, char ch);
 struct string *finish_string_builder(struct string_builder *sb);
 void print_string_builder_escaped(FILE *f, struct string_builder *sb);
 
-enum objtype { CELL, NUM, SYMBOL, FN, SPECFORM, LAMBDA, MACRO, BUILTIN, CONTN, STRING };
+/*
+ * A continuation expects to be given a simple llisp value. This is the obj pointer.
+ * Instead of returning, the continuation invokes another continuation, giving it
+ * another obj pointer. This is done by filling in the `ret' out param with the
+ * continuation to invoke, and returning the argument.
+ *
+ * A continuation may have some associated data and an environment. It knows what to
+ * do next and how to fail in the proper way.
+ */
+struct contn {
+	struct gc_head gc;
+	struct obj *data;
+	struct env *env;
+	struct contn *next;
+	struct obj *(*fn)(CPS_ARGS);
+};
+
+/* duplicate an existing continuation */
+struct contn *dupcontn(struct contn *c);
+
 struct obj {
 	struct gc_head gc;
-	enum objtype typ;
 	union {
 		struct {
 			struct obj *head;
@@ -54,8 +99,7 @@ struct obj {
 		struct contn *contnp;
 	};
 };
-#define TYPE(o) ((o)->typ)
-#define SETTYPE(o, typ) (TYPE(o) = (typ))
+#define TYPE(o) (((struct gc_head*)(o))->type)
 
 extern struct obj nil;
 extern struct obj true_;

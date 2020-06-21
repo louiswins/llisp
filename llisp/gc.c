@@ -7,8 +7,6 @@
 #include "hashtab.h"
 #include "obj.h"
 
-#define GCTYPE(o) ((o)->type)
-
 /* GC roots */
 struct contn *gc_current_contn = NULL;
 struct obj *gc_current_obj = NULL;
@@ -66,15 +64,15 @@ static void gc_queue_hashtab_entry_weak(struct string *key, struct obj *value, v
 static void gc_mark(struct gc_head *gcitem) {
 	if (ISMARKED(gcitem)) return;
 	ADDMARK(gcitem);
-	if (GCTYPE(gcitem) == GC_STR) return; /* no pointers in a string :) */
-	if (GCTYPE(gcitem) == GC_HTENTRY) {
+	if (TYPE(gcitem) == BARE_STR) return; /* no pointers in a string :) */
+	if (TYPE(gcitem) == HASHTABARR) {
 		/* Should be queued as part of its owner, because we don't have the length here */
 		/* Could be added as part of the temp roots while allocating. Hopefully if there's
 		 * anything in it it's already in the graph, because we don't have size here. */
 		/* TODO: change this to a struct {size, array} */
 		return;
 	}
-	if (GCTYPE(gcitem) == GC_ENV) {
+	if (TYPE(gcitem) == ENV) {
 		struct env *env = OBJ_FROM_GC(gcitem);
 		/* If we allocate the environment but then need to collect when trying to allocate
 		 * the initial hashtable, we don't have anything to mark yet. */
@@ -85,14 +83,14 @@ static void gc_mark(struct gc_head *gcitem) {
 		gc_queue(env->parent);
 		return;
 	}
-	if (GCTYPE(gcitem) == GC_CONTN) {
+	if (TYPE(gcitem) == BARE_CONTN) {
 		struct contn *contn = OBJ_FROM_GC(gcitem);
 		gc_queue(contn->data);
 		gc_queue(contn->env);
 		gc_queue(contn->next);
 		return;
 	}
-	assert(GCTYPE(gcitem) == GC_OBJ);
+	assert(TYPEISOBJ(TYPE(gcitem)));
 	struct obj *obj = OBJ_FROM_GC(gcitem);
 	switch (TYPE(obj)) {
 	default:
@@ -104,7 +102,7 @@ static void gc_mark(struct gc_head *gcitem) {
 	case BUILTIN:
 		return;
 	case SYMBOL:
-	case STRING:
+	case OBJ_STRING:
 		gc_queue(obj->str);
 		return;
 	case CELL:
@@ -118,7 +116,7 @@ static void gc_mark(struct gc_head *gcitem) {
 		gc_queue(obj->env);
 		gc_queue(obj->closurename);
 		return;
-	case CONTN:
+	case OBJ_CONTN:
 		gc_queue(obj->contnp);
 		return;
 	}
@@ -179,18 +177,15 @@ void gc_collect() {
 		} else {
 			struct gc_head *leaked = *cur;
 			*cur = leaked->next;
-			if (GCTYPE(leaked) == GC_OBJ) {
+			if (TYPE(leaked) == SYMBOL) {
 				/* Clear out weak reference in interned_symbols if necessary
 				 * We'll have to figure out something better in case we add weak references somewhere else */
-				struct obj *leaked_obj = (struct obj *)OBJ_FROM_GC(leaked);
-				if (TYPE(leaked_obj) == SYMBOL) {
-					struct gc_reverse_lookup_context context = { NULL };
-					context.value = leaked_obj;
-					hashtab_foreach(&interned_symbols, gc_reverse_hashtab_lookup, &context);
-					if (context.key) {
-						/* TODO: implement hashtable deletion */
-						hashtab_put(&interned_symbols, context.key, &nil);
-					}
+				struct gc_reverse_lookup_context context = { NULL };
+				context.value = (struct obj *) OBJ_FROM_GC(leaked);
+				hashtab_foreach(&interned_symbols, gc_reverse_hashtab_lookup, &context);
+				if (context.key) {
+					/* TODO: implement hashtable deletion */
+					hashtab_put(&interned_symbols, context.key, &nil);
 				}
 			}
 			free(leaked);
@@ -201,7 +196,7 @@ void gc_collect() {
 	}
 }
 
-void *gc_alloc(enum gctype typ, size_t size) {
+void *gc_alloc(enum objtype typ, size_t size) {
 #ifdef DEBUG_GC
 	static unsigned char num_allocs = 0;
 	if (!++num_allocs) { gc_collect(); }

@@ -7,7 +7,7 @@
 #include "print.h"
 
 struct contn *dupcontn(struct contn *c) {
-	struct contn *ret = gc_alloc(GC_CONTN, sizeof(*ret));
+	struct contn *ret = gc_alloc(BARE_CONTN, sizeof(*ret));
 	memcpy(&ret->data, &c->data, sizeof(*ret) - offsetof(struct contn, data));
 	return ret;
 }
@@ -17,7 +17,7 @@ static int is_callable(enum objtype type) {
 		type == LAMBDA ||
 		type == FN ||
 		type == SPECFORM ||
-		type == CONTN;
+		type == OBJ_CONTN;
 }
 
 struct contn cend = { NULL };
@@ -50,8 +50,8 @@ int direct_eval(struct obj *obj, struct env *env, struct obj **result) {
 	case FN:
 	case LAMBDA:
 	case MACRO:
-	case STRING:
-	case CONTN:
+	case OBJ_STRING:
+	case OBJ_CONTN:
 		*result = obj;
 		return 1;
 	case SYMBOL: {
@@ -71,7 +71,7 @@ int direct_eval(struct obj *obj, struct env *env, struct obj **result) {
 struct obj *eval_cps(CPS_ARGS) {
 	switch (TYPE(obj)) {
 	default:
-		fprintf(stderr, "eval: unknown type %d\n", TYPE(obj));
+		fprintf(stderr, "eval: invalid type to eval %d\n", TYPE(obj));
 		*ret = &cfail;
 		return &nil;
 	case BUILTIN:
@@ -80,8 +80,8 @@ struct obj *eval_cps(CPS_ARGS) {
 	case FN:
 	case LAMBDA:
 	case MACRO:
-	case STRING:
-	case CONTN:
+	case OBJ_STRING:
+	case OBJ_CONTN:
 		*ret = self->next;
 		return obj;
 	case SYMBOL: {
@@ -133,7 +133,7 @@ static struct obj *eval_doapply(CPS_ARGS) {
 	}
 
 	struct contn *appcnt = dupcontn(self);
-	if (TYPE(obj) == CONTN) {
+	if (TYPE(obj) == OBJ_CONTN) {
 		appcnt->data = obj;
 		appcnt->fn = apply_contn;
 	} else if (TYPE(obj) == FN || TYPE(obj) == SPECFORM) {
@@ -145,7 +145,7 @@ static struct obj *eval_doapply(CPS_ARGS) {
 		appcnt->fn = apply_closure;
 	}
 
-	if (TYPE(obj) == FN || TYPE(obj) == LAMBDA || TYPE(obj) == CONTN) {
+	if (TYPE(obj) == FN || TYPE(obj) == LAMBDA || TYPE(obj) == OBJ_CONTN) {
 		/* need to evaluate the arguments first */
 		*ret = dupcontn(self);
 		(*ret)->data = &nil;

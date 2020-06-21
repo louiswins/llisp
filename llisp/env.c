@@ -6,7 +6,7 @@
 #include "obj.h"
 
 struct env *make_env(struct env *parent) {
-	struct env *ret = gc_alloc(GC_ENV, sizeof(*ret));
+	struct env *ret = gc_alloc(ENV, sizeof(*ret));
 	ret->parent = parent;
 	init_hashtab(&ret->table);
 	return ret;

@@ -58,7 +58,7 @@ static struct ht_entry *hashtab_find(struct ht_entry *entries, size_t cap, struc
 static void hashtab_embiggen(struct hashtab *ht) {
 	size_t i;
 	size_t newcap = ht->cap ? ht->cap + ht->cap / 2 : INITIAL_HASHTAB_CAPACITY;
-	struct ht_entryarr *newtab = gc_alloc(GC_HTENTRY, sizeof(*newtab) + (newcap - 1) * sizeof(*newtab));
+	struct ht_entryarr *newtab = gc_alloc(GC_HTENTRY, offsetof(struct ht_entryarr, entries) + newcap * sizeof(struct ht_entry));
 	for (i = 0; i < ht->cap; ++i) {
 		struct string *curkey = ht->e->entries[i].key;
 		if (curkey != NULL) {

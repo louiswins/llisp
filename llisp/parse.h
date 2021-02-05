@@ -1,7 +1,7 @@
 #pragma once
 #include <stdio.h>
 
-struct obj_union;
+struct obj;
 
-struct obj_union *parse(FILE *f);
+struct obj *parse(FILE *f);
 void init_parser();

@@ -10,7 +10,7 @@
 #include "stdlib.h"
 
 static int repl_done = 0;
-static struct obj_union *fn_quit(CPS_ARGS) {
+static struct obj *fn_quit(CPS_ARGS) {
 	(void)self;
 	repl_done = 1;
 	*ret = &cfail;
@@ -27,7 +27,7 @@ int main() {
 	init_parser();
 	printf("$ ");
 	fflush(stdout);
-	struct obj_union *obj;
+	struct obj *obj;
 	while (!repl_done && (obj = parse(stdin)) != NULL) {
 		obj = run_cps(obj, gc_global_env);
 		printf("=> ");print(obj);

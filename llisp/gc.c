@@ -9,7 +9,7 @@
 
 /* GC roots */
 struct contn *gc_current_contn = NULL;
-struct obj_union *gc_current_obj = NULL;
+struct obj *gc_current_obj = NULL;
 struct env *gc_global_env = NULL;
 
 static int gc_active = 1;
@@ -34,9 +34,9 @@ static void *gc_add_to_temp_roots(void *root) {
 void gc_cycle() { ntemproots = 0; }
 
 static void gc_mark(struct obj *item);
-static void gc_queue(void *obj);
+static void gc_queue(struct obj *obj);
 
-static int is_static(void *obj) {
+static int is_static(struct obj *obj) {
 	return obj == NIL || obj == TRUE || obj == FALSE ||
 		obj == (struct obj *) &cbegin || obj == (struct obj *) &cend || obj == (struct obj *) &cfail;
 }
@@ -48,14 +48,14 @@ static void gc_queue(struct obj *o) {
 	SETNEXTTOMARK(o, objs_to_mark);
 	objs_to_mark = o;
 }
-static void gc_queue_hashtab_entry(struct string *key, struct obj_union *value, void *ignored) {
+static void gc_queue_hashtab_entry(struct string *key, struct obj *value, void *ignored) {
 	(void)ignored;
 	ADDMARK(GC_FROM_OBJ(key)); /* I know it's a string */
 	gc_queue((struct obj *) value);
 }
 /* TODO: delete this after implementing hashtable deletion - no reason to keep
  * the keys alive once we can actually remove them. */
-static void gc_queue_hashtab_entry_weak(struct string *key, struct obj_union *value, void *ignored) {
+static void gc_queue_hashtab_entry_weak(struct string *key, struct obj *value, void *ignored) {
 	(void)value;
 	(void)ignored;
 	ADDMARK(GC_FROM_OBJ(key));
@@ -90,7 +90,7 @@ static void gc_mark(struct obj *item) {
 		return;
 	}
 	assert(TYPEISOBJ(TYPE(item)));
-	struct obj_union *obj = OBJ_FROM_GC(item);
+	struct obj *obj = OBJ_FROM_GC(item);
 	switch (TYPE(obj)) {
 	default:
 		fprintf(stderr, "Fatal error: unknown object type %d\n", TYPE(obj));
@@ -133,10 +133,10 @@ static void clear_marks() {
 #endif
 
 struct gc_reverse_lookup_context {
-	struct obj_union *value;
+	struct obj *value;
 	struct string *key;
 };
-static void gc_reverse_hashtab_lookup(struct string *key, struct obj_union *value, void *context) {
+static void gc_reverse_hashtab_lookup(struct string *key, struct obj *value, void *context) {
 	struct gc_reverse_lookup_context *rlc = context;
 	if (value == rlc->value) {
 		rlc->key = key;
@@ -187,7 +187,7 @@ void gc_collect() {
 				/* Clear out weak reference in interned_symbols if necessary
 				 * We'll have to figure out something better in case we add weak references somewhere else */
 				struct gc_reverse_lookup_context context = { NULL };
-				context.value = (struct obj_union *) OBJ_FROM_GC(leaked);
+				context.value = (struct obj *) OBJ_FROM_GC(leaked);
 				hashtab_foreach(&interned_symbols, gc_reverse_hashtab_lookup, &context);
 				if (context.key) {
 					/* TODO: implement hashtable deletion */

@@ -2,7 +2,7 @@
 #include <stdlib.h>
 
 struct ht_entryarr;
-struct obj_union;
+struct obj;
 struct string;
 
 /* Hash table 
@@ -28,10 +28,10 @@ void init_hashtab(struct hashtab *ht);
 int hashtab_exists(struct hashtab *ht, struct string *key);
 /* Get the value associated with a given key.
  * Returns NULL on missing entries. */
-struct obj_union *hashtab_get(struct hashtab *ht, struct string *key);
+struct obj *hashtab_get(struct hashtab *ht, struct string *key);
 /* Put `value` in the slot `key`. */
-void hashtab_put(struct hashtab *ht, struct string *key, struct obj_union *value);
+void hashtab_put(struct hashtab *ht, struct string *key, struct obj *value);
 
-typedef void(*visit_entry)(struct string *key, struct obj_union *value, void *context);
+typedef void(*visit_entry)(struct string *key, struct obj *value, void *context);
 /* Invoke `f` on every entry in the hashtable */
 void hashtab_foreach(struct hashtab *ht, visit_entry f, void *context);

@@ -10,10 +10,10 @@
 #define MARK_OBJ(o) ADDMARK(GC_FROM_OBJ(o))
 #define DEL_OBJMARK(o) DELMARK(GC_FROM_OBJ(o))
 
-void print(struct obj_union *obj) { print_on(stdout, obj, 1); }
-void display(struct obj_union *obj) { print_on(stdout, obj, 0); }
+void print(struct obj *obj) { print_on(stdout, obj, 1); }
+void display(struct obj *obj) { print_on(stdout, obj, 0); }
 
-static void print_on_helper(FILE *f, struct obj_union *obj, int verbose) {
+static void print_on_helper(FILE *f, struct obj *obj, int verbose) {
 	switch (TYPE(obj)) {
 	default:
 		fprintf(stderr, "<#unknown type %d>", TYPE(obj));
@@ -102,7 +102,7 @@ static void print_on_helper(FILE *f, struct obj_union *obj, int verbose) {
 	}
 }
 
-static void clear_marks(struct obj_union *obj) {
+static void clear_marks(struct obj *obj) {
 	switch (TYPE(obj)) {
 	case LAMBDA:
 	case MACRO:
@@ -118,7 +118,7 @@ static void clear_marks(struct obj_union *obj) {
 	}
 }
 
-void print_on(FILE *f, struct obj_union *obj, int verbose) {
+void print_on(FILE *f, struct obj *obj, int verbose) {
 	print_on_helper(f, obj, verbose);
 	// Now that we've printed, let's clear all the marks to avoid messing up the GC
 	clear_marks(obj);

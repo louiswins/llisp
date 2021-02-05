@@ -1,10 +1,10 @@
 #pragma once
 
-struct obj_union;
+struct obj;
 
 /* Simple display of an object */
-void display(struct obj_union *obj);
+void display(struct obj *obj);
 /* Verbose display of an object */
-void print(struct obj_union *obj);
+void print(struct obj *obj);
 
-void print_on(FILE *f, struct obj_union *obj, int verbose);
+void print_on(FILE *f, struct obj *obj, int verbose);

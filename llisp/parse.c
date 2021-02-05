@@ -305,10 +305,10 @@ static void error(const char *message, ...) {
 	va_end(args);
 }
 
-static struct obj_union *parse_one(FILE *f);
-static struct obj_union *parse_list(FILE *f) {
-	struct obj_union *list = NIL;
-	struct obj_union *cur = NIL;
+static struct obj *parse_one(FILE *f);
+static struct obj *parse_list(FILE *f) {
+	struct obj *list = NIL;
+	struct obj *cur = NIL;
 	enum dot_status {
 		NO_DOT,
 		SEEN_DOT,
@@ -339,7 +339,7 @@ static struct obj_union *parse_list(FILE *f) {
 			return NULL;
 		}
 
-		struct obj_union *obj = parse_one(f);
+		struct obj *obj = parse_one(f);
 		if (!obj) {
 			return NULL;
 		}
@@ -356,11 +356,11 @@ static struct obj_union *parse_list(FILE *f) {
 	}
 }
 
-static struct obj_union *parse_one(FILE *f) {
+static struct obj *parse_one(FILE *f) {
 #define QUOTE_CASE(type, name) \
 		case type: { \
 			read_token(f); \
-			struct obj_union *quoted = parse_one(f); \
+			struct obj *quoted = parse_one(f); \
 			if (!quoted) return NULL; \
 			return cons(make_symbol(str_from_string_lit(#name)), cons(quoted, NIL)); \
 		}
@@ -386,8 +386,8 @@ static struct obj_union *parse_one(FILE *f) {
 #undef QUOTE_CASE
 }
 
-struct obj_union *parse(FILE *f) {
-	struct obj_union *ret = NULL;
+struct obj *parse(FILE *f) {
+	struct obj *ret = NULL;
 	gc_suspend();
 	read_token(f);
 	if (curtok.type != TT_EOF) {

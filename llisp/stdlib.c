@@ -10,7 +10,7 @@ void add_stdlib(struct env *env) {
 		return;
 	}
 	init_parser();
-	struct obj_union *obj;
+	struct obj *obj;
 	while ((obj = parse(stdlib)) != NULL) {
 		run_cps(obj, env);
 	}

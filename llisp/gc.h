@@ -6,7 +6,7 @@ struct env;
 
 /* GC roots */
 extern struct contn *gc_current_contn;
-extern struct obj_union *gc_current_obj;
+extern struct obj *gc_current_obj;
 extern struct env *gc_global_env;
 
 /* Allocate an object of type `typ' and size `size' */

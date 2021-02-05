@@ -8,7 +8,7 @@
 
 struct ht_entry {
 	struct string *key;
-	struct obj_union *value;
+	struct obj *value;
 };
 
 struct ht_entryarr {
@@ -71,7 +71,7 @@ static void hashtab_embiggen(struct hashtab *ht) {
 	ht->e = newtab;
 }
 
-void hashtab_put(struct hashtab *ht, struct string *key, struct obj_union *value) {
+void hashtab_put(struct hashtab *ht, struct string *key, struct obj *value) {
 	if (ht->cap == 0 || (double)ht->size / (double)ht->cap >= MAX_LOAD_FACTOR) {
 		hashtab_embiggen(ht);
 	}
@@ -87,7 +87,7 @@ int hashtab_exists(struct hashtab *ht, struct string *key) {
 	struct ht_entry* entry = hashtab_find(ht->e->entries, ht->cap, key);
 	return entry && entry->key;
 }
-struct obj_union *hashtab_get(struct hashtab *ht, struct string *key) {
+struct obj *hashtab_get(struct hashtab *ht, struct string *key) {
 	struct ht_entry* entry = hashtab_find(ht->e->entries, ht->cap, key);
 	return entry ? entry->value : NULL;
 }

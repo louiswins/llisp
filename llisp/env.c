@@ -12,18 +12,18 @@ struct env *make_env(struct env *parent) {
 	return ret;
 }
 
-static void set_name_if_necessary(struct string *name, struct obj_union *value) {
+static void set_name_if_necessary(struct string *name, struct obj *value) {
 	if (value != NULL && (TYPE(value) == LAMBDA || TYPE(value) == MACRO) && !AS_CLOSURE(value)->closurename) {
 		AS_CLOSURE(value)->closurename = name;
 	}
 }
 
-void definesym(struct env *env, struct string *name, struct obj_union *value) {
+void definesym(struct env *env, struct string *name, struct obj *value) {
 	set_name_if_necessary(name, value);
 	hashtab_put(&env->table, name, value);
 }
 
-int setsym(struct env *env, struct string *name, struct obj_union *value) {
+int setsym(struct env *env, struct string *name, struct obj *value) {
 	for (; env != NULL; env = env->parent) {
 		if (hashtab_exists(&env->table, name)) {
 			set_name_if_necessary(name, value);
@@ -34,9 +34,9 @@ int setsym(struct env *env, struct string *name, struct obj_union *value) {
 	return 0;
 }
 
-struct obj_union *getsym(struct env *env, struct string *name) {
+struct obj *getsym(struct env *env, struct string *name) {
 	for (; env != NULL; env = env->parent) {
-		struct obj_union *o = hashtab_get(&env->table, name);
+		struct obj *o = hashtab_get(&env->table, name);
 		if (o) return o;
 	}
 	return NULL;

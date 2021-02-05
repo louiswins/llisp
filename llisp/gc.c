@@ -143,6 +143,11 @@ static void gc_reverse_hashtab_lookup(struct string *key, struct obj *value, voi
 }
 void gc_collect() {
 	if (!gc_active || !all_objects) return;
+	/* Messing with the interned symbols hashtable can trigger another collection
+	 * but collection is not reentrant. Block it. */
+	static _Bool collection_active = 0;
+	if (collection_active) return;
+	collection_active = 1;
 #ifdef DEBUG_GC
 	clear_marks();
 #endif
@@ -194,12 +199,12 @@ void gc_collect() {
 #endif
 		}
 	}
+	collection_active = 0;
 }
 
 void *gc_alloc(enum objtype typ, size_t size) {
 #ifdef DEBUG_GC
-	static unsigned char num_allocs = 0;
-	if (!++num_allocs) { gc_collect(); }
+	gc_collect();
 #endif
 	struct gc_head *ret = calloc(1, size);
 	if (ret == NULL) {

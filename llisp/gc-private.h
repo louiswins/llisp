@@ -7,5 +7,5 @@
 #define NEXTTOMARK(o) ((o)->marknext)
 #define SETNEXTTOMARK(o, val) ((o)->marknext = (val))
 
-#define GC_FROM_OBJ(o) ((struct gc_head*)(o))
+#define GC_FROM_OBJ(o) ((struct obj*)(o))
 #define OBJ_FROM_GC(gc) ((void*)(gc))

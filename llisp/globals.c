@@ -10,9 +10,9 @@
 #include "obj.h"
 #include "print.h"
 
-int length(struct obj *obj) {
+int length(struct obj_union *obj) {
 	int ret = 0;
-	struct obj* tortoise = obj;
+	struct obj_union* tortoise = obj;
 	do {
 		if (TYPE(obj) != CELL) break;
 		obj = CDR(obj);
@@ -25,7 +25,7 @@ int length(struct obj *obj) {
 	if (obj != NIL) return -1;
 	return ret;
 }
-int check_args(const char *fn, struct obj *obj, int nargs) {
+int check_args(const char *fn, struct obj_union *obj, int nargs) {
 	int len = length(obj);
 	if (len < 0) {
 		fprintf(stderr, "%s: args must be a proper list\n", fn);
@@ -39,10 +39,10 @@ int check_args(const char *fn, struct obj *obj, int nargs) {
 }
 
 /* (if cond then . else) */
-static struct obj *fn_if(CPS_ARGS);
-static struct obj *resumeif(CPS_ARGS);
+static struct obj_union *fn_if(CPS_ARGS);
+static struct obj_union *resumeif(CPS_ARGS);
 
-static struct obj *fn_if(CPS_ARGS) {
+static struct obj_union *fn_if(CPS_ARGS) {
 	int len = length(obj);
 	if (len < 0) {
 		fputs("if: args must be a proper list", stderr);
@@ -65,7 +65,7 @@ static struct obj *fn_if(CPS_ARGS) {
 }
 
 /* obj = eval(cond), self->data = (then) or (then else) */
-static struct obj *resumeif(CPS_ARGS) {
+static struct obj_union *resumeif(CPS_ARGS) {
 	if (obj != FALSE) {
 		/* eval then */
 		*ret = dupcontn(self);
@@ -85,7 +85,7 @@ static struct obj *resumeif(CPS_ARGS) {
 	}
 }
 
-static struct obj *fn_quote(CPS_ARGS) {
+static struct obj_union *fn_quote(CPS_ARGS) {
 	if (!check_args("quote", obj, 1)) {
 		*ret = &cfail;
 		return NIL;
@@ -94,7 +94,7 @@ static struct obj *fn_quote(CPS_ARGS) {
 	return CAR(obj);
 }
 
-static struct obj *set_symbol_cps(const char *name, struct obj *(*next)(CPS_ARGS), CPS_ARGS) {
+static struct obj_union *set_symbol_cps(const char *name, struct obj_union *(*next)(CPS_ARGS), CPS_ARGS) {
 	if (!check_args(name, obj, 2)) {
 		*ret = &cfail;
 		return NIL;
@@ -114,27 +114,27 @@ static struct obj *set_symbol_cps(const char *name, struct obj *(*next)(CPS_ARGS
 	return CAR(CDR(obj));
 }
 
-static struct obj *fn_define(CPS_ARGS);
-static struct obj *do_definesym(CPS_ARGS);
+static struct obj_union *fn_define(CPS_ARGS);
+static struct obj_union *do_definesym(CPS_ARGS);
 
-static struct obj *fn_define(CPS_ARGS) {
+static struct obj_union *fn_define(CPS_ARGS) {
 	return set_symbol_cps("define", do_definesym, self, obj, ret);
 }
 /* obj = eval(defn), self->data = sym */
-static struct obj *do_definesym(CPS_ARGS) {
+static struct obj_union *do_definesym(CPS_ARGS) {
 	definesym(self->env, AS_SYMBOL(self->data)->str, obj);
 	*ret = self->next;
 	return NIL;
 }
 
-static struct obj *fn_set_(CPS_ARGS);
-static struct obj *do_setsym(CPS_ARGS);
+static struct obj_union *fn_set_(CPS_ARGS);
+static struct obj_union *do_setsym(CPS_ARGS);
 
-static struct obj *fn_set_(CPS_ARGS) {
+static struct obj_union *fn_set_(CPS_ARGS) {
 	return set_symbol_cps("set!", do_setsym, self, obj, ret);
 }
 /* obj = eval(defn), self->data = sym */
-static struct obj *do_setsym(CPS_ARGS) {
+static struct obj_union *do_setsym(CPS_ARGS) {
 	if (!setsym(self->env, AS_SYMBOL(self->data)->str, obj)) {
 		fputs("set!: symbol \"", stderr);
 		print_str_escaped(stderr, AS_SYMBOL(self->data)->str);
@@ -146,7 +146,7 @@ static struct obj *do_setsym(CPS_ARGS) {
 	return NIL;
 }
 
-static struct obj *fn_set_cell(const char* name, void (*actually_set)(struct obj *cell, struct obj *value), CPS_ARGS) {
+static struct obj_union *fn_set_cell(const char* name, void (*actually_set)(struct obj_union *cell, struct obj_union *value), CPS_ARGS) {
 	if (!check_args(name, obj, 2)) {
 		*ret = &cfail;
 		return NIL;
@@ -161,21 +161,21 @@ static struct obj *fn_set_cell(const char* name, void (*actually_set)(struct obj
 	return NIL;
 }
 
-static void do_set_car(struct obj *cell, struct obj *value) {
+static void do_set_car(struct obj_union *cell, struct obj_union *value) {
 	CAR(cell) = value;
 }
-static struct obj *fn_set_car_(CPS_ARGS) {
+static struct obj_union *fn_set_car_(CPS_ARGS) {
 	return fn_set_cell("set-car!", do_set_car, self, obj, ret);
 }
 
-static void do_set_cdr(struct obj *cell, struct obj *value) {
+static void do_set_cdr(struct obj_union *cell, struct obj_union *value) {
 	CDR(cell) = value;
 }
-static struct obj *fn_set_cdr_(CPS_ARGS) {
+static struct obj_union *fn_set_cdr_(CPS_ARGS) {
 	return fn_set_cell("set-cdr!", do_set_cdr, self, obj, ret);
 }
 
-static struct obj *fn_car(CPS_ARGS) {
+static struct obj_union *fn_car(CPS_ARGS) {
 	if (!check_args("car", obj, 1)) {
 		*ret = &cfail;
 		return NIL;
@@ -188,7 +188,7 @@ static struct obj *fn_car(CPS_ARGS) {
 	*ret = self->next;
 	return CAR(CAR(obj));
 }
-static struct obj *fn_cdr(CPS_ARGS) {
+static struct obj_union *fn_cdr(CPS_ARGS) {
 	if (!check_args("cdr", obj, 1)) {
 		*ret = &cfail;
 		return NIL;
@@ -201,7 +201,7 @@ static struct obj *fn_cdr(CPS_ARGS) {
 	*ret = self->next;
 	return CDR(CAR(obj));
 }
-static struct obj *fn_cons(CPS_ARGS) {
+static struct obj_union *fn_cons(CPS_ARGS) {
 	if (!check_args("cons", obj, 2)) {
 		*ret = &cfail;
 		return NIL;
@@ -210,7 +210,7 @@ static struct obj *fn_cons(CPS_ARGS) {
 	return cons(CAR(obj), CAR(CDR(obj)));
 }
 
-static struct obj *fn_pair_(CPS_ARGS) {
+static struct obj_union *fn_pair_(CPS_ARGS) {
 	if (!check_args("pair?", obj, 1)) {
 		*ret = &cfail;
 		return NIL;
@@ -219,16 +219,16 @@ static struct obj *fn_pair_(CPS_ARGS) {
 	return TYPE(CAR(obj)) == CELL ? TRUE : FALSE;
 }
 
-static struct obj *fn_begin(CPS_ARGS) {
+static struct obj_union *fn_begin(CPS_ARGS) {
 	*ret = self->next;
-	struct obj *val = NIL;
+	struct obj_union *val = NIL;
 	for (; TYPE(obj) == CELL; obj = CDR(obj)) {
 		val = CAR(obj);
 	}
 	return val;
 }
 
-static struct obj *fn_gensym(CPS_ARGS) {
+static struct obj_union *fn_gensym(CPS_ARGS) {
 	static int symnum = 0;
 	int len = length(obj);
 	if (len == 1) {
@@ -249,14 +249,14 @@ static struct obj *fn_gensym(CPS_ARGS) {
 	return make_symbol(make_str_from_ptr_len(buf, slen));
 }
 
-static struct obj *fn_eq_(CPS_ARGS) {
+static struct obj_union *fn_eq_(CPS_ARGS) {
 	if (!check_args("eq?", obj, 2)) {
 		*ret = &cfail;
 		return NIL;
 	}
 	*ret = self->next;
-	struct obj *a = CAR(obj);
-	struct obj *b = CAR(CDR(obj));
+	struct obj_union *a = CAR(obj);
+	struct obj_union *b = CAR(CDR(obj));
 	if (TYPE(a) == NUM && TYPE(b) == NUM) {
 		return AS_NUM(a) == AS_NUM(b) ? TRUE : FALSE;
 	}
@@ -266,7 +266,7 @@ static struct obj *fn_eq_(CPS_ARGS) {
 	return a == b ? TRUE : FALSE;
 }
 
-static struct obj *fn_display(CPS_ARGS) {
+static struct obj_union *fn_display(CPS_ARGS) {
 	if (!check_args("display", obj, 1)) {
 		*ret = &cfail;
 		return NIL;
@@ -275,7 +275,7 @@ static struct obj *fn_display(CPS_ARGS) {
 	*ret = self->next;
 	return NIL;
 }
-static struct obj *fn_write(CPS_ARGS) {
+static struct obj_union *fn_write(CPS_ARGS) {
 	if (!check_args("write", obj, 1)) {
 		*ret = &cfail;
 		return NIL;
@@ -284,7 +284,7 @@ static struct obj *fn_write(CPS_ARGS) {
 	*ret = self->next;
 	return NIL;
 }
-static struct obj *fn_newline(CPS_ARGS) {
+static struct obj_union *fn_newline(CPS_ARGS) {
 	if (!check_args("newline", obj, 0)) {
 		*ret = &cfail;
 		return NIL;
@@ -294,30 +294,30 @@ static struct obj *fn_newline(CPS_ARGS) {
 	return NIL;
 }
 
-static struct obj *fn_callcc(CPS_ARGS) {
+static struct obj_union *fn_callcc(CPS_ARGS) {
 	if (!check_args("call-with-current-continuation", obj, 1)) {
 		*ret = &cfail;
 		return NIL;
 	}
 	*ret = dupcontn(self);
 	(*ret)->fn = eval_cps;
-	struct obj *contp = make_obj(OBJ_CONTN);
+	struct obj_union *contp = make_obj(OBJ_CONTN);
 	AS_OBJ_CONTN(contp) = self->next;
 	return cons(CAR(obj), cons(contp, NIL));
 }
 
-static struct obj *fn_error(CPS_ARGS) {
+static struct obj_union *fn_error(CPS_ARGS) {
 	(void)self;
 	*ret = &cfail;
 	return obj;
 }
 
-static struct obj *fn_apply(CPS_ARGS) {
+static struct obj_union *fn_apply(CPS_ARGS) {
 	if (!check_args("apply", obj, 2)) {
 		*ret = &cfail;
 		return NIL;
 	}
-	struct obj* fun = CAR(obj);
+	struct obj_union* fun = CAR(obj);
 	*ret = dupcontn(self);
 	if (TYPE(fun) == OBJ_CONTN) {
 		(*ret)->data = fun;
@@ -333,13 +333,13 @@ static struct obj *fn_apply(CPS_ARGS) {
 	return CAR(CDR(obj));
 }
 
-static struct obj *make_closure(const char *name, enum objtype type, CPS_ARGS) {
+static struct obj_union *make_closure(const char *name, enum objtype type, CPS_ARGS) {
 	if (obj == NIL) {
 		fprintf(stderr, "%s: must have args\n", name);
 		*ret = &cfail;
 		return NIL;
 	}
-	struct obj *args = CAR(obj);
+	struct obj_union *args = CAR(obj);
 	if (args != NIL && TYPE(args) != SYMBOL && TYPE(args) != CELL) {
 		fprintf(stderr, "%s: expected symbol or list of symbols\n", name);
 		*ret = &cfail;
@@ -365,21 +365,21 @@ static struct obj *make_closure(const char *name, enum objtype type, CPS_ARGS) {
 		return NIL;
 	}
 	*ret = self->next;
-	struct obj *closure = make_obj(type);
+	struct obj_union *closure = make_obj(type);
 	AS_CLOSURE(closure)->args = CAR(obj);
 	AS_CLOSURE(closure)->code = CDR(obj);
 	AS_CLOSURE(closure)->env = self->env;
 	return closure;
 }
 
-static struct obj *fn_lambda(CPS_ARGS) {
+static struct obj_union *fn_lambda(CPS_ARGS) {
 	return make_closure("lambda", LAMBDA, self, obj, ret);
 }
-static struct obj *fn_macro(CPS_ARGS) {
+static struct obj_union *fn_macro(CPS_ARGS) {
 	return make_closure("macro", MACRO, self, obj, ret);
 }
 
-static struct obj *fn_number_(CPS_ARGS) {
+static struct obj_union *fn_number_(CPS_ARGS) {
 	if (!check_args("number?", obj, 1)) {
 		*ret = &cfail;
 		return NIL;
@@ -425,7 +425,7 @@ static struct obj *name(CPS_ARGS) { \
 ARITH_OPS(ARITH_FN)
 #undef ARITH_FN
 #undef NONNUM
-static struct obj *fn_mod(CPS_ARGS) {
+static struct obj_union *fn_mod(CPS_ARGS) {
 	if (!check_args("%", obj, 2)) {
 		*ret = &cfail;
 		return NIL;
@@ -462,7 +462,7 @@ static struct obj *cname(CPS_ARGS) { \
 COMPARE_OPS(COMPARE_FN)
 #undef COMPARE_FN
 
-static struct obj *fn_string_(CPS_ARGS) {
+static struct obj_union *fn_string_(CPS_ARGS) {
 	if (!check_args("string?", obj, 1)) {
 		*ret = &cfail;
 		return NIL;
@@ -471,13 +471,13 @@ static struct obj *fn_string_(CPS_ARGS) {
 	return TYPE(CAR(obj)) == OBJ_STRING ? TRUE : FALSE;
 }
 
-static struct obj *fn_string_append(CPS_ARGS) {
+static struct obj_union *fn_string_append(CPS_ARGS) {
 	if (length(obj) < 0) {
 		fputs("string-append: args must be a proper list\n", stderr);
 		*ret = &cfail;
 		return NIL;
 	}
-	struct obj *cur = obj;
+	struct obj_union *cur = obj;
 	size_t cap = 0;
 	for (; cur != NIL; cur = CDR(cur)) {
 		if (TYPE(CAR(cur)) != OBJ_STRING) {
@@ -500,7 +500,7 @@ static struct obj *fn_string_append(CPS_ARGS) {
 	return make_str_obj(result);
 }
 
-static struct obj *fn_string_compare(CPS_ARGS) {
+static struct obj_union *fn_string_compare(CPS_ARGS) {
 	if (!check_args("string-compare", obj, 2)) {
 		*ret = &cfail;
 		return NIL;
@@ -520,7 +520,7 @@ static struct obj *fn_string_compare(CPS_ARGS) {
 	return make_num(stringcmp(AS_OBJ_STR(CAR(obj)), AS_OBJ_STR(CAR(CDR(obj)))));
 }
 
-static struct obj *fn_string_length(CPS_ARGS) {
+static struct obj_union *fn_string_length(CPS_ARGS) {
 	if (!check_args("string-length", obj, 1)) {
 		*ret = &cfail;
 		return NIL;
@@ -536,7 +536,7 @@ static struct obj *fn_string_length(CPS_ARGS) {
 	return make_num((double)(AS_OBJ_STR(CAR(obj))->len));
 }
 
-static struct obj *fn_substring(CPS_ARGS) {
+static struct obj_union *fn_substring(CPS_ARGS) {
 	int nargs = length(obj);
 	if (nargs < 0) {
 		fputs("substring: args must be a proper list", stderr);

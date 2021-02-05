@@ -4,7 +4,7 @@
 #include "hashtab.h"
 
 struct env {
-	struct gc_head gc;
+	struct obj o;
 	struct env *parent;
 	struct hashtab table;
 };

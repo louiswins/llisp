@@ -6,11 +6,11 @@ struct env;
 
 /* GC roots */
 extern struct contn *gc_current_contn;
-extern struct obj *gc_current_obj;
+extern struct obj_union *gc_current_obj;
 extern struct env *gc_global_env;
 
 /* Allocate an object of type `typ' and size `size' */
-struct gc_head *gc_alloc(enum objtype typ, size_t size);
+struct obj *gc_alloc(enum objtype typ, size_t size);
 /* Assert that every allocated object is reachable from the three
  * roots above. This is cheap - in particular, it doesn't collect
  * garbage. */

@@ -26,21 +26,21 @@ struct contn cfail = { NULL };
 struct contn cbegin = { NULL };
 
 /* Eval an object */
-struct obj *eval_cps(CPS_ARGS);
-static struct obj *eval_doapply(CPS_ARGS);
-static struct obj *eval_macroreeval(CPS_ARGS);
+struct obj_union *eval_cps(CPS_ARGS);
+static struct obj_union *eval_doapply(CPS_ARGS);
+static struct obj_union *eval_macroreeval(CPS_ARGS);
 /* Try to eval directly instead of going through eval_cps
  * Only used if it can be done in constant time */
-static int direct_eval(struct obj *obj, struct env *env, struct obj **result);
+static int direct_eval(struct obj_union *obj, struct env *env, struct obj_union **result);
 
 /* Eval a list -> used for arguments to lambdas and cfuncs */
-static struct obj *evallist(CPS_ARGS);
-static struct obj *evallist_tailcons(CPS_ARGS);
-static struct obj *evallist_cons(CPS_ARGS);
+static struct obj_union *evallist(CPS_ARGS);
+static struct obj_union *evallist_tailcons(CPS_ARGS);
+static struct obj_union *evallist_cons(CPS_ARGS);
 
-static struct obj *run_closure(CPS_ARGS);
+static struct obj_union *run_closure(CPS_ARGS);
 
-int direct_eval(struct obj *obj, struct env *env, struct obj **result) {
+int direct_eval(struct obj_union *obj, struct env *env, struct obj_union **result) {
 	if (!result) return 0;
 	switch (TYPE(obj)) {
 	default:
@@ -56,7 +56,7 @@ int direct_eval(struct obj *obj, struct env *env, struct obj **result) {
 		*result = obj;
 		return 1;
 	case SYMBOL: {
-		struct obj *value = getsym(env, AS_SYMBOL(obj)->str);
+		struct obj_union *value = getsym(env, AS_SYMBOL(obj)->str);
 		if (value == NULL) {
 			return 0;
 		}
@@ -69,7 +69,7 @@ int direct_eval(struct obj *obj, struct env *env, struct obj **result) {
 }
 
 /* obj = object to eval, return self->next(eval(obj)) */
-struct obj *eval_cps(CPS_ARGS) {
+struct obj_union *eval_cps(CPS_ARGS) {
 	switch (TYPE(obj)) {
 	default:
 		fprintf(stderr, "eval: invalid type to eval %d\n", TYPE(obj));
@@ -86,7 +86,7 @@ struct obj *eval_cps(CPS_ARGS) {
 		*ret = self->next;
 		return obj;
 	case SYMBOL: {
-		struct obj *value = getsym(self->env, AS_SYMBOL(obj)->str);
+		struct obj_union *value = getsym(self->env, AS_SYMBOL(obj)->str);
 		if (value == NULL) {
 			fputs("eval: unknown symbol \"", stderr);
 			print_str_escaped(stderr, AS_SYMBOL(obj)->str);
@@ -108,7 +108,7 @@ struct obj *eval_cps(CPS_ARGS) {
 		doapply->data = obj;
 		doapply->fn = eval_doapply;
 
-		struct obj *result;
+		struct obj_union *result;
 		if (direct_eval(CAR(obj), self->env, &result)) {
 			*ret = doapply;
 			return result;
@@ -124,7 +124,7 @@ struct obj *eval_cps(CPS_ARGS) {
 
 /* obj = fn, self->data = (fnname . args), call self->next(fn(obj))
  * We include fnname so that we can expand a macro if need be */
-static struct obj *eval_doapply(CPS_ARGS) {
+static struct obj_union *eval_doapply(CPS_ARGS) {
 	if (!is_callable(TYPE(obj))) {
 		fprintf(stderr, "apply: unable to apply non-function ");
 		print_on(stderr, obj, 1 /*verbose*/);
@@ -168,7 +168,7 @@ static struct obj *eval_doapply(CPS_ARGS) {
 }
 
 /* obj = expansion, self->data = (macroname . args), call self->next(eval(obj)) */
-static struct obj *eval_macroreeval(CPS_ARGS) {
+static struct obj_union *eval_macroreeval(CPS_ARGS) {
 	/* expand macro in place
 	 * disabled due to design issues
 	 * memcpy(self->data, obj, sizeof(*self->data)); */
@@ -181,8 +181,8 @@ static struct obj *eval_macroreeval(CPS_ARGS) {
 
 
 /* obj = (fn . list to eval) */
-static struct obj *evallist(CPS_ARGS) {
-	struct obj *result;
+static struct obj_union *evallist(CPS_ARGS) {
+	struct obj_union *result;
 	if (direct_eval(obj, self->env, &result)) {
 		*ret = self->next;
 		return result;
@@ -208,7 +208,7 @@ static struct obj *evallist(CPS_ARGS) {
 	return CAR(obj);
 }
 /* obj = eval(origobj->head), self->data = origobj->tail. call self->next(cons(obj, evallist(self->data))) */
-static struct obj *evallist_tailcons(CPS_ARGS) {
+static struct obj_union *evallist_tailcons(CPS_ARGS) {
 	struct contn *docons = dupcontn(self);
 	docons->data = obj;
 	docons->fn = evallist_cons;
@@ -220,19 +220,19 @@ static struct obj *evallist_tailcons(CPS_ARGS) {
 	return self->data;
 }
 /* obj = evallist(origobj->tail), self->data = eval(origobj->head). call self->next(cons(self->data, obj)) */
-static struct obj *evallist_cons(CPS_ARGS) {
+static struct obj_union *evallist_cons(CPS_ARGS) {
 	*ret = self->next;
 	return cons(self->data, obj);
 }
 
 
 /* obj = args, self->data = func, return self->next(func(args)) */
-struct obj *apply_closure(CPS_ARGS) {
+struct obj_union *apply_closure(CPS_ARGS) {
 	/* set up environment */
 	assert(TYPE(self->data) == LAMBDA || TYPE(self->data) == MACRO);
 	struct closure *cdata = AS_CLOSURE(self->data);
 	struct env *appenv = make_env(cdata->env);
-	struct obj *params = cdata->args;
+	struct obj_union *params = cdata->args;
 	for (;;) {
 		if (params == NIL && obj == NIL) break;
 		if (TYPE(params) == SYMBOL) {
@@ -273,7 +273,7 @@ struct obj *apply_closure(CPS_ARGS) {
 }
 
 /* obj = dontcare, self->data = code */
-static struct obj *run_closure(CPS_ARGS) {
+static struct obj_union *run_closure(CPS_ARGS) {
 	(void)obj;
 
 	*ret = dupcontn(self);
@@ -291,7 +291,7 @@ static struct obj *run_closure(CPS_ARGS) {
 }
 
 /* obj = args, self->data = contnp, return contnp(args) */
-struct obj *apply_contn(CPS_ARGS) {
+struct obj_union *apply_contn(CPS_ARGS) {
 	if (CDR(obj) != NIL) {
 		fputs("warning: apply: too many arguments given\n", stderr);
 	}
@@ -299,7 +299,7 @@ struct obj *apply_contn(CPS_ARGS) {
 	return CAR(obj);
 }
 
-struct obj *run_cps(struct obj *obj, struct env *env) {
+struct obj_union *run_cps(struct obj_union *obj, struct env *env) {
 	cbegin.env = env;
 	cbegin.next = &cend;
 	cbegin.fn = eval_cps;

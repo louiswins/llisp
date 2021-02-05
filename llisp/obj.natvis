@@ -1,43 +1,43 @@
 <?xml version="1.0" encoding="utf-8"?> 
 <AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
-  <Type Name="obj">
-    <DisplayString Condition="gc.type == CELL &amp;&amp; tail->gc.type != CELL &amp;&amp; tail != &amp;nil" IncludeView="noparens">{*head} . {*tail}</DisplayString>
-    <DisplayString Condition="gc.type == CELL &amp;&amp; tail->gc.type != CELL &amp;&amp; tail != &amp;nil" ExcludeView="noparens">({*head} . {*tail})</DisplayString>
-    <DisplayString Condition="gc.type == CELL &amp;&amp; tail->gc.type != CELL &amp;&amp; tail == &amp;nil" IncludeView="noparens">{*head}</DisplayString>
-    <DisplayString Condition="gc.type == CELL &amp;&amp; tail->gc.type != CELL &amp;&amp; tail == &amp;nil" ExcludeView="noparens">({*head})</DisplayString>
-    <DisplayString Condition="gc.type == CELL &amp;&amp; tail->gc.type == CELL" IncludeView="noparens">{*head} {*tail,view(noparens)}</DisplayString>
-    <DisplayString Condition="gc.type == CELL &amp;&amp; tail->gc.type == CELL" ExcludeView="noparens">({*head} {*tail,view(noparens)})</DisplayString>
-    <DisplayString Condition="gc.type == NUM">{num}</DisplayString>
-    <DisplayString Condition="gc.type == SYMBOL || gc.type == OBJ_STRING">{str}</DisplayString>
-    <DisplayString Condition="gc.type == FN || gc.type == SPECFORM">{fn,na}</DisplayString>
-    <DisplayString Condition="gc.type == LAMBDA &amp;&amp; !closurename">[lambda args={*args}]</DisplayString>
-    <DisplayString Condition="gc.type == LAMBDA &amp;&amp; closurename">[lambda {closurename,na} args={*args}]</DisplayString>
-    <DisplayString Condition="gc.type == MACRO &amp;&amp; !closurename">[macro args={*args}]</DisplayString>
-    <DisplayString Condition="gc.type == MACRO &amp;&amp; closurename">[macro {closurename,na} args={*args}]</DisplayString>
-    <DisplayString Condition="gc.type == BUILTIN">{builtin,sb}</DisplayString>
-    <DisplayString Condition="gc.type == OBJ_CONTN">{*contnp}</DisplayString>
+  <Type Name="obj_union">
+    <DisplayString Condition="o.type == CELL &amp;&amp; tail->o.type != CELL &amp;&amp; tail != &amp;nil" IncludeView="noparens">{*head} . {*tail}</DisplayString>
+    <DisplayString Condition="o.type == CELL &amp;&amp; tail->o.type != CELL &amp;&amp; tail != &amp;nil" ExcludeView="noparens">({*head} . {*tail})</DisplayString>
+    <DisplayString Condition="o.type == CELL &amp;&amp; tail->o.type != CELL &amp;&amp; tail == &amp;nil" IncludeView="noparens">{*head}</DisplayString>
+    <DisplayString Condition="o.type == CELL &amp;&amp; tail->o.type != CELL &amp;&amp; tail == &amp;nil" ExcludeView="noparens">({*head})</DisplayString>
+    <DisplayString Condition="o.type == CELL &amp;&amp; tail->o.type == CELL" IncludeView="noparens">{*head} {*tail,view(noparens)}</DisplayString>
+    <DisplayString Condition="o.type == CELL &amp;&amp; tail->o.type == CELL" ExcludeView="noparens">({*head} {*tail,view(noparens)})</DisplayString>
+    <DisplayString Condition="o.type == NUM">{num}</DisplayString>
+    <DisplayString Condition="o.type == SYMBOL || o.type == OBJ_STRING">{str}</DisplayString>
+    <DisplayString Condition="o.type == FN || o.type == SPECFORM">{fn,na}</DisplayString>
+    <DisplayString Condition="o.type == LAMBDA &amp;&amp; !closurename">[lambda args={*args}]</DisplayString>
+    <DisplayString Condition="o.type == LAMBDA &amp;&amp; closurename">[lambda {closurename,na} args={*args}]</DisplayString>
+    <DisplayString Condition="o.type == MACRO &amp;&amp; !closurename">[macro args={*args}]</DisplayString>
+    <DisplayString Condition="o.type == MACRO &amp;&amp; closurename">[macro {closurename,na} args={*args}]</DisplayString>
+    <DisplayString Condition="o.type == BUILTIN">{builtin,sb}</DisplayString>
+    <DisplayString Condition="o.type == OBJ_CONTN">{*contnp}</DisplayString>
     <Expand>
-      <Item Name="Type">gc.type</Item>
+      <Item Name="Type">o.type</Item>
       
-      <Item Name="Head" Condition="gc.type == CELL">*head</Item>
-      <Item Name="Tail" Condition="gc.type == CELL">*tail</Item>
+      <Item Name="Head" Condition="o.type == CELL">*head</Item>
+      <Item Name="Tail" Condition="o.type == CELL">*tail</Item>
 
-      <Item Name="Num" Condition="gc.type == NUM">num</Item>
+      <Item Name="Num" Condition="o.type == NUM">num</Item>
 
-      <Item Name="Symbol" Condition="gc.type == SYMBOL">str</Item>
+      <Item Name="Symbol" Condition="o.type == SYMBOL">str</Item>
 
-      <Item Name="Fn" Condition="gc.type == FN || gc.type == SPECFORM">fn,na</Item>
-      <Item Name="Name" Condition="gc.type == FN || gc.type == SPECFORM">fnname,na</Item>
+      <Item Name="Fn" Condition="o.type == FN || o.type == SPECFORM">fn,na</Item>
+      <Item Name="Name" Condition="o.type == FN || o.type == SPECFORM">fnname,na</Item>
 
-      <Item Name="Args" Condition="gc.type == LAMBDA || gc.type == MACRO">*args</Item>
-      <Item Name="Name" Condition="gc.type == LAMBDA || gc.type == MACRO">closurename,na</Item>
-      <Item Name="Code" Condition="gc.type == LAMBDA || gc.type == MACRO">*code</Item>
+      <Item Name="Args" Condition="o.type == LAMBDA || o.type == MACRO">*args</Item>
+      <Item Name="Name" Condition="o.type == LAMBDA || o.type == MACRO">closurename,na</Item>
+      <Item Name="Code" Condition="o.type == LAMBDA || o.type == MACRO">*code</Item>
 
-      <Item Name="Builtin" Condition="gc.type == BUILTIN">builtin,sb</Item>
+      <Item Name="Builtin" Condition="o.type == BUILTIN">builtin,sb</Item>
 
-      <Item Name="String" Condition="gc.type == OBJ_STRING">str</Item>
+      <Item Name="String" Condition="o.type == OBJ_STRING">str</Item>
 
-      <ExpandedItem Condition="gc.type == OBJ_CONTN">contnp</ExpandedItem>
+      <ExpandedItem Condition="o.type == OBJ_CONTN">contnp</ExpandedItem>
     </Expand>
   </Type>
   
@@ -60,7 +60,7 @@
     </Expand>
   </Type>
 
-  <Type Name="gc_head">
+  <Type Name="obj">
     <DisplayString Condition="next" IncludeView="tail">{(int)marked}{*next,view(tail)}</DisplayString>
     <DisplayString Condition="next" ExcludeView="tail">{type} : {(int)marked}{*next,view(tail)}</DisplayString>
     <DisplayString Condition="!next" IncludeView="tail">{(int)marked}</DisplayString>
@@ -70,7 +70,7 @@
       <Item Name="Type">type</Item>
       <Item Name="Next">next</Item>
       <Item Name="MarkNext">marknext</Item>
-      <Item Name="Obj" Condition="type >= CELL &amp;&amp; type &lt;= OBJ_STRING">*(struct obj*)(this)</Item>
+      <Item Name="Obj" Condition="type >= CELL &amp;&amp; type &lt;= OBJ_STRING">*(struct obj_union*)(this)</Item>
       <Item Name="Str" Condition="type == BARE_STR">*(string*)(this)</Item>
     </Expand>
   </Type>

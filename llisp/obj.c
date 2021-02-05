@@ -7,46 +7,46 @@
 #include "cps.h"
 
 /* static objects */
-struct obj nil = { STATIC_OBJ(BUILTIN), .builtin = "()" };
-struct obj true_ = { STATIC_OBJ(BUILTIN), .builtin = "#t" };
-struct obj false_ = { STATIC_OBJ(BUILTIN), .builtin = "#f" };
+struct obj_union nil = { STATIC_OBJ(BUILTIN), .builtin = "()" };
+struct obj_union true_ = { STATIC_OBJ(BUILTIN), .builtin = "#t" };
+struct obj_union false_ = { STATIC_OBJ(BUILTIN), .builtin = "#f" };
 struct hashtab interned_symbols = EMPTY_HASHTAB;
 
-struct obj *make_obj(enum objtype type) {
-	struct obj *ret = (struct obj *) gc_alloc(type, sizeof(*ret));
+struct obj_union *make_obj(enum objtype type) {
+	struct obj_union *ret = (struct obj_union *) gc_alloc(type, sizeof(*ret));
 	return ret;
 }
-struct obj *make_symbol(struct string *name) {
-	struct obj *existing = hashtab_get(&interned_symbols, name);
+struct obj_union *make_symbol(struct string *name) {
+	struct obj_union *existing = hashtab_get(&interned_symbols, name);
 	// TODO: remove check for nil after implementing hashtable deletion
 	if (existing && existing != NIL) {
 		return existing;
 	} else {
-		struct obj *ret = make_obj(SYMBOL);
+		struct obj_union *ret = make_obj(SYMBOL);
 		AS_SYMBOL(ret)->str = name;
 		hashtab_put(&interned_symbols, name, ret);
 		return ret;
 	}
 }
-struct obj *make_num(double val) {
-	struct obj *ret = make_obj(NUM);
+struct obj_union *make_num(double val) {
+	struct obj_union *ret = make_obj(NUM);
 	AS_NUM(ret) = val;
 	return ret;
 }
-struct obj *make_fn(enum objtype type, struct obj *(*fn)(CPS_ARGS), const char *name) {
-	struct obj *ret = make_obj(type);
+struct obj_union *make_fn(enum objtype type, struct obj_union *(*fn)(CPS_ARGS), const char *name) {
+	struct obj_union *ret = make_obj(type);
 	AS_FN(ret)->fn = fn;
 	AS_FN(ret)->fnname = name;
 	return ret;
 }
-struct obj *make_str_obj(struct string *val) {
-	struct obj *ret = make_obj(OBJ_STRING);
+struct obj_union *make_str_obj(struct string *val) {
+	struct obj_union *ret = make_obj(OBJ_STRING);
 	AS_OBJ_STR(ret) = val;
 	return ret;
 }
 
-struct obj *cons(struct obj *l, struct obj *r) {
-	struct obj *ret = make_obj(CELL);
+struct obj_union *cons(struct obj_union *l, struct obj_union *r) {
+	struct obj_union *ret = make_obj(CELL);
 	CAR(ret) = l;
 	CDR(ret) = r;
 	return ret;

@@ -3,7 +3,7 @@
 #include "env.h"
 #include "hashtab.h"
 
-#define CPS_ARGS struct contn *self, struct obj *obj, struct contn **ret
+#define CPS_ARGS struct contn *self, struct obj_union *obj, struct contn **ret
 
 enum objtype {
 	CELL,
@@ -23,20 +23,20 @@ enum objtype {
 	HASHTABARR
 };
 
-struct gc_head {
-	struct gc_head *next;
-	struct gc_head *marknext;
+struct obj {
+	struct obj *next;
+	struct obj *marknext;
 	enum objtype type;
 	_Bool marked;
 };
 
-#define TYPE(o) (((struct gc_head*)(o))->type)
+#define TYPE(o) (((struct obj*)(o))->type)
 #define TYPEISOBJ(type) ((type) >= CELL && (type) <= OBJ_STRING)
 
 #define STATIC_OBJ(type) { NULL, NULL, type, 0 }
 
 struct string {
-	struct gc_head gc;
+	struct obj o;
 	size_t len;
 	char str[1];
 };
@@ -69,34 +69,34 @@ void print_string_builder_escaped(FILE *f, struct string_builder *sb);
  * do next and how to fail in the proper way.
  */
 struct contn {
-	struct gc_head gc;
-	struct obj *data;
+	struct obj o;
+	struct obj_union *data;
 	struct env *env;
 	struct contn *next;
-	struct obj *(*fn)(CPS_ARGS);
+	struct obj_union *(*fn)(CPS_ARGS);
 };
 
 /* duplicate an existing continuation */
 struct contn *dupcontn(struct contn *c);
 
 struct closure {
-	struct obj *args;
-	struct obj *code;
+	struct obj_union *args;
+	struct obj_union *code;
 	struct env *env;
 	struct string *closurename;
 };
 
-struct obj {
-	struct gc_head gc;
+struct obj_union {
+	struct obj o;
 	union {
 		struct {
-			struct obj *head;
-			struct obj *tail;
+			struct obj_union *head;
+			struct obj_union *tail;
 		};
 		double num;
 		struct string *str;
 		struct {
-			struct obj *(*fn)(CPS_ARGS);
+			struct obj_union *(*fn)(CPS_ARGS);
 			const char *fnname;
 		};
 		struct closure closure;
@@ -104,15 +104,15 @@ struct obj {
 		struct contn *contnp;
 	};
 };
-#define CAR(o) (((struct obj*)(o))->head)
-#define CDR(o) (((struct obj*)(o))->tail)
-#define AS_NUM(o) (((struct obj*)(o))->num)
-#define AS_SYMBOL(o) ((struct obj*)(o))
-#define AS_FN(o) ((struct obj*)(o))
-#define AS_CLOSURE(o) (&((struct obj*)(o))->closure)
-#define AS_BUILTIN(o) ((struct obj*)(o))
-#define AS_OBJ_CONTN(o) (((struct obj*)(o))->contnp)
-#define AS_OBJ_STR(o) (((struct obj*)(o))->str)
+#define CAR(o) (((struct obj_union*)(o))->head)
+#define CDR(o) (((struct obj_union*)(o))->tail)
+#define AS_NUM(o) (((struct obj_union*)(o))->num)
+#define AS_SYMBOL(o) ((struct obj_union*)(o))
+#define AS_FN(o) ((struct obj_union*)(o))
+#define AS_CLOSURE(o) (&((struct obj_union*)(o))->closure)
+#define AS_BUILTIN(o) ((struct obj_union*)(o))
+#define AS_OBJ_CONTN(o) (((struct obj_union*)(o))->contnp)
+#define AS_OBJ_STR(o) (((struct obj_union*)(o))->str)
 #define AS_CONTN(o) ((struct contn*)(o))
 #define AS_STRING(o) ((struct string*)(o))
 
@@ -120,17 +120,17 @@ struct obj {
 #define TRUE (&true_)
 #define FALSE (&false_)
 
-extern struct obj nil;
-extern struct obj true_;
-extern struct obj false_;
+extern struct obj_union nil;
+extern struct obj_union true_;
+extern struct obj_union false_;
 
 // Weak references to every symbol
 extern struct hashtab interned_symbols;
 
-struct obj *make_obj(enum objtype type);
-struct obj *make_symbol(struct string *name);
-struct obj *make_num(double val);
-struct obj *make_fn(enum objtype type, struct obj *(*fn)(CPS_ARGS), const char *name);
-struct obj *make_str_obj(struct string *val);
+struct obj_union *make_obj(enum objtype type);
+struct obj_union *make_symbol(struct string *name);
+struct obj_union *make_num(double val);
+struct obj_union *make_fn(enum objtype type, struct obj_union *(*fn)(CPS_ARGS), const char *name);
+struct obj_union *make_str_obj(struct string *val);
 
-struct obj *cons(struct obj *l, struct obj *r);
+struct obj_union *cons(struct obj_union *l, struct obj_union *r);

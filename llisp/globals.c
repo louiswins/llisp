@@ -15,14 +15,14 @@ int length(struct obj *obj) {
 	struct obj* tortoise = obj;
 	do {
 		if (TYPE(obj) != CELL) break;
-		obj = obj->tail;
+		obj = CDR(obj);
 		++ret;
 		if (TYPE(obj) != CELL) break;
-		obj = obj->tail;
+		obj = CDR(obj);
 		++ret;
-		tortoise = tortoise->tail;
+		tortoise = CDR(tortoise);
 	} while (tortoise != obj);
-	if (obj != &nil) return -1;
+	if (obj != NIL) return -1;
 	return ret;
 }
 int check_args(const char *fn, struct obj *obj, int nargs) {
@@ -47,71 +47,71 @@ static struct obj *fn_if(CPS_ARGS) {
 	if (len < 0) {
 		fputs("if: args must be a proper list", stderr);
 		*ret = &cfail;
-		return &nil;
+		return NIL;
 	}
 	if (len < 2 || len > 3) {
 		fprintf(stderr, "if: expected 2 or 3 args, got %d\n", len);
 		*ret = &cfail;
-		return &nil;
+		return NIL;
 	}
 	struct contn *resume = dupcontn(self);
-	resume->data = obj->tail;
+	resume->data = CDR(obj);
 	resume->fn = resumeif;
 
 	*ret = dupcontn(self);
 	(*ret)->next = resume;
 	(*ret)->fn = eval_cps;
-	return obj->head;
+	return CAR(obj);
 }
 
 /* obj = eval(cond), self->data = (then) or (then else) */
 static struct obj *resumeif(CPS_ARGS) {
-	if (obj != &false_) {
+	if (obj != FALSE) {
 		/* eval then */
 		*ret = dupcontn(self);
-		(*ret)->data = &nil;
+		(*ret)->data = NIL;
 		(*ret)->fn = eval_cps;
-		return self->data->head;
-	} else if (self->data->tail != &nil) {
+		return CAR(self->data);
+	} else if (CDR(self->data) != NIL) {
 		/* eval else */
 		*ret = dupcontn(self);
-		(*ret)->data = &nil;
+		(*ret)->data = NIL;
 		(*ret)->fn = eval_cps;
-		return self->data->tail->head;
+		return CAR(CDR(self->data));
 	} else {
 		/* cond was false, no else. Return false */
 		*ret = self->next;
-		return &false_;
+		return FALSE;
 	}
 }
 
 static struct obj *fn_quote(CPS_ARGS) {
 	if (!check_args("quote", obj, 1)) {
 		*ret = &cfail;
-		return &nil;
+		return NIL;
 	}
 	*ret = self->next;
-	return obj->head;
+	return CAR(obj);
 }
 
 static struct obj *set_symbol_cps(const char *name, struct obj *(*next)(CPS_ARGS), CPS_ARGS) {
 	if (!check_args(name, obj, 2)) {
 		*ret = &cfail;
-		return &nil;
+		return NIL;
 	}
-	if (TYPE(obj->head) != SYMBOL) {
+	if (TYPE(CAR(obj)) != SYMBOL) {
 		fprintf(stderr, "%s: must define a symbol\n", name);
 		*ret = &cfail;
-		return &nil;
+		return NIL;
 	}
 	struct contn *resume = dupcontn(self);
-	resume->data = obj->head;
+	resume->data = CAR(obj);
 	resume->fn = next;
 
 	*ret = dupcontn(self);
 	(*ret)->next = resume;
 	(*ret)->fn = eval_cps;
-	return obj->tail->head;
+	return CAR(CDR(obj));
 }
 
 static struct obj *fn_define(CPS_ARGS);
@@ -122,9 +122,9 @@ static struct obj *fn_define(CPS_ARGS) {
 }
 /* obj = eval(defn), self->data = sym */
 static struct obj *do_definesym(CPS_ARGS) {
-	definesym(self->env, self->data->str, obj);
+	definesym(self->env, AS_SYMBOL(self->data)->str, obj);
 	*ret = self->next;
-	return &nil;
+	return NIL;
 }
 
 static struct obj *fn_set_(CPS_ARGS);
@@ -135,41 +135,41 @@ static struct obj *fn_set_(CPS_ARGS) {
 }
 /* obj = eval(defn), self->data = sym */
 static struct obj *do_setsym(CPS_ARGS) {
-	if (!setsym(self->env, self->data->str, obj)) {
+	if (!setsym(self->env, AS_SYMBOL(self->data)->str, obj)) {
 		fputs("set!: symbol \"", stderr);
-		print_str_escaped(stderr, self->data->str);
+		print_str_escaped(stderr, AS_SYMBOL(self->data)->str);
 		fputs("\" does not exist\n", stderr);
 		*ret = &cfail;
-		return &nil;
+		return NIL;
 	}
 	*ret = self->next;
-	return &nil;
+	return NIL;
 }
 
 static struct obj *fn_set_cell(const char* name, void (*actually_set)(struct obj *cell, struct obj *value), CPS_ARGS) {
 	if (!check_args(name, obj, 2)) {
 		*ret = &cfail;
-		return &nil;
+		return NIL;
 	}
-	if (TYPE(obj->head) != CELL) {
+	if (TYPE(CAR(obj)) != CELL) {
 		fprintf(stderr, "%s: object not a pair\n", name);
 		*ret = &cfail;
-		return &nil;
+		return NIL;
 	}
-	actually_set(obj->head, obj->tail->head);
+	actually_set(CAR(obj), CAR(CDR(obj)));
 	*ret = self->next;
-	return &nil;
+	return NIL;
 }
 
 static void do_set_car(struct obj *cell, struct obj *value) {
-	cell->head = value;
+	CAR(cell) = value;
 }
 static struct obj *fn_set_car_(CPS_ARGS) {
 	return fn_set_cell("set-car!", do_set_car, self, obj, ret);
 }
 
 static void do_set_cdr(struct obj *cell, struct obj *value) {
-	cell->tail = value;
+	CDR(cell) = value;
 }
 static struct obj *fn_set_cdr_(CPS_ARGS) {
 	return fn_set_cell("set-cdr!", do_set_cdr, self, obj, ret);
@@ -178,52 +178,52 @@ static struct obj *fn_set_cdr_(CPS_ARGS) {
 static struct obj *fn_car(CPS_ARGS) {
 	if (!check_args("car", obj, 1)) {
 		*ret = &cfail;
-		return &nil;
+		return NIL;
 	}
-	if (TYPE(obj->head) != CELL) {
+	if (TYPE(CAR(obj)) != CELL) {
 		fputs("car: object not a pair\n", stderr);
 		*ret = &cfail;
-		return &nil;
+		return NIL;
 	}
 	*ret = self->next;
-	return obj->head->head;
+	return CAR(CAR(obj));
 }
 static struct obj *fn_cdr(CPS_ARGS) {
 	if (!check_args("cdr", obj, 1)) {
 		*ret = &cfail;
-		return &nil;
+		return NIL;
 	}
-	if (TYPE(obj->head) != CELL) {
+	if (TYPE(CAR(obj)) != CELL) {
 		fputs("cdr: object not a pair\n", stderr);
 		*ret = &cfail;
-		return &nil;
+		return NIL;
 	}
 	*ret = self->next;
-	return obj->head->tail;
+	return CDR(CAR(obj));
 }
 static struct obj *fn_cons(CPS_ARGS) {
 	if (!check_args("cons", obj, 2)) {
 		*ret = &cfail;
-		return &nil;
+		return NIL;
 	}
 	*ret = self->next;
-	return cons(obj->head, obj->tail->head);
+	return cons(CAR(obj), CAR(CDR(obj)));
 }
 
 static struct obj *fn_pair_(CPS_ARGS) {
 	if (!check_args("pair?", obj, 1)) {
 		*ret = &cfail;
-		return &nil;
+		return NIL;
 	}
 	*ret = self->next;
-	return TYPE(obj->head) == CELL ? &true_ : &false_;
+	return TYPE(CAR(obj)) == CELL ? TRUE : FALSE;
 }
 
 static struct obj *fn_begin(CPS_ARGS) {
 	*ret = self->next;
-	struct obj *val = &nil;
-	for (; TYPE(obj) == CELL; obj = obj->tail) {
-		val = obj->head;
+	struct obj *val = NIL;
+	for (; TYPE(obj) == CELL; obj = CDR(obj)) {
+		val = CAR(obj);
 	}
 	return val;
 }
@@ -238,7 +238,7 @@ static struct obj *fn_gensym(CPS_ARGS) {
 	if (len) {
 		fputs("gensym: expected 0 or 1 args\n", stderr);
 		*ret = &cfail;
-		return &nil;
+		return NIL;
 	}
 
 	char buf[32];
@@ -252,58 +252,58 @@ static struct obj *fn_gensym(CPS_ARGS) {
 static struct obj *fn_eq_(CPS_ARGS) {
 	if (!check_args("eq?", obj, 2)) {
 		*ret = &cfail;
-		return &nil;
+		return NIL;
 	}
 	*ret = self->next;
-	struct obj *a = obj->head;
-	struct obj *b = obj->tail->head;
+	struct obj *a = CAR(obj);
+	struct obj *b = CAR(CDR(obj));
 	if (TYPE(a) == NUM && TYPE(b) == NUM) {
-		return a->num == b->num ? &true_ : &false_;
+		return AS_NUM(a) == AS_NUM(b) ? TRUE : FALSE;
 	}
 	if (TYPE(a) == OBJ_STRING && TYPE(b) == OBJ_STRING) {
-		return stringeq(a->str, b->str) ? &true_ : &false_;
+		return stringeq(AS_OBJ_STR(a), AS_OBJ_STR(b)) ? TRUE : FALSE;
 	}
-	return a == b ? &true_ : &false_;
+	return a == b ? TRUE : FALSE;
 }
 
 static struct obj *fn_display(CPS_ARGS) {
 	if (!check_args("display", obj, 1)) {
 		*ret = &cfail;
-		return &nil;
+		return NIL;
 	}
-	display(obj->head);
+	display(CAR(obj));
 	*ret = self->next;
-	return &nil;
+	return NIL;
 }
 static struct obj *fn_write(CPS_ARGS) {
 	if (!check_args("write", obj, 1)) {
 		*ret = &cfail;
-		return &nil;
+		return NIL;
 	}
-	print(obj->head);
+	print(CAR(obj));
 	*ret = self->next;
-	return &nil;
+	return NIL;
 }
 static struct obj *fn_newline(CPS_ARGS) {
 	if (!check_args("newline", obj, 0)) {
 		*ret = &cfail;
-		return &nil;
+		return NIL;
 	}
 	putchar('\n');
 	*ret = self->next;
-	return &nil;
+	return NIL;
 }
 
 static struct obj *fn_callcc(CPS_ARGS) {
 	if (!check_args("call-with-current-continuation", obj, 1)) {
 		*ret = &cfail;
-		return &nil;
+		return NIL;
 	}
 	*ret = dupcontn(self);
 	(*ret)->fn = eval_cps;
 	struct obj *contp = make_obj(OBJ_CONTN);
-	contp->contnp = self->next;
-	return cons(obj->head, cons(contp, &nil));
+	AS_OBJ_CONTN(contp) = self->next;
+	return cons(CAR(obj), cons(contp, NIL));
 }
 
 static struct obj *fn_error(CPS_ARGS) {
@@ -315,60 +315,60 @@ static struct obj *fn_error(CPS_ARGS) {
 static struct obj *fn_apply(CPS_ARGS) {
 	if (!check_args("apply", obj, 2)) {
 		*ret = &cfail;
-		return &nil;
+		return NIL;
 	}
-	struct obj* fun = obj->head;
+	struct obj* fun = CAR(obj);
 	*ret = dupcontn(self);
 	if (TYPE(fun) == OBJ_CONTN) {
 		(*ret)->data = fun;
 		(*ret)->fn = apply_contn;
 	} else if (TYPE(fun) == FN || TYPE(fun) == SPECFORM) {
 		/* Just call the function */
-		(*ret)->data = &nil;
-		(*ret)->fn = fun->fn;
+		(*ret)->data = NIL;
+		(*ret)->fn = AS_FN(fun)->fn;
 	} else /* lambda or macro */ {
 		(*ret)->data = fun;
 		(*ret)->fn = apply_closure;
 	}
-	return obj->tail->head;
+	return CAR(CDR(obj));
 }
 
 static struct obj *make_closure(const char *name, enum objtype type, CPS_ARGS) {
-	if (obj == &nil) {
+	if (obj == NIL) {
 		fprintf(stderr, "%s: must have args\n", name);
 		*ret = &cfail;
-		return &nil;
+		return NIL;
 	}
-	struct obj *args = obj->head;
-	if (args != &nil && TYPE(args) != SYMBOL && TYPE(args) != CELL) {
+	struct obj *args = CAR(obj);
+	if (args != NIL && TYPE(args) != SYMBOL && TYPE(args) != CELL) {
 		fprintf(stderr, "%s: expected symbol or list of symbols\n", name);
 		*ret = &cfail;
-		return &nil;
+		return NIL;
 	}
 	if (TYPE(args) == CELL) {
-		for (; TYPE(args) == CELL; args = args->tail) {
-			if (TYPE(args->head) != SYMBOL) {
+		for (; TYPE(args) == CELL; args = CDR(args)) {
+			if (TYPE(CAR(args)) != SYMBOL) {
 				fprintf(stderr, "%s: expected symbol or list of symbols\n", name);
 				*ret = &cfail;
-				return &nil;
+				return NIL;
 			}
 		}
-		if (args != &nil && TYPE(args) != SYMBOL) {
+		if (args != NIL && TYPE(args) != SYMBOL) {
 			fprintf(stderr, "%s: expected symbol or list of symbols\n", name);
 			*ret = &cfail;
-			return &nil;
+			return NIL;
 		}
 	}
-	if (TYPE(obj->tail) != CELL) {
+	if (TYPE(CDR(obj)) != CELL) {
 		fprintf(stderr, "%s: invalid body\n", name);
 		*ret = &cfail;
-		return &nil;
+		return NIL;
 	}
 	*ret = self->next;
 	struct obj *closure = make_obj(type);
-	closure->args = obj->head;
-	closure->code = obj->tail;
-	closure->env = self->env;
+	AS_CLOSURE(closure)->args = CAR(obj);
+	AS_CLOSURE(closure)->code = CDR(obj);
+	AS_CLOSURE(closure)->env = self->env;
 	return closure;
 }
 
@@ -382,41 +382,41 @@ static struct obj *fn_macro(CPS_ARGS) {
 static struct obj *fn_number_(CPS_ARGS) {
 	if (!check_args("number?", obj, 1)) {
 		*ret = &cfail;
-		return &nil;
+		return NIL;
 	}
 	*ret = self->next;
-	return TYPE(obj) == NUM ? &true_ : &false_;
+	return TYPE(obj) == NUM ? TRUE : FALSE;
 }
 
 #define ARITH_OPS(arith) \
 	arith(fn_plus, +) \
 	arith(fn_minus, -) \
 	arith(fn_times, *) \
-	arith(fn_div, /, if(obj->head->num==0.){fputs("Warning: /: divide by zero\n", stderr);})
+	arith(fn_div, /, if(AS_NUM(CAR(obj))==0.){fputs("Warning: /: divide by zero\n", stderr);})
 #define NONNUM(arg, op) \
 	if (TYPE(arg) != NUM) { \
 		fputs(#op ": argument not a number\n", stderr); \
 		*ret = &cfail; \
-		return &nil; \
+		return NIL; \
 	}
 #define ARITH_FN(name, op, ...) \
 static struct obj *name(CPS_ARGS) { \
-	if (obj == &nil) { \
+	if (obj == NIL) { \
 		fputs(#op ": no arguments given\n", stderr); \
 		*ret = &cfail; \
-		return &nil; \
+		return NIL; \
 	} \
-	NONNUM(obj->head, op) \
-	double val = obj->head->num; \
-	for (obj = obj->tail; TYPE(obj) == CELL; obj = obj->tail) { \
-		NONNUM(obj->head, op) \
+	NONNUM(CAR(obj), op) \
+	double val = AS_NUM(CAR(obj)); \
+	for (obj = CDR(obj); TYPE(obj) == CELL; obj = CDR(obj)) { \
+		NONNUM(CAR(obj), op) \
 		__VA_ARGS__ \
-		val = val op obj->head->num; \
+		val = val op AS_NUM(CAR(obj)); \
 	} \
-	if (obj != &nil) { \
+	if (obj != NIL) { \
 		NONNUM(obj, op) \
 		__VA_ARGS__ \
-		val = val op obj->num; \
+		val = val op AS_NUM(obj); \
 	} \
 	struct obj *retobj = make_num(val); \
 	*ret = self->next; \
@@ -428,15 +428,15 @@ ARITH_OPS(ARITH_FN)
 static struct obj *fn_mod(CPS_ARGS) {
 	if (!check_args("%", obj, 2)) {
 		*ret = &cfail;
-		return &nil;
+		return NIL;
 	}
-	if (TYPE(obj->head) != NUM || TYPE(obj->tail->head) != NUM) {
+	if (TYPE(CAR(obj)) != NUM || TYPE(CAR(CDR(obj))) != NUM) {
 		fputs("%: argument not a number\n", stderr);
 		*ret = &cfail;
-		return &nil;
+		return NIL;
 	}
 	*ret = self->next;
-	return make_num(fmod(obj->head->num, obj->tail->head->num));
+	return make_num(fmod(AS_NUM(CAR(obj)), AS_NUM(CAR(CDR(obj)))));
 }
 
 #define COMPARE_OPS(compare) \
@@ -449,15 +449,15 @@ static struct obj *fn_mod(CPS_ARGS) {
 static struct obj *cname(CPS_ARGS) { \
 	if (!check_args(#lispname, obj, 2)) { \
 		*ret = &cfail; \
-		return &nil; \
+		return NIL; \
 	} \
-	if (TYPE(obj->head) != NUM || TYPE(obj->tail->head) != NUM) { \
+	if (TYPE(CAR(obj)) != NUM || TYPE(CAR(CDR(obj))) != NUM) { \
 		fputs(#lispname ": argument not a number\n", stderr); \
 		*ret = &cfail; \
-		return &nil; \
+		return NIL; \
 	} \
 	*ret = self->next; \
-	return (obj->head->num op obj->tail->head->num) ? &true_ : &false_; \
+	return (AS_NUM(CAR(obj)) op AS_NUM(CAR(CDR(obj)))) ? TRUE : FALSE; \
 }
 COMPARE_OPS(COMPARE_FN)
 #undef COMPARE_FN
@@ -465,36 +465,36 @@ COMPARE_OPS(COMPARE_FN)
 static struct obj *fn_string_(CPS_ARGS) {
 	if (!check_args("string?", obj, 1)) {
 		*ret = &cfail;
-		return &nil;
+		return NIL;
 	}
 	*ret = self->next;
-	return TYPE(obj->head) == OBJ_STRING ? &true_ : &false_;
+	return TYPE(CAR(obj)) == OBJ_STRING ? TRUE : FALSE;
 }
 
 static struct obj *fn_string_append(CPS_ARGS) {
 	if (length(obj) < 0) {
 		fputs("string-append: args must be a proper list\n", stderr);
 		*ret = &cfail;
-		return &nil;
+		return NIL;
 	}
 	struct obj *cur = obj;
 	size_t cap = 0;
-	for (; cur != &nil; cur = cur->tail) {
-		if (TYPE(cur->head) != OBJ_STRING) {
+	for (; cur != NIL; cur = CDR(cur)) {
+		if (TYPE(CAR(cur)) != OBJ_STRING) {
 			fputs("string-append: expected string, given ", stderr);
-			print_on(stderr, cur->head, 1);
+			print_on(stderr, CAR(cur), 1);
 			fputc('\n', stderr);
 			*ret = &cfail;
-			return &nil;
+			return NIL;
 		}
-		cap += cur->head->str->len;
+		cap += AS_OBJ_STR(CAR(cur))->len;
 	}
 	struct string *result = unsafe_make_uninitialized_str(cap);
 	cur = obj;
 	char *dest = result->str;
-	for (cur = obj; cur != &nil; cur = cur->tail) {
-		memcpy(dest, cur->head->str->str, cur->head->str->len);
-		dest += cur->head->str->len;
+	for (cur = obj; cur != NIL; cur = CDR(cur)) {
+		memcpy(dest, AS_OBJ_STR(CAR(cur))->str, AS_OBJ_STR(CAR(cur))->len);
+		dest += AS_OBJ_STR(CAR(cur))->len;
 	}
 	*ret = self->next;
 	return make_str_obj(result);
@@ -503,37 +503,37 @@ static struct obj *fn_string_append(CPS_ARGS) {
 static struct obj *fn_string_compare(CPS_ARGS) {
 	if (!check_args("string-compare", obj, 2)) {
 		*ret = &cfail;
-		return &nil;
+		return NIL;
 	}
-	if (TYPE(obj->head) != OBJ_STRING || TYPE(obj->tail->head) != OBJ_STRING) {
+	if (TYPE(CAR(obj)) != OBJ_STRING || TYPE(CAR(CDR(obj))) != OBJ_STRING) {
 		fputs("string-compare: expected string, given ", stderr);
-		if (TYPE(obj->head) != OBJ_STRING) {
-			print_on(stderr, obj->head, 1);
+		if (TYPE(CAR(obj)) != OBJ_STRING) {
+			print_on(stderr, CAR(obj), 1);
 		} else {
-			print_on(stderr, obj->tail->head, 1);
+			print_on(stderr, CAR(CDR(obj)), 1);
 		}
 		fputc('\n', stderr);
 		*ret = &cfail;
-		return &nil;
+		return NIL;
 	}
 	*ret = self->next;
-	return make_num(stringcmp(obj->head->str, obj->tail->head->str));
+	return make_num(stringcmp(AS_OBJ_STR(CAR(obj)), AS_OBJ_STR(CAR(CDR(obj)))));
 }
 
 static struct obj *fn_string_length(CPS_ARGS) {
 	if (!check_args("string-length", obj, 1)) {
 		*ret = &cfail;
-		return &nil;
+		return NIL;
 	}
-	if (TYPE(obj->head) != OBJ_STRING) {
+	if (TYPE(CAR(obj)) != OBJ_STRING) {
 		fputs("string-length: expected string, given ", stderr);
-		print_on(stderr, obj->head, 1);
+		print_on(stderr, CAR(obj), 1);
 		fputc('\n', stderr);
 		*ret = &cfail;
-		return &nil;
+		return NIL;
 	}
 	*ret = self->next;
-	return make_num((double)(obj->head->str->len));
+	return make_num((double)(AS_OBJ_STR(CAR(obj))->len));
 }
 
 static struct obj *fn_substring(CPS_ARGS) {
@@ -541,38 +541,38 @@ static struct obj *fn_substring(CPS_ARGS) {
 	if (nargs < 0) {
 		fputs("substring: args must be a proper list", stderr);
 		*ret = &cfail;
-		return &nil;
+		return NIL;
 	}
 	if (nargs < 2 || nargs > 3) {
 		fprintf(stderr, "substring: expected 2 or 3 args, got %d\n", nargs);
 		*ret = &cfail;
-		return &nil;
+		return NIL;
 	}
-	if (TYPE(obj->head) != OBJ_STRING) {
+	if (TYPE(CAR(obj)) != OBJ_STRING) {
 		fputs("substring: expected string, given ", stderr);
-		print_on(stderr, obj->head, 1);
+		print_on(stderr, CAR(obj), 1);
 		fputc('\n', stderr);
 		*ret = &cfail;
-		return &nil;
+		return NIL;
 	}
-	if (TYPE(obj->tail->head) != NUM || (nargs == 3 && TYPE(obj->tail->tail->head) != NUM)) {
+	if (TYPE(CAR(CDR(obj))) != NUM || (nargs == 3 && TYPE(CAR(CDR(CDR(obj)))) != NUM)) {
 		fputs("substring: expected number, given ", stderr);
-		if (TYPE(obj->tail->head) != NUM) {
-			print_on(stderr, obj->tail->head, 1);
+		if (TYPE(CAR(CDR(obj))) != NUM) {
+			print_on(stderr, CAR(CDR(obj)), 1);
 		} else {
-			print_on(stderr, obj->tail->tail->head, 1);
+			print_on(stderr, CAR(CDR(CDR(obj))), 1);
 		}
 		fputc('\n', stderr);
 		*ret = &cfail;
-		return &nil;
+		return NIL;
 	}
-	size_t len = obj->head->str->len;
+	size_t len = AS_OBJ_STR(CAR(obj))->len;
 
-	double startd = obj->tail->head->num;
+	double startd = AS_NUM(CAR(CDR(obj)));
 	if (startd < 0) {
 		fputs("substring: given negative start\n", stderr);
 		*ret = &cfail;
-		return &nil;
+		return NIL;
 	}
 	size_t start = (size_t)startd;
 	if (startd != round(startd)) {
@@ -581,12 +581,12 @@ static struct obj *fn_substring(CPS_ARGS) {
 	if (start > len) {
 		fprintf(stderr, "substring: start %zu greater than string length %zu\n", start, len);
 		*ret = &cfail;
-		return &nil;
+		return NIL;
 	}
 
-	size_t end = obj->head->str->len;
+	size_t end = AS_OBJ_STR(CAR(obj))->len;
 	if (nargs == 3) {
-		double endd = obj->tail->tail->head->num;
+		double endd = AS_NUM(CAR(CDR(CDR(obj))));
 		end = (size_t)endd;
 		if (endd != round(endd)) {
 			fprintf(stderr, "Warning: substring: given non-integer %f, treating as %zu\n", endd, end);
@@ -594,16 +594,16 @@ static struct obj *fn_substring(CPS_ARGS) {
 		if (end < start) {
 			fprintf(stderr, "substring: end %zu before start %zu\n", end, start);
 			*ret = &cfail;
-			return &nil;
+			return NIL;
 		}
 		if (end > len) {
 			fprintf(stderr, "substring: end %zu greater than string length %zu\n", end, len);
 			*ret = &cfail;
-			return &nil;
+			return NIL;
 		}
 	}
 	*ret = self->next;
-	return make_str_obj(make_str_from_ptr_len(obj->head->str->str + start, end - start));
+	return make_str_obj(make_str_from_ptr_len(AS_OBJ_STR(CAR(obj))->str + start, end - start));
 }
 
 void add_globals(struct env *env) {

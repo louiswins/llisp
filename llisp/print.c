@@ -19,55 +19,55 @@ static void print_on_helper(FILE *f, struct obj *obj, int verbose) {
 		fprintf(stderr, "<#unknown type %d>", TYPE(obj));
 		break;
 	case NUM: {
-		double d = obj->num;
+		double d = AS_NUM(obj);
 		if (d == round(d) && d >= LONG_MIN && d <= LONG_MAX) {
 			/* if d is integral, print it as such */
 			fprintf(f, "%ld", (long)d);
 		} else {
-			fprintf(f, "%f", obj->num);
+			fprintf(f, "%f", AS_NUM(obj));
 		}
 		break;
 	}
 	case SYMBOL:
-		print_str(f, obj->str);
+		print_str(f, AS_SYMBOL(obj)->str);
 		break;
 	case OBJ_STRING:
 		if (verbose) {
 			putc('"', f);
-			print_str_escaped(f, obj->str);
+			print_str_escaped(f, AS_OBJ_STR(obj));
 			putc('"', f);
 		} else {
-			print_str(f, obj->str);
+			print_str(f, AS_OBJ_STR(obj));
 		}
 		break;
 	case FN:
-		fprintf(f, "<#fn %s>", obj->fnname);
+		fprintf(f, "<#fn %s>", AS_FN(obj)->fnname);
 		break;
 	case SPECFORM:
-		fprintf(f, "<#specform %s>", obj->fnname);
+		fprintf(f, "<#specform %s>", AS_FN(obj)->fnname);
 		break;
 	case LAMBDA:
 		fputs("<#closure ", f);
-		if (obj->closurename) {
-			print_str(f, obj->closurename);
+		if (AS_CLOSURE(obj)->closurename) {
+			print_str(f, AS_CLOSURE(obj)->closurename);
 			fputc(' ', f);
 		}
 		fputs("args=", f);
-		print_on_helper(f, obj->args, verbose);
+		print_on_helper(f, AS_CLOSURE(obj)->args, verbose);
 		putc('>', f);
 		break;
 	case MACRO:
 		fputs("<#macro ", f);
-		if (obj->closurename) {
-			print_str(f, obj->closurename);
+		if (AS_CLOSURE(obj)->closurename) {
+			print_str(f, AS_CLOSURE(obj)->closurename);
 			fputc(' ', f);
 		}
 		fputs("args=", f);
-		print_on_helper(f, obj->args, verbose);
+		print_on_helper(f, AS_CLOSURE(obj)->args, verbose);
 		putc('>', f);
 		break;
 	case BUILTIN:
-		fputs(obj->builtin, f);
+		fputs(AS_BUILTIN(obj)->builtin, f);
 		break;
 	case CELL: {
 		// We appropriate the GC marking to avoid printing cyclic objects
@@ -76,22 +76,22 @@ static void print_on_helper(FILE *f, struct obj *obj, int verbose) {
 			return;
 		}
 		char prev = '(';
-		for (; TYPE(obj->tail) == CELL; obj = obj->tail) {
+		for (; TYPE(CDR(obj)) == CELL; obj = CDR(obj)) {
 			MARK_OBJ(obj);
 			putc(prev, f);
 			prev = ' ';
-			print_on_helper(f, obj->head, verbose);
-			if (OBJ_MARKED(obj->tail)) {
+			print_on_helper(f, CAR(obj), verbose);
+			if (OBJ_MARKED(CDR(obj))) {
 				fprintf(f, " ...)");
 				return;
 			}
 		}
 		MARK_OBJ(obj);
 		putc(prev, f);
-		print_on_helper(f, obj->head, verbose);
-		if (obj->tail != &nil) {
+		print_on_helper(f, CAR(obj), verbose);
+		if (CDR(obj) != NIL) {
 			fprintf(f, " . ");
-			print_on_helper(f, obj->tail, verbose);
+			print_on_helper(f, CDR(obj), verbose);
 		}
 		putc(')', f);
 		break;
@@ -106,13 +106,13 @@ static void clear_marks(struct obj *obj) {
 	switch (TYPE(obj)) {
 	case LAMBDA:
 	case MACRO:
-		clear_marks(obj->args);
+		clear_marks(AS_CLOSURE(obj)->args);
 		break;
 	case CELL:
 		if (OBJ_MARKED(obj)) {
 			DEL_OBJMARK(obj);
-			clear_marks(obj->head);
-			clear_marks(obj->tail);
+			clear_marks(CAR(obj));
+			clear_marks(CDR(obj));
 		}
 		break;
 	}

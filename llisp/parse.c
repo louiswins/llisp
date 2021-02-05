@@ -307,8 +307,8 @@ static void error(const char *message, ...) {
 
 static struct obj *parse_one(FILE *f);
 static struct obj *parse_list(FILE *f) {
-	struct obj *list = &nil;
-	struct obj *cur = &nil;
+	struct obj *list = NIL;
+	struct obj *cur = NIL;
 	enum dot_status {
 		NO_DOT,
 		SEEN_DOT,
@@ -320,7 +320,7 @@ static struct obj *parse_list(FILE *f) {
 			if (dot_status == SEEN_DOT) {
 				error("too many dots");
 				return NULL;
-			} else if (list == &nil) {
+			} else if (list == NIL) {
 				error("illegal dot - no first element");
 				return NULL;
 			}
@@ -345,13 +345,13 @@ static struct obj *parse_list(FILE *f) {
 		}
 
 		if (dot_status == SEEN_DOT) {
-			cur->tail = obj;
+			CDR(cur) = obj;
 			dot_status = DOT_AND_SYMBOL;
-		} else if (list == &nil) {
-			list = cur = cons(obj, &nil);
+		} else if (list == NIL) {
+			list = cur = cons(obj, NIL);
 		} else {
-			cur->tail = cons(obj, &nil);
-			cur = cur->tail;
+			CDR(cur) = cons(obj, NIL);
+			cur = CDR(cur);
 		}
 	}
 }
@@ -362,7 +362,7 @@ static struct obj *parse_one(FILE *f) {
 			read_token(f); \
 			struct obj *quoted = parse_one(f); \
 			if (!quoted) return NULL; \
-			return cons(make_symbol(str_from_string_lit(#name)), cons(quoted, &nil)); \
+			return cons(make_symbol(str_from_string_lit(#name)), cons(quoted, NIL)); \
 		}
 
 	switch (curtok.type) {

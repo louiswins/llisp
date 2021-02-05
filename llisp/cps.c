@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -7,7 +8,7 @@
 #include "print.h"
 
 struct contn *dupcontn(struct contn *c) {
-	struct contn *ret = gc_alloc(BARE_CONTN, sizeof(*ret));
+	struct contn *ret = (struct contn *) gc_alloc(BARE_CONTN, sizeof(*ret));
 	memcpy(&ret->data, &c->data, sizeof(*ret) - offsetof(struct contn, data));
 	return ret;
 }
@@ -55,7 +56,7 @@ int direct_eval(struct obj *obj, struct env *env, struct obj **result) {
 		*result = obj;
 		return 1;
 	case SYMBOL: {
-		struct obj *value = getsym(env, obj->str);
+		struct obj *value = getsym(env, AS_SYMBOL(obj)->str);
 		if (value == NULL) {
 			return 0;
 		}
@@ -73,7 +74,7 @@ struct obj *eval_cps(CPS_ARGS) {
 	default:
 		fprintf(stderr, "eval: invalid type to eval %d\n", TYPE(obj));
 		*ret = &cfail;
-		return &nil;
+		return NIL;
 	case BUILTIN:
 	case NUM:
 	case SPECFORM:
@@ -85,22 +86,22 @@ struct obj *eval_cps(CPS_ARGS) {
 		*ret = self->next;
 		return obj;
 	case SYMBOL: {
-		struct obj *value = getsym(self->env, obj->str);
+		struct obj *value = getsym(self->env, AS_SYMBOL(obj)->str);
 		if (value == NULL) {
 			fputs("eval: unknown symbol \"", stderr);
-			print_str_escaped(stderr, obj->str);
+			print_str_escaped(stderr, AS_SYMBOL(obj)->str);
 			fputs("\"\n", stderr);
 			*ret = &cfail;
-			return &nil;
+			return NIL;
 		}
 		*ret = self->next;
 		return value;
 	}
 	case CELL: {
-		if (obj->tail != &nil && TYPE(obj->tail) != CELL) {
+		if (CDR(obj) != NIL && TYPE(CDR(obj)) != CELL) {
 			fputs("eval: function must be applied to proper list\n", stderr);
 			*ret = &cfail;
-			return &nil;
+			return NIL;
 		}
 
 		struct contn *doapply = dupcontn(self);
@@ -108,7 +109,7 @@ struct obj *eval_cps(CPS_ARGS) {
 		doapply->fn = eval_doapply;
 
 		struct obj *result;
-		if (direct_eval(obj->head, self->env, &result)) {
+		if (direct_eval(CAR(obj), self->env, &result)) {
 			*ret = doapply;
 			return result;
 		}
@@ -116,7 +117,7 @@ struct obj *eval_cps(CPS_ARGS) {
 		/* direct evaluation failed - eval obj->head */
 		*ret = dupcontn(self);
 		(*ret)->next = doapply;
-		return obj->head;
+		return CAR(obj);
 	}
 	}
 }
@@ -129,7 +130,7 @@ static struct obj *eval_doapply(CPS_ARGS) {
 		print_on(stderr, obj, 1 /*verbose*/);
 		fputc('\n', stderr);
 		*ret = &cfail;
-		return &nil;
+		return NIL;
 	}
 
 	struct contn *appcnt = dupcontn(self);
@@ -138,8 +139,8 @@ static struct obj *eval_doapply(CPS_ARGS) {
 		appcnt->fn = apply_contn;
 	} else if (TYPE(obj) == FN || TYPE(obj) == SPECFORM) {
 		/* Just call the function */
-		appcnt->data = &nil;
-		appcnt->fn = obj->fn;
+		appcnt->data = NIL;
+		appcnt->fn = AS_FN(obj)->fn;
 	} else /* lambda or macro */ {
 		appcnt->data = obj;
 		appcnt->fn = apply_closure;
@@ -148,7 +149,7 @@ static struct obj *eval_doapply(CPS_ARGS) {
 	if (TYPE(obj) == FN || TYPE(obj) == LAMBDA || TYPE(obj) == OBJ_CONTN) {
 		/* need to evaluate the arguments first */
 		*ret = dupcontn(self);
-		(*ret)->data = &nil;
+		(*ret)->data = NIL;
 		(*ret)->next = appcnt;
 		(*ret)->fn = evallist;
 	} else /* specform, macro */ {
@@ -163,7 +164,7 @@ static struct obj *eval_doapply(CPS_ARGS) {
 		}
 	}
 
-	return self->data->tail;
+	return CDR(self->data);
 }
 
 /* obj = expansion, self->data = (macroname . args), call self->next(eval(obj)) */
@@ -173,7 +174,7 @@ static struct obj *eval_macroreeval(CPS_ARGS) {
 	 * memcpy(self->data, obj, sizeof(*self->data)); */
 
 	*ret = dupcontn(self);
-	(*ret)->data = &nil;
+	(*ret)->data = NIL;
 	(*ret)->fn = eval_cps;
 	return obj;
 }
@@ -193,10 +194,10 @@ static struct obj *evallist(CPS_ARGS) {
 	}
 	/* call self->next(cons(eval(obj->head), evallist(obj->tail))) */
 	struct contn *tailcons = dupcontn(self);
-	tailcons->data = obj->tail;
+	tailcons->data = CDR(obj);
 	tailcons->fn = evallist_tailcons;
 
-	if (direct_eval(obj->head, self->env, &result)) {
+	if (direct_eval(CAR(obj), self->env, &result)) {
 		*ret = tailcons;
 		return result;
 	}
@@ -204,7 +205,7 @@ static struct obj *evallist(CPS_ARGS) {
 	*ret = dupcontn(self);
 	(*ret)->next = tailcons;
 	(*ret)->fn = eval_cps;
-	return obj->head;
+	return CAR(obj);
 }
 /* obj = eval(origobj->head), self->data = origobj->tail. call self->next(cons(obj, evallist(self->data))) */
 static struct obj *evallist_tailcons(CPS_ARGS) {
@@ -213,7 +214,7 @@ static struct obj *evallist_tailcons(CPS_ARGS) {
 	docons->fn = evallist_cons;
 
 	*ret = dupcontn(self);
-	(*ret)->data = &nil;
+	(*ret)->data = NIL;
 	(*ret)->next = docons;
 	(*ret)->fn = evallist;
 	return self->data;
@@ -228,45 +229,47 @@ static struct obj *evallist_cons(CPS_ARGS) {
 /* obj = args, self->data = func, return self->next(func(args)) */
 struct obj *apply_closure(CPS_ARGS) {
 	/* set up environment */
-	struct env *appenv = make_env(self->data->env);
-	struct obj *params = self->data->args;
+	assert(TYPE(self->data) == LAMBDA || TYPE(self->data) == MACRO);
+	struct closure *cdata = AS_CLOSURE(self->data);
+	struct env *appenv = make_env(cdata->env);
+	struct obj *params = cdata->args;
 	for (;;) {
-		if (params == &nil && obj == &nil) break;
+		if (params == NIL && obj == NIL) break;
 		if (TYPE(params) == SYMBOL) {
-			definesym(appenv, params->str, obj);
-			params = &nil;
+			definesym(appenv, AS_SYMBOL(params)->str, obj);
+			params = NIL;
 			break;
 		}
-		if (params == &nil) {
+		if (params == NIL) {
 			fputs("warning: ", stderr);
-			if (self->data->closurename) {
-				print_str(stderr, self->data->closurename);
+			if (cdata->closurename) {
+				print_str(stderr, cdata->closurename);
 			} else {
 				fputs("apply", stderr);
 			}
 			fputs(": too many arguments given\n", stderr);
 			break;
 		}
-		if (obj == &nil) {
-			if (self->data->closurename) {
-				print_str(stderr, self->data->closurename);
+		if (obj == NIL) {
+			if (cdata->closurename) {
+				print_str(stderr, cdata->closurename);
 			} else {
 				fputs("apply", stderr);
 			}
 			fputs(": too few arguments given\n", stderr);
 			*ret = &cfail;
-			return &nil;
+			return NIL;
 		}
-		definesym(appenv, params->head->str, obj->head);
-		params = params->tail;
-		obj = obj->tail;
+		definesym(appenv, AS_SYMBOL(CAR(params))->str, CAR(obj));
+		params = CDR(params);
+		obj = CDR(obj);
 	}
 
 	*ret = dupcontn(self);
-	(*ret)->data = self->data->code;
+	(*ret)->data = cdata->code;
 	(*ret)->env = appenv;
 	(*ret)->fn = run_closure;
-	return &nil;
+	return NIL;
 }
 
 /* obj = dontcare, self->data = code */
@@ -274,26 +277,26 @@ static struct obj *run_closure(CPS_ARGS) {
 	(void)obj;
 
 	*ret = dupcontn(self);
-	(*ret)->data = &nil;
+	(*ret)->data = NIL;
 	(*ret)->fn = eval_cps;
 
-	if (TYPE(self->data->tail) == CELL) {
+	if (TYPE(CDR(self->data)) == CELL) {
 		/* more code to run after this... */
 		struct contn *finish = dupcontn(self);
-		finish->data = self->data->tail;
+		finish->data = CDR(self->data);
 		(*ret)->next = finish;
 	}
 
-	return self->data->head;
+	return CAR(self->data);
 }
 
 /* obj = args, self->data = contnp, return contnp(args) */
 struct obj *apply_contn(CPS_ARGS) {
-	if (obj->tail != &nil) {
+	if (CDR(obj) != NIL) {
 		fputs("warning: apply: too many arguments given\n", stderr);
 	}
-	*ret = self->data->contnp;
-	return obj->head;
+	*ret = AS_OBJ_CONTN(self->data);
+	return CAR(obj);
 }
 
 struct obj *run_cps(struct obj *obj, struct env *env) {
@@ -311,8 +314,8 @@ struct obj *run_cps(struct obj *obj, struct env *env) {
 	if (gc_current_contn == &cfail) {
 		puts("\nExecution failed.");
 		/* If we got `(obj)`, just return `obj`. */
-		if (TYPE(gc_current_obj) == CELL && gc_current_obj->tail == &nil) {
-			gc_current_obj = gc_current_obj->head;
+		if (TYPE(gc_current_obj) == CELL && CDR(gc_current_obj) == NIL) {
+			gc_current_obj = CAR(gc_current_obj);
 		}
 	}
 	gc_current_contn = NULL;

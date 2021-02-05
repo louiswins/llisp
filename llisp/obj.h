@@ -22,7 +22,6 @@ enum objtype {
 	ENV,
 	HASHTABARR
 };
-#define TYPEISOBJ(type) ((type) >= CELL && (type) <= OBJ_STRING)
 
 struct gc_head {
 	struct gc_head *next;
@@ -30,7 +29,11 @@ struct gc_head {
 	enum objtype type;
 	_Bool marked;
 };
-#define NO_GC_HEAD(type) { NULL, NULL, type, 0 }
+
+#define TYPE(o) (((struct gc_head*)(o))->type)
+#define TYPEISOBJ(type) ((type) >= CELL && (type) <= OBJ_STRING)
+
+#define STATIC_OBJ(type) { NULL, NULL, type, 0 }
 
 struct string {
 	struct gc_head gc;
@@ -76,6 +79,13 @@ struct contn {
 /* duplicate an existing continuation */
 struct contn *dupcontn(struct contn *c);
 
+struct closure {
+	struct obj *args;
+	struct obj *code;
+	struct env *env;
+	struct string *closurename;
+};
+
 struct obj {
 	struct gc_head gc;
 	union {
@@ -89,21 +99,31 @@ struct obj {
 			struct obj *(*fn)(CPS_ARGS);
 			const char *fnname;
 		};
-		struct {
-			struct obj *args;
-			struct obj *code;
-			struct env *env;
-			struct string *closurename;
-		};
+		struct closure closure;
 		const char *builtin;
 		struct contn *contnp;
 	};
 };
-#define TYPE(o) (((struct gc_head*)(o))->type)
+#define CAR(o) (((struct obj*)(o))->head)
+#define CDR(o) (((struct obj*)(o))->tail)
+#define AS_NUM(o) (((struct obj*)(o))->num)
+#define AS_SYMBOL(o) ((struct obj*)(o))
+#define AS_FN(o) ((struct obj*)(o))
+#define AS_CLOSURE(o) (&((struct obj*)(o))->closure)
+#define AS_BUILTIN(o) ((struct obj*)(o))
+#define AS_OBJ_CONTN(o) (((struct obj*)(o))->contnp)
+#define AS_OBJ_STR(o) (((struct obj*)(o))->str)
+#define AS_CONTN(o) ((struct contn*)(o))
+#define AS_STRING(o) ((struct string*)(o))
+
+#define NIL (&nil)
+#define TRUE (&true_)
+#define FALSE (&false_)
 
 extern struct obj nil;
 extern struct obj true_;
 extern struct obj false_;
+
 // Weak references to every symbol
 extern struct hashtab interned_symbols;
 

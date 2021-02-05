@@ -33,26 +33,25 @@ static void *gc_add_to_temp_roots(void *root) {
 }
 void gc_cycle() { ntemproots = 0; }
 
-static void gc_mark(struct gc_head *gcitem);
+static void gc_mark(struct gc_head *item);
 static void gc_queue(void *obj);
 
 static int is_static(void *obj) {
-	return obj == &nil || obj == &true_ || obj == &false_ ||
-		obj == &cbegin || obj == &cend || obj == &cfail;
+	return obj == NIL || obj == TRUE || obj == FALSE ||
+		obj == (struct gc_head *) &cbegin || obj == (struct gc_head *) &cend || obj == (struct gc_head *) &cfail;
 }
 
-static void gc_queue(void *thing) {
-	if (thing == NULL || ISMARKED(GC_FROM_OBJ(thing))) return;
-	if (is_static(thing)) return;
-	struct gc_head *gc = GC_FROM_OBJ(thing);
-	if (NEXTTOMARK(gc) != NULL) return; /* already in queue */
-	SETNEXTTOMARK(gc, objs_to_mark);
-	objs_to_mark = gc;
+static void gc_queue(struct gc_head *o) {
+	if (o == NULL || ISMARKED(o)) return;
+	if (is_static(o)) return;
+	if (NEXTTOMARK(o) != NULL) return; /* already in queue */
+	SETNEXTTOMARK(o, objs_to_mark);
+	objs_to_mark = o;
 }
 static void gc_queue_hashtab_entry(struct string *key, struct obj *value, void *ignored) {
 	(void)ignored;
 	ADDMARK(GC_FROM_OBJ(key)); /* I know it's a string */
-	gc_queue(value);
+	gc_queue((struct gc_head *) value);
 }
 /* TODO: delete this after implementing hashtable deletion - no reason to keep
  * the keys alive once we can actually remove them. */
@@ -61,37 +60,37 @@ static void gc_queue_hashtab_entry_weak(struct string *key, struct obj *value, v
 	(void)ignored;
 	ADDMARK(GC_FROM_OBJ(key));
 }
-static void gc_mark(struct gc_head *gcitem) {
-	if (ISMARKED(gcitem)) return;
-	ADDMARK(gcitem);
-	if (TYPE(gcitem) == BARE_STR) return; /* no pointers in a string :) */
-	if (TYPE(gcitem) == HASHTABARR) {
+static void gc_mark(struct gc_head *item) {
+	if (ISMARKED(item)) return;
+	ADDMARK(item);
+	if (TYPE(item) == BARE_STR) return; /* no pointers in a string :) */
+	if (TYPE(item) == HASHTABARR) {
 		/* Should be queued as part of its owner, because we don't have the length here */
 		/* Could be added as part of the temp roots while allocating. Hopefully if there's
 		 * anything in it it's already in the graph, because we don't have size here. */
 		/* TODO: change this to a struct {size, array} */
 		return;
 	}
-	if (TYPE(gcitem) == ENV) {
-		struct env *env = OBJ_FROM_GC(gcitem);
+	if (TYPE(item) == ENV) {
+		struct env *env = OBJ_FROM_GC(item);
 		/* If we allocate the environment but then need to collect when trying to allocate
 		 * the initial hashtable, we don't have anything to mark yet. */
 		if (env->table.cap) {
 			ADDMARK(GC_FROM_OBJ(env->table.e));
 			hashtab_foreach(&env->table, gc_queue_hashtab_entry, NULL);
 		}
-		gc_queue(env->parent);
+		gc_queue((struct gc_head *) env->parent);
 		return;
 	}
-	if (TYPE(gcitem) == BARE_CONTN) {
-		struct contn *contn = OBJ_FROM_GC(gcitem);
-		gc_queue(contn->data);
-		gc_queue(contn->env);
-		gc_queue(contn->next);
+	if (TYPE(item) == BARE_CONTN) {
+		struct contn *contn = OBJ_FROM_GC(item);
+		gc_queue((struct gc_head *) contn->data);
+		gc_queue((struct gc_head *) contn->env);
+		gc_queue((struct gc_head *) contn->next);
 		return;
 	}
-	assert(TYPEISOBJ(TYPE(gcitem)));
-	struct obj *obj = OBJ_FROM_GC(gcitem);
+	assert(TYPEISOBJ(TYPE(item)));
+	struct obj *obj = OBJ_FROM_GC(item);
 	switch (TYPE(obj)) {
 	default:
 		fprintf(stderr, "Fatal error: unknown object type %d\n", TYPE(obj));
@@ -103,21 +102,23 @@ static void gc_mark(struct gc_head *gcitem) {
 		return;
 	case SYMBOL:
 	case OBJ_STRING:
-		gc_queue(obj->str);
+		gc_queue((struct gc_head *) AS_OBJ_STR(obj));
 		return;
 	case CELL:
-		gc_queue(obj->head);
-		gc_queue(obj->tail);
+		gc_queue((struct gc_head *) CAR(obj));
+		gc_queue((struct gc_head *) CDR(obj));
 		return;
 	case LAMBDA:
-	case MACRO:
-		gc_queue(obj->args);
-		gc_queue(obj->code);
-		gc_queue(obj->env);
-		gc_queue(obj->closurename);
+	case MACRO: {
+		struct closure *cobj = AS_CLOSURE(obj);
+		gc_queue((struct gc_head *) cobj->args);
+		gc_queue((struct gc_head *) cobj->code);
+		gc_queue((struct gc_head *) cobj->env);
+		gc_queue((struct gc_head *) cobj->closurename);
 		return;
+	}
 	case OBJ_CONTN:
-		gc_queue(obj->contnp);
+		gc_queue((struct gc_head *) AS_OBJ_CONTN(obj));
 		return;
 	}
 }
@@ -153,9 +154,9 @@ void gc_collect() {
 #endif
 
 	/* queue roots */
-	gc_queue(gc_current_contn);
-	gc_queue(gc_current_obj);
-	gc_queue(gc_global_env);
+	gc_queue((struct gc_head *) gc_current_contn);
+	gc_queue((struct gc_head *) gc_current_obj);
+	gc_queue((struct gc_head *) gc_global_env);
 	for (size_t i = 0; i < ntemproots; ++i) {
 		gc_queue(temp_roots[i]);
 	}
@@ -190,7 +191,7 @@ void gc_collect() {
 				hashtab_foreach(&interned_symbols, gc_reverse_hashtab_lookup, &context);
 				if (context.key) {
 					/* TODO: implement hashtable deletion */
-					hashtab_put(&interned_symbols, context.key, &nil);
+					hashtab_put(&interned_symbols, context.key, NIL);
 				}
 			}
 			free(leaked);
@@ -202,7 +203,7 @@ void gc_collect() {
 	collection_active = 0;
 }
 
-void *gc_alloc(enum objtype typ, size_t size) {
+struct gc_head *gc_alloc(enum objtype typ, size_t size) {
 #ifdef DEBUG_GC
 	gc_collect();
 #endif

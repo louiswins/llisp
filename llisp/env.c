@@ -6,15 +6,15 @@
 #include "obj.h"
 
 struct env *make_env(struct env *parent) {
-	struct env *ret = gc_alloc(ENV, sizeof(*ret));
+	struct env *ret = (struct env *) gc_alloc(ENV, sizeof(*ret));
 	ret->parent = parent;
 	init_hashtab(&ret->table);
 	return ret;
 }
 
 static void set_name_if_necessary(struct string *name, struct obj *value) {
-	if (value != NULL && (TYPE(value) == LAMBDA || TYPE(value) == MACRO) && !value->closurename) {
-		value->closurename = name;
+	if (value != NULL && (TYPE(value) == LAMBDA || TYPE(value) == MACRO) && !AS_CLOSURE(value)->closurename) {
+		AS_CLOSURE(value)->closurename = name;
 	}
 }
 

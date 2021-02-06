@@ -13,7 +13,7 @@
 void print(struct obj *obj) { print_on(stdout, obj, 1); }
 void display(struct obj *obj) { print_on(stdout, obj, 0); }
 
-static void print_on_helper(FILE *f, struct obj *obj, int verbose) {
+static void print_on_helper(FILE *f, struct obj *obj, _Bool verbose) {
 	switch (TYPE(obj)) {
 	default:
 		fprintf(stderr, "<#unknown type %d>", TYPE(obj));
@@ -118,7 +118,7 @@ static void clear_marks(struct obj *obj) {
 	}
 }
 
-void print_on(FILE *f, struct obj *obj, int verbose) {
+void print_on(FILE *f, struct obj *obj, _Bool verbose) {
 	print_on_helper(f, obj, verbose);
 	// Now that we've printed, let's clear all the marks to avoid messing up the GC
 	clear_marks(obj);

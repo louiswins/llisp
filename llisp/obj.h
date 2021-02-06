@@ -43,7 +43,7 @@ struct string *make_str_from_ptr_len(const char *c, size_t len);
 #define str_from_string_lit(lit) make_str_from_ptr_len(lit, sizeof(lit)-1)
 void print_str(FILE *f, struct string *s);
 void print_str_escaped(FILE *f, struct string *s);
-int stringeq(struct string *a, struct string *b); /* a == b */
+_Bool stringeq(struct string *a, struct string *b); /* a == b */
 int stringcmp(struct string *a, struct string *b); /* like strcmp(a, b) */
 
 struct string_builder {

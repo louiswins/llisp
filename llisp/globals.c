@@ -25,7 +25,7 @@ int length(struct obj *obj) {
 	if (obj != NIL) return -1;
 	return ret;
 }
-int check_args(const char *fn, struct obj *obj, int nargs) {
+_Bool check_args(const char *fn, struct obj *obj, int nargs) {
 	int len = length(obj);
 	if (len < 0) {
 		fprintf(stderr, "%s: args must be a proper list\n", fn);

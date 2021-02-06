@@ -31,7 +31,7 @@ static struct obj *eval_doapply(CPS_ARGS);
 static struct obj *eval_macroreeval(CPS_ARGS);
 /* Try to eval directly instead of going through eval_cps
  * Only used if it can be done in constant time */
-static int direct_eval(struct obj *obj, struct env *env, struct obj **result);
+static _Bool direct_eval(struct obj *obj, struct env *env, struct obj **result);
 
 /* Eval a list -> used for arguments to lambdas and cfuncs */
 static struct obj *evallist(CPS_ARGS);
@@ -40,7 +40,7 @@ static struct obj *evallist_cons(CPS_ARGS);
 
 static struct obj *run_closure(CPS_ARGS);
 
-int direct_eval(struct obj *obj, struct env *env, struct obj **result) {
+_Bool direct_eval(struct obj *obj, struct env *env, struct obj **result) {
 	if (!result) return 0;
 	switch (TYPE(obj)) {
 	default:

@@ -102,7 +102,7 @@ void print_string_builder_escaped(FILE *f, struct string_builder *sb) {
 	print_str_escaped_impl(f, sb->buf->str, sb->used);
 }
 
-int stringeq(struct string *a, struct string *b) {
+_Bool stringeq(struct string *a, struct string *b) {
 	if (a == b) return 1;
 	if (!a || !b) return 0;
 	if (a->len != b->len) return 0;

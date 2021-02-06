@@ -6,6 +6,7 @@
 (define #t (= 0 0))
 (define #f (= 0 1))
 (define not (lambda (x) (if x #f #t)))
+(define id (lambda (x) x))
 
 (define cadr (lambda (p) (car (cdr p))))
 (define cddr (lambda (p) (cdr (cdr p))))
@@ -103,15 +104,22 @@
 (define reverse (lambda (lst)
   (foldl (lambda (rest cur) (cons cur rest)) () lst)))
 
-; matches python (without step)
-(define range (lambda (a . b)
-  (define range-helper (lambda (start cur rest)
-    (if (< cur start)
-        rest
-        (range-helper start (- cur 1) (cons cur rest)))))
-  (if (null? b)
-      (range-helper 0 (- a 1) nil)
-      (range-helper a (- (car b) 1) nil))))
+; matches python
+(define range (lambda args
+  (define nargs (length args))
+  (define start
+    (if (> nargs 1) (car args) 0))
+  (define end
+    (if (> nargs 1) (cadr args) (car args)))
+  (define step
+    (if (> nargs 2) (caddr args) 1))
+  (define make-conser (lambda (el contn)
+    (lambda (tail) (contn (cons el tail)))))
+  (define range-helper (lambda (cur accum)
+    (if (>= cur end)
+        accum
+        (range-helper (+ cur step) (make-conser cur accum)))))
+  ((range-helper start id) nil)))
 
 ; (quasiquote) uses (and), so do it the long way
 (define and (macro args

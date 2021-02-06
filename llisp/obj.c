@@ -7,9 +7,9 @@
 #include "cps.h"
 
 /* static objects */
-struct obj_union nil = { STATIC_OBJ(BUILTIN), .builtin = "()" };
-struct obj_union true_ = { STATIC_OBJ(BUILTIN), .builtin = "#t" };
-struct obj_union false_ = { STATIC_OBJ(BUILTIN), .builtin = "#f" };
+struct builtin nil = STATIC_BUILTIN("()");
+struct builtin true_ = STATIC_BUILTIN("#t");
+struct builtin false_ = STATIC_BUILTIN("#f");
 struct hashtab interned_symbols = EMPTY_HASHTAB;
 
 struct obj *intern_symbol(struct string *sym) {
@@ -24,9 +24,11 @@ struct obj *intern_symbol(struct string *sym) {
 	}
 }
 struct obj *make_num(double val) {
-	struct obj *ret = gc_alloc(NUM, sizeof(struct obj_union));
-	AS_NUM(ret) = val;
-	return ret;
+	/* n.b. we have this sort of awkward casting instead of using AS_NUM to try to make
+	 * sure the num type appears in the debugging info. It tends to be optimized away. */
+	struct num *ret = (struct num *) gc_alloc(NUM, sizeof(struct num));
+	ret->num = val;
+	return (struct obj *) ret;
 }
 struct obj *make_fn(enum objtype type, struct obj *(*fn)(CPS_ARGS), const char *name) {
 	assert(type == FN || type == SPECFORM);

@@ -2,17 +2,19 @@
 <AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
   <Type Name="obj">
     <DisplayString Condition="type == CELL">{(cell*)this,na}</DisplayString>
-    <DisplayString Condition="type == NUM || type == BUILTIN">{(obj_union*)this,na}</DisplayString>
+    <DisplayString Condition="type == NUM">{(num*)this,na}</DisplayString>
     <DisplayString Condition="type == SYMBOL">{*(string*)this,sb}</DisplayString>
     <DisplayString Condition="type == STRING">{*(string*)this}</DisplayString>
+    <DisplayString Condition="type == BUILTIN">{(builtin*)this,na}</DisplayString>
     <DisplayString Condition="type == FN || type == SPECFORM">{(fn*)this,na}</DisplayString>
     <DisplayString Condition="type == LAMBDA || type == MACRO">{(closure*)this,na}</DisplayString>
     <DisplayString Condition="type == CONTN">{(contn*)this,na}</DisplayString>
     <DisplayString Condition="type == ENV">{(env*)this,na}</DisplayString>
     <Expand>
       <ExpandedItem Condition="type == CELL">(cell*)this</ExpandedItem>
-      <ExpandedItem Condition="type == NUM || type == BUILTIN">(obj_union*)this</ExpandedItem>
+      <ExpandedItem Condition="type == NUM">(num*)this</ExpandedItem>
       <ExpandedItem Condition="type == SYMBOL || type == STRING">(string*)this</ExpandedItem>
+      <ExpandedItem Condition="type == BUILTIN">(builtin*)this</ExpandedItem>
       <ExpandedItem Condition="type == FN || type == SPECFORM">(fn*)this</ExpandedItem>
       <ExpandedItem Condition="type == LAMBDA || type == MACRO">(closure*)this</ExpandedItem>
       <ExpandedItem Condition="type == CONTN">(contn*)this</ExpandedItem>
@@ -33,15 +35,10 @@
     </Expand>
   </Type>
 
-  <Type Name="obj_union">
-    <DisplayString Condition="o.type == NUM">{num}</DisplayString>
-    <DisplayString Condition="o.type == BUILTIN">{builtin,sb}</DisplayString>
+  <Type Name="num">
+    <DisplayString>{num}</DisplayString>
     <Expand>
-      <Item Name="Type">o.type</Item>
-
-      <Item Name="Num" Condition="o.type == NUM">num</Item>
-
-      <Item Name="Builtin" Condition="o.type == BUILTIN">builtin,sb</Item>
+      <Item Name="value">num</Item>
     </Expand>
   </Type>
 
@@ -61,6 +58,13 @@
       <Item Name="str">buf->str,[used]s8</Item>
       <Item Name="cap">buf->len</Item>
       <Item Name="len">buf</Item>
+    </Expand>
+  </Type>
+
+  <Type Name="builtin">
+    <DisplayString>{name,sb}</DisplayString>
+    <Expand>
+      <Item Name="name">name,sb</Item>
     </Expand>
   </Type>
 

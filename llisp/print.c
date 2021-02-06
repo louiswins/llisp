@@ -67,7 +67,7 @@ static void print_on_helper(FILE *f, struct obj *obj, _Bool verbose) {
 		putc('>', f);
 		break;
 	case BUILTIN:
-		fputs(AS_BUILTIN(obj)->builtin, f);
+		fputs(AS_BUILTIN(obj)->name, f);
 		break;
 	case CELL: {
 		// We appropriate the GC marking to avoid printing cyclic objects

@@ -1,6 +1,5 @@
 #pragma once
 #include <stdio.h>
-#include "cps.h"
 #include "env.h"
 #include "hashtab.h"
 
@@ -27,7 +26,6 @@ struct obj {
 };
 
 #define TYPE(o) ((o)->type)
-#define STATIC_OBJ(type) { NULL, NULL, type, 0 }
 
 struct contn;
 #define CPS_ARGS struct contn *self, struct obj *obj, struct contn **ret
@@ -47,17 +45,27 @@ struct cell {
 struct obj *cons(struct obj *l, struct obj *r);
 
 
-struct obj_union {
+/*
+ * A number. Always a double, we don't support the numerical tower.
+ */
+struct num {
 	struct obj o;
-	union {
-		double num;
-		const char *builtin;
-	};
+	double num;
 };
-#define AS_NUM(o) (((struct obj_union*)(o))->num)
-#define AS_BUILTIN(o) ((struct obj_union*)(o))
+#define AS_NUM(o) (((struct num*)(o))->num)
 
 struct obj *make_num(double val);
+
+
+/*
+ * A builtin value. There are (currently) only three of them: (), #t, and #f.
+ */
+struct builtin {
+	struct obj o;
+	const char *name;
+};
+#define AS_BUILTIN(o) ((struct builtin*)(o))
+#define STATIC_BUILTIN(name) { { NULL, NULL, BUILTIN, 0 }, name }
 
 
 /*
@@ -161,9 +169,9 @@ struct contn *dupcontn(struct contn *c);
 #define TRUE ((struct obj*)&true_)
 #define FALSE ((struct obj*)&false_)
 
-extern struct obj_union nil;
-extern struct obj_union true_;
-extern struct obj_union false_;
+extern struct builtin nil;
+extern struct builtin true_;
+extern struct builtin false_;
 
 /* Weak references to every symbol to support eq? */
 extern struct hashtab interned_symbols;

@@ -7,6 +7,7 @@
 
 enum objtype {
 	CELL,
+
 	NUM,
 	FN,
 	SPECFORM,
@@ -56,6 +57,15 @@ struct string *finish_string_builder(struct string_builder *sb);
 void print_string_builder_escaped(FILE *f, struct string_builder *sb);
 
 /*
+ * A lisp pair (a . b).
+ */
+struct cell {
+	struct obj o;
+	struct obj *head;
+	struct obj *tail;
+};
+
+/*
  * A continuation expects to be given a simple llisp value. This is the obj pointer.
  * Instead of returning, the continuation invokes another continuation, giving it
  * another obj pointer. This is done by filling in the `ret' out param with the
@@ -75,6 +85,13 @@ struct contn {
 /* duplicate an existing continuation */
 struct contn *dupcontn(struct contn *c);
 
+/*
+ * A closure - a lambda or a macro. Keeps a reference to its argument names, the
+ * code to run, and the environment upon creation (for the purposes of lexical
+ * scope). Also remembers the first symbol that it is assigned to for help debugging.
+ * For example, (define my_func (lambda () ...)) will associate 'my_func with
+ * the lambda. Even (let ((my_func (lambda () ...))) ...) will do the same.
+ */
 struct closure {
 	struct obj o;
 	struct obj *args;
@@ -86,10 +103,6 @@ struct closure {
 struct obj_union {
 	struct obj o;
 	union {
-		struct {
-			struct obj *head;
-			struct obj *tail;
-		};
 		double num;
 		struct {
 			struct obj *(*fn)(CPS_ARGS);
@@ -98,8 +111,8 @@ struct obj_union {
 		const char *builtin;
 	};
 };
-#define CAR(o) (((struct obj_union*)(o))->head)
-#define CDR(o) (((struct obj_union*)(o))->tail)
+#define CAR(o) (((struct cell*)(o))->head)
+#define CDR(o) (((struct cell*)(o))->tail)
 #define AS_NUM(o) (((struct obj_union*)(o))->num)
 #define AS_FN(o) ((struct obj_union*)(o))
 #define AS_CLOSURE(o) ((struct closure*)(o))
@@ -116,7 +129,7 @@ extern struct obj_union nil;
 extern struct obj_union true_;
 extern struct obj_union false_;
 
-// Weak references to every symbol
+/* Weak references to every symbol to support 'eq? */
 extern struct hashtab interned_symbols;
 struct obj *intern_symbol(struct string *name);
 

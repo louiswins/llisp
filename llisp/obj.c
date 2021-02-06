@@ -49,7 +49,7 @@ struct obj *make_closure(enum objtype type, struct obj *args, struct obj *code, 
 }
 
 struct obj *cons(struct obj *l, struct obj *r) {
-	struct obj *ret = make_obj(CELL);
+	struct obj *ret = gc_alloc(CELL, sizeof(struct cell));
 	CAR(ret) = l;
 	CDR(ret) = r;
 	return ret;

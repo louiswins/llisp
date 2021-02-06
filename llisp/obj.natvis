@@ -1,14 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?> 
 <AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
   <Type Name="obj">
-    <DisplayString Condition="type >= CELL &amp;&amp; type &lt;= BUILTIN">{(obj_union*)this,na}</DisplayString>
+    <DisplayString Condition="type == CELL">{(cell*)this,na}</DisplayString>
+    <DisplayString Condition="type >= NUM &amp;&amp; type &lt;= BUILTIN">{(obj_union*)this,na}</DisplayString>
     <DisplayString Condition="type == CONTN">{(contn*)this,na}</DisplayString>
     <DisplayString Condition="type == STRING">{*(string*)this}</DisplayString>
     <DisplayString Condition="type == SYMBOL">{*(string*)this,sb}</DisplayString>
     <DisplayString Condition="type == ENV">{(env*)this,na}</DisplayString>
     <DisplayString Condition="type == LAMBDA || type == MACRO">{(closure*)this,na}</DisplayString>
     <Expand>
-      <ExpandedItem Condition="type >= CELL &amp;&amp; type &lt;= BUILTIN">(obj_union*)this</ExpandedItem>
+      <ExpandedItem Condition="type == CELL">(cell*)this</ExpandedItem>
+      <ExpandedItem Condition="type >= NUM &amp;&amp; type &lt;= BUILTIN">(obj_union*)this</ExpandedItem>
       <ExpandedItem Condition="type == CONTN">(contn*)this</ExpandedItem>
       <ExpandedItem Condition="type == STRING || type == SYMBOL">(string*)this</ExpandedItem>
       <ExpandedItem Condition="type == ENV">(env*)this</ExpandedItem>
@@ -17,20 +19,11 @@
   </Type>
 
   <Type Name="obj_union">
-    <DisplayString Condition="o.type == CELL &amp;&amp; tail->type != CELL &amp;&amp; tail != (obj*)&amp;nil" IncludeView="noparens">{*head} . {*tail}</DisplayString>
-    <DisplayString Condition="o.type == CELL &amp;&amp; tail->type != CELL &amp;&amp; tail != (obj*)&amp;nil" ExcludeView="noparens">({*head} . {*tail})</DisplayString>
-    <DisplayString Condition="o.type == CELL &amp;&amp; tail == (obj*)&amp;nil" IncludeView="noparens">{*head}</DisplayString>
-    <DisplayString Condition="o.type == CELL &amp;&amp; tail == (obj*)&amp;nil" ExcludeView="noparens">({*head})</DisplayString>
-    <DisplayString Condition="o.type == CELL &amp;&amp; tail->type == CELL" IncludeView="noparens">{*head} {*tail,view(noparens)}</DisplayString>
-    <DisplayString Condition="o.type == CELL &amp;&amp; tail->type == CELL" ExcludeView="noparens">({*head} {*tail,view(noparens)})</DisplayString>
     <DisplayString Condition="o.type == NUM">{num}</DisplayString>
     <DisplayString Condition="o.type == FN || o.type == SPECFORM">{fn,na}</DisplayString>
     <DisplayString Condition="o.type == BUILTIN">{builtin,sb}</DisplayString>
     <Expand>
       <Item Name="Type">o.type</Item>
-      
-      <Item Name="Head" Condition="o.type == CELL">*head</Item>
-      <Item Name="Tail" Condition="o.type == CELL">*tail</Item>
 
       <Item Name="Num" Condition="o.type == NUM">num</Item>
 
@@ -38,6 +31,19 @@
       <Item Name="Name" Condition="o.type == FN || o.type == SPECFORM">fnname,na</Item>
 
       <Item Name="Builtin" Condition="o.type == BUILTIN">builtin,sb</Item>
+    </Expand>
+  </Type>
+
+  <Type Name="cell">
+    <DisplayString Condition="tail->type != CELL &amp;&amp; tail != (obj*)&amp;nil" IncludeView="noparens">{*head} . {*tail}</DisplayString>
+    <DisplayString Condition="tail->type != CELL &amp;&amp; tail != (obj*)&amp;nil" ExcludeView="noparens">({*head} . {*tail})</DisplayString>
+    <DisplayString Condition="tail == (obj*)&amp;nil" IncludeView="noparens">{*head}</DisplayString>
+    <DisplayString Condition="tail == (obj*)&amp;nil" ExcludeView="noparens">({*head})</DisplayString>
+    <DisplayString Condition="tail->type == CELL" IncludeView="noparens">{*head} {*tail,view(noparens)}</DisplayString>
+    <DisplayString Condition="tail->type == CELL" ExcludeView="noparens">({*head} {*tail,view(noparens)})</DisplayString>
+    <Expand>
+      <Item Name="Head">*head</Item>
+      <Item Name="Tail">*tail</Item>
     </Expand>
   </Type>
 

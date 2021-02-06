@@ -101,6 +101,8 @@ static void gc_mark(struct obj *item) {
 	case BUILTIN:
 		return;
 	case SYMBOL:
+		gc_queue((struct obj *) AS_SYMBOL(obj));
+		return;
 	case OBJ_STRING:
 		gc_queue((struct obj *) AS_OBJ_STR(obj));
 		return;

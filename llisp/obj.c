@@ -23,7 +23,7 @@ struct obj *make_symbol(struct string *name) {
 		return existing;
 	} else {
 		struct obj *ret = make_obj(SYMBOL);
-		AS_SYMBOL(ret)->str = name;
+		AS_SYMBOL(ret) = name;
 		hashtab_put(&interned_symbols, name, ret);
 		return ret;
 	}

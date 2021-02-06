@@ -29,7 +29,7 @@ static void print_on_helper(FILE *f, struct obj *obj, int verbose) {
 		break;
 	}
 	case SYMBOL:
-		print_str(f, AS_SYMBOL(obj)->str);
+		print_str(f, AS_SYMBOL(obj));
 		break;
 	case OBJ_STRING:
 		if (verbose) {

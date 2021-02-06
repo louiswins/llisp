@@ -56,7 +56,7 @@ int direct_eval(struct obj *obj, struct env *env, struct obj **result) {
 		*result = obj;
 		return 1;
 	case SYMBOL: {
-		struct obj *value = getsym(env, AS_SYMBOL(obj)->str);
+		struct obj *value = getsym(env, AS_SYMBOL(obj));
 		if (value == NULL) {
 			return 0;
 		}
@@ -86,10 +86,10 @@ struct obj *eval_cps(CPS_ARGS) {
 		*ret = self->next;
 		return obj;
 	case SYMBOL: {
-		struct obj *value = getsym(self->env, AS_SYMBOL(obj)->str);
+		struct obj *value = getsym(self->env, AS_SYMBOL(obj));
 		if (value == NULL) {
 			fputs("eval: unknown symbol \"", stderr);
-			print_str_escaped(stderr, AS_SYMBOL(obj)->str);
+			print_str_escaped(stderr, AS_SYMBOL(obj));
 			fputs("\"\n", stderr);
 			*ret = &cfail;
 			return NIL;
@@ -236,7 +236,7 @@ struct obj *apply_closure(CPS_ARGS) {
 	for (;;) {
 		if (params == NIL && obj == NIL) break;
 		if (TYPE(params) == SYMBOL) {
-			definesym(appenv, AS_SYMBOL(params)->str, obj);
+			definesym(appenv, AS_SYMBOL(params), obj);
 			params = NIL;
 			break;
 		}
@@ -260,7 +260,7 @@ struct obj *apply_closure(CPS_ARGS) {
 			*ret = &cfail;
 			return NIL;
 		}
-		definesym(appenv, AS_SYMBOL(CAR(params))->str, CAR(obj));
+		definesym(appenv, AS_SYMBOL(CAR(params)), CAR(obj));
 		params = CDR(params);
 		obj = CDR(obj);
 	}

@@ -107,7 +107,7 @@ struct obj_union {
 #define CAR(o) (((struct obj_union*)(o))->head)
 #define CDR(o) (((struct obj_union*)(o))->tail)
 #define AS_NUM(o) (((struct obj_union*)(o))->num)
-#define AS_SYMBOL(o) ((struct obj_union*)(o))
+#define AS_SYMBOL(o) (((struct obj_union*)(o))->str)
 #define AS_FN(o) ((struct obj_union*)(o))
 #define AS_CLOSURE(o) (&((struct obj_union*)(o))->closure)
 #define AS_BUILTIN(o) ((struct obj_union*)(o))

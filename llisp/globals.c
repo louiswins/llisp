@@ -122,7 +122,7 @@ static struct obj *fn_define(CPS_ARGS) {
 }
 /* obj = eval(defn), self->data = sym */
 static struct obj *do_definesym(CPS_ARGS) {
-	definesym(self->env, AS_SYMBOL(self->data)->str, obj);
+	definesym(self->env, AS_SYMBOL(self->data), obj);
 	*ret = self->next;
 	return NIL;
 }
@@ -135,9 +135,9 @@ static struct obj *fn_set_(CPS_ARGS) {
 }
 /* obj = eval(defn), self->data = sym */
 static struct obj *do_setsym(CPS_ARGS) {
-	if (!setsym(self->env, AS_SYMBOL(self->data)->str, obj)) {
+	if (!setsym(self->env, AS_SYMBOL(self->data), obj)) {
 		fputs("set!: symbol \"", stderr);
-		print_str_escaped(stderr, AS_SYMBOL(self->data)->str);
+		print_str_escaped(stderr, AS_SYMBOL(self->data));
 		fputs("\" does not exist\n", stderr);
 		*ret = &cfail;
 		return NIL;

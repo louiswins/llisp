@@ -1,20 +1,19 @@
 #pragma once
 #include <stdio.h>
+#include "cps.h"
 #include "env.h"
 #include "hashtab.h"
-
-#define CPS_ARGS struct contn *self, struct obj *obj, struct contn **ret
 
 enum objtype {
 	CELL,
 	NUM,
-	FN,
-	SPECFORM,
-	BUILTIN,
-	LAMBDA,
-	MACRO,
 	SYMBOL,
 	STRING,
+	BUILTIN,
+	FN,
+	SPECFORM,
+	LAMBDA,
+	MACRO,
 	CONTN,
 	ENV,
 	HASHTABARR
@@ -30,11 +29,48 @@ struct obj {
 #define TYPE(o) ((o)->type)
 #define STATIC_OBJ(type) { NULL, NULL, type, 0 }
 
+struct contn;
+#define CPS_ARGS struct contn *self, struct obj *obj, struct contn **ret
+
+
+/*
+ * A lisp pair (a . b).
+ */
+struct cell {
+	struct obj o;
+	struct obj *head;
+	struct obj *tail;
+};
+#define CAR(o) (((struct cell*)(o))->head)
+#define CDR(o) (((struct cell*)(o))->tail)
+
+struct obj *cons(struct obj *l, struct obj *r);
+
+
+struct obj_union {
+	struct obj o;
+	union {
+		double num;
+		const char *builtin;
+	};
+};
+#define AS_NUM(o) (((struct obj_union*)(o))->num)
+#define AS_BUILTIN(o) ((struct obj_union*)(o))
+
+struct obj *make_obj(enum objtype type);
+struct obj *make_num(double val);
+
+
+/*
+ * A string. Immutable. Carries its own length. Is NOT nul-terminated.
+ */
 struct string {
 	struct obj o;
 	size_t len;
 	char str[1];
 };
+#define AS_SYMBOL(o) ((struct string*)(o))
+#define AS_STRING(o) ((struct string*)(o))
 
 struct string *unsafe_make_uninitialized_str(size_t len);
 struct string *make_str_from_ptr_len(const char *c, size_t len);
@@ -44,6 +80,13 @@ void print_str_escaped(FILE *f, struct string *s);
 _Bool stringeq(struct string *a, struct string *b); /* a == b */
 int stringcmp(struct string *a, struct string *b); /* like strcmp(a, b) */
 
+/*
+ * A mutable string builder. Although it reuses the string type as its buffer
+ * you must NOT use the "buf" variable as it does not maintain the invariants
+ * of a normal string outside a string_builder. Call finish_string_builder
+ * to turn the string_builder into a normal string suitable to be passed to
+ * llisp functions, etc. Not intended to be allocated on the heap.
+ */
 struct string_builder {
 	struct string *buf;
 	size_t used;
@@ -54,14 +97,38 @@ void string_builder_append(struct string_builder *sb, char ch);
 struct string *finish_string_builder(struct string_builder *sb);
 void print_string_builder_escaped(FILE *f, struct string_builder *sb);
 
+
 /*
- * A lisp pair (a . b).
+ * A function/special form implemented in C instead of lisp.
  */
-struct cell {
+struct fn {
 	struct obj o;
-	struct obj *head;
-	struct obj *tail;
+	struct obj *(*fn)(CPS_ARGS);
+	const char *fnname;
 };
+#define AS_FN(o) ((struct fn*)(o))
+
+struct obj *make_fn(enum objtype type, struct obj *(*fn)(CPS_ARGS), const char *name);
+
+
+/*
+ * A closure - a lambda or a macro. Keeps a reference to its argument names, the
+ * code to run, and the environment upon creation (for the purposes of lexical
+ * scope). Also remembers the first symbol that it is assigned to for help debugging.
+ * For example, (define my_func (lambda () ...)) will associate 'my_func with
+ * the lambda. Even (let ((my_func (lambda () ...))) ...) will do the same.
+ */
+struct closure {
+	struct obj o;
+	struct obj *args;
+	struct obj *code;
+	struct env *env;
+	struct string *closurename;
+};
+#define AS_CLOSURE(o) ((struct closure*)(o))
+
+struct obj *make_closure(enum objtype type, struct obj *args, struct obj *code, struct env *env);
+
 
 /*
  * A continuation expects to be given a simple llisp value. This is the obj pointer.
@@ -79,51 +146,13 @@ struct contn {
 	struct contn *next;
 	struct obj *(*fn)(CPS_ARGS);
 };
+#define AS_CONTN(o) ((struct contn*)(o))
 
 /* duplicate an existing continuation */
 struct contn *dupcontn(struct contn *c);
 
-/*
- * A closure - a lambda or a macro. Keeps a reference to its argument names, the
- * code to run, and the environment upon creation (for the purposes of lexical
- * scope). Also remembers the first symbol that it is assigned to for help debugging.
- * For example, (define my_func (lambda () ...)) will associate 'my_func with
- * the lambda. Even (let ((my_func (lambda () ...))) ...) will do the same.
- */
-struct closure {
-	struct obj o;
-	struct obj *args;
-	struct obj *code;
-	struct env *env;
-	struct string *closurename;
-};
 
-/*
- * A function/special form implemented in C instead of lisp.
- */
-struct fn {
-	struct obj o;
-	struct obj *(*fn)(CPS_ARGS);
-	const char *fnname;
-};
-
-struct obj_union {
-	struct obj o;
-	union {
-		double num;
-		const char *builtin;
-	};
-};
-#define CAR(o) (((struct cell*)(o))->head)
-#define CDR(o) (((struct cell*)(o))->tail)
-#define AS_NUM(o) (((struct obj_union*)(o))->num)
-#define AS_FN(o) ((struct fn*)(o))
-#define AS_CLOSURE(o) ((struct closure*)(o))
-#define AS_BUILTIN(o) ((struct obj_union*)(o))
-#define AS_CONTN(o) ((struct contn*)(o))
-#define AS_SYMBOL(o) ((struct string*)(o))
-#define AS_STRING(o) ((struct string*)(o))
-
+/* Builtins */
 #define NIL ((struct obj*)&nil)
 #define TRUE ((struct obj*)&true_)
 #define FALSE ((struct obj*)&false_)
@@ -132,13 +161,6 @@ extern struct obj_union nil;
 extern struct obj_union true_;
 extern struct obj_union false_;
 
-/* Weak references to every symbol to support 'eq? */
+/* Weak references to every symbol to support eq? */
 extern struct hashtab interned_symbols;
 struct obj *intern_symbol(struct string *name);
-
-struct obj *make_obj(enum objtype type);
-struct obj *make_num(double val);
-struct obj *make_fn(enum objtype type, struct obj *(*fn)(CPS_ARGS), const char *name);
-struct obj *make_closure(enum objtype type, struct obj *args, struct obj *code, struct env *env);
-
-struct obj *cons(struct obj *l, struct obj *r);

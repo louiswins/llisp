@@ -53,13 +53,6 @@ static void gc_queue_hashtab_entry(struct string *key, struct obj *value, void *
 	ADDMARK(key); /* I know it's a string */
 	gc_queue(value);
 }
-/* TODO: delete this after implementing hashtable deletion - no reason to keep
- * the keys alive once we can actually remove them. */
-static void gc_queue_hashtab_entry_weak(struct string *key, struct obj *value, void *ignored) {
-	(void)value;
-	(void)ignored;
-	ADDMARK(key);
-}
 static void gc_mark(struct obj *obj) {
 	if (ISMARKED(obj)) return;
 	ADDMARK(obj);
@@ -161,8 +154,6 @@ void gc_collect() {
 	/* DON'T queue this normally as it's full of weak references */
 	if (interned_symbols.cap != 0) {
 		ADDMARK(interned_symbols.e);
-		/* TODO: remove the following line after implementing hashtable deletion */
-		hashtab_foreach(&interned_symbols, gc_queue_hashtab_entry_weak, NULL);
 	}
 	/* mark */
 	while (objs_to_mark != NULL) {
@@ -184,12 +175,11 @@ void gc_collect() {
 			if (TYPE(leaked) == SYMBOL) {
 				/* Clear out weak reference in interned_symbols if necessary
 				 * We'll have to figure out something better in case we add weak references somewhere else */
-				struct gc_reverse_lookup_context context = { NULL };
+				struct gc_reverse_lookup_context context = { NULL, NULL };
 				context.value = leaked;
 				hashtab_foreach(&interned_symbols, gc_reverse_hashtab_lookup, &context);
 				if (context.key) {
-					/* TODO: implement hashtable deletion */
-					hashtab_put(&interned_symbols, context.key, NIL);
+					hashtab_del(&interned_symbols, context.key);
 				}
 			}
 			free(leaked);

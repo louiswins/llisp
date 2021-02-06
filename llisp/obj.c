@@ -18,8 +18,7 @@ struct obj *make_obj(enum objtype type) {
 }
 struct obj *make_symbol(struct string *name) {
 	struct obj *existing = hashtab_get(&interned_symbols, name);
-	// TODO: remove check for nil after implementing hashtable deletion
-	if (existing && existing != NIL) {
+	if (existing) {
 		return existing;
 	} else {
 		struct obj *ret = make_obj(SYMBOL);

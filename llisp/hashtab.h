@@ -6,10 +6,12 @@ struct obj;
 struct string;
 
 /* Hash table 
- * Supports insertion and lookup; no deletion */
+ * Supports insertion, lookup, and deletion */
 struct hashtab {
-	/* Number of entries */
+	/* Number of entries in the hashtable */
 	size_t size;
+	/* Number of used slots (may be larger than `size` in case of deletion) */
+	size_t used_slots;
 	/* Capacity of table */
 	size_t cap;
 	/* Array of entries */
@@ -20,17 +22,19 @@ struct hashtab {
 void init_hashtab(struct hashtab *ht);
 
 /* Statically initialize hashtable */
-#define EMPTY_HASHTAB { 0, 0, NULL }
+#define EMPTY_HASHTAB { 0, 0, 0, NULL }
 
 /* Does this key exist in the hashtable?
  * If you know that you'll never put a null value in the hashtable
  * you can just skip to `hashtab_get`. */
-int hashtab_exists(struct hashtab *ht, struct string *key);
+_Bool hashtab_exists(struct hashtab *ht, struct string *key);
 /* Get the value associated with a given key.
  * Returns NULL on missing entries. */
 struct obj *hashtab_get(struct hashtab *ht, struct string *key);
 /* Put `value` in the slot `key`. */
 void hashtab_put(struct hashtab *ht, struct string *key, struct obj *value);
+/* Delete `key` from the hashtable */
+void hashtab_del(struct hashtab *ht, struct string *key);
 
 typedef void(*visit_entry)(struct string *key, struct obj *value, void *context);
 /* Invoke `f` on every entry in the hashtable */

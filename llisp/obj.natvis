@@ -101,7 +101,9 @@
         <Size>size</Size>
         <Loop>
           <Exec>cur += __findnonnull(e->entries + cur, cap*2 - cur) / 2</Exec>
-          <Item>e->entries[cur]</Item>
+          <If Condition="e->entries[cur].key != ((struct string *)1)">
+            <Item>e->entries[cur]</Item>
+          </If>
           <Exec>cur++</Exec>
         </Loop>
       </CustomListItems>

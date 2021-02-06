@@ -5,6 +5,7 @@
 
 #define INITIAL_HASHTAB_CAPACITY 16
 #define MAX_LOAD_FACTOR 0.66
+#define TOMBSTONE ((struct string *)1)
 
 struct ht_entry {
 	struct string *key;
@@ -18,6 +19,7 @@ struct ht_entryarr {
 
 void init_hashtab(struct hashtab *ht) {
 	ht->size = 0;
+	ht->used_slots = 0;
 	ht->cap = 0;
 	ht->e = NULL;
 }
@@ -39,20 +41,35 @@ uint32_t jenkins_oaat_hash(struct string *key) {
 	return hash;
 }
 
+static inline _Bool entry_has_value(struct ht_entry *e) {
+	return e && e->key && e->key != TOMBSTONE;
+}
+
 static struct ht_entry *hashtab_find(struct ht_entry *entries, size_t cap, struct string *key) {
 	size_t target, cur;
+	struct ht_entry *first_tombstone = NULL;
 	if (cap == 0) return NULL;
 	target = cur = jenkins_oaat_hash(key) % cap;
 	do {
 		struct string *curkey = entries[cur].key;
-		if (curkey == NULL || stringeq(key, curkey)) {
+		if (curkey != TOMBSTONE && stringeq(key, curkey)) {
+			/* Found the entry! */
 			return &entries[cur];
+		}
+		if (curkey == TOMBSTONE && !first_tombstone) {
+			/* Found a tombstone, we might be able to fill it in later */
+			first_tombstone = &entries[cur];
+		}
+		if (curkey == NULL) {
+			/* The real value must not exist. If we found a tombstone return that,
+			 * otherwise just return this slot. */
+			return first_tombstone ? first_tombstone : &entries[cur];
 		}
 		++cur;
 		if (cur == cap) cur = 0;
 	} while (cur != target);
 	assert(!"Couldn't find an empty slot...");
-	return NULL;
+	return first_tombstone;
 }
 
 static void hashtab_embiggen(struct hashtab *ht) {
@@ -60,43 +77,60 @@ static void hashtab_embiggen(struct hashtab *ht) {
 	size_t newcap = ht->cap ? ht->cap + ht->cap / 2 : INITIAL_HASHTAB_CAPACITY;
 	struct ht_entryarr *newtab = (struct ht_entryarr *) gc_alloc(HASHTABARR, offsetof(struct ht_entryarr, entries) + newcap * sizeof(struct ht_entry));
 	for (i = 0; i < ht->cap; ++i) {
-		struct string *curkey = ht->e->entries[i].key;
-		if (curkey != NULL) {
-			struct ht_entry *target = hashtab_find(newtab->entries, newcap, curkey);
-			target->key = curkey;
-			target->value = ht->e->entries[i].value;
+		struct ht_entry *cur = &ht->e->entries[i];
+		if (entry_has_value(cur)) {
+			struct ht_entry *target = hashtab_find(newtab->entries, newcap, cur->key);
+			*target = *cur;
 		}
 	}
 	ht->cap = newcap;
+	ht->used_slots = ht->size;
 	ht->e = newtab;
 }
 
 void hashtab_put(struct hashtab *ht, struct string *key, struct obj *value) {
-	if (ht->cap == 0 || (double)ht->size / (double)ht->cap >= MAX_LOAD_FACTOR) {
+	if (ht->cap == 0 || (double)ht->used_slots / (double)ht->cap >= MAX_LOAD_FACTOR) {
 		hashtab_embiggen(ht);
 	}
 	struct ht_entry *e = hashtab_find(ht->e->entries, ht->cap, key);
+	assert(e);
+	if (!e) return;
 	if (e->key == NULL) {
+		/* Took up another slot. */
+		++ht->used_slots;
+	}
+	if (!entry_has_value(e)) {
+		/* Whether or not we took another slot, we still added an entry. */
 		++ht->size;
 		e->key = key;
 	}
 	e->value = value;
 }
 
-int hashtab_exists(struct hashtab *ht, struct string *key) {
-	struct ht_entry* entry = hashtab_find(ht->e->entries, ht->cap, key);
-	return entry && entry->key;
+_Bool hashtab_exists(struct hashtab *ht, struct string *key) {
+	struct ht_entry *entry = hashtab_find(ht->e->entries, ht->cap, key);
+	return entry_has_value(entry);
 }
 struct obj *hashtab_get(struct hashtab *ht, struct string *key) {
 	struct ht_entry* entry = hashtab_find(ht->e->entries, ht->cap, key);
-	return entry ? entry->value : NULL;
+	return entry_has_value(entry) ? entry->value : NULL;
+}
+
+void hashtab_del(struct hashtab *ht, struct string *key) {
+	struct ht_entry *entry = hashtab_find(ht->e->entries, ht->cap, key);
+	if (entry_has_value(entry)) {
+		--ht->size;
+		entry->key = TOMBSTONE;
+		/* Not strictly necessary, but safer */
+		entry->value = NULL;
+	}
 }
 
 void hashtab_foreach(struct hashtab *ht, visit_entry f, void *context) {
 	if (ht->cap == 0) return;
 	struct ht_entry *cur = ht->e->entries, *end = ht->e->entries + ht->cap;
 	for (; cur != end; ++cur) {
-		if (cur->key != NULL) {
+		if (entry_has_value(cur)) {
 			f(cur->key, cur->value, context);
 		}
 	}

@@ -8,7 +8,7 @@
 #include "print.h"
 
 struct contn *dupcontn(struct contn *c) {
-	struct contn *ret = (struct contn *) gc_alloc(BARE_CONTN, sizeof(*ret));
+	struct contn *ret = (struct contn *) gc_alloc(CONTN, sizeof(*ret));
 	memcpy(&ret->data, &c->data, sizeof(*ret) - offsetof(struct contn, data));
 	return ret;
 }
@@ -18,7 +18,7 @@ static int is_callable(enum objtype type) {
 		type == LAMBDA ||
 		type == FN ||
 		type == SPECFORM ||
-		type == OBJ_CONTN;
+		type == CONTN;
 }
 
 struct contn cend = { NULL };
@@ -52,7 +52,7 @@ int direct_eval(struct obj *obj, struct env *env, struct obj **result) {
 	case LAMBDA:
 	case MACRO:
 	case STRING:
-	case OBJ_CONTN:
+	case CONTN:
 		*result = obj;
 		return 1;
 	case SYMBOL: {
@@ -82,7 +82,7 @@ struct obj *eval_cps(CPS_ARGS) {
 	case LAMBDA:
 	case MACRO:
 	case STRING:
-	case OBJ_CONTN:
+	case CONTN:
 		*ret = self->next;
 		return obj;
 	case SYMBOL: {
@@ -134,7 +134,7 @@ static struct obj *eval_doapply(CPS_ARGS) {
 	}
 
 	struct contn *appcnt = dupcontn(self);
-	if (TYPE(obj) == OBJ_CONTN) {
+	if (TYPE(obj) == CONTN) {
 		appcnt->data = obj;
 		appcnt->fn = apply_contn;
 	} else if (TYPE(obj) == FN || TYPE(obj) == SPECFORM) {
@@ -146,7 +146,7 @@ static struct obj *eval_doapply(CPS_ARGS) {
 		appcnt->fn = apply_closure;
 	}
 
-	if (TYPE(obj) == FN || TYPE(obj) == LAMBDA || TYPE(obj) == OBJ_CONTN) {
+	if (TYPE(obj) == FN || TYPE(obj) == LAMBDA || TYPE(obj) == CONTN) {
 		/* need to evaluate the arguments first */
 		*ret = dupcontn(self);
 		(*ret)->data = NIL;
@@ -295,7 +295,7 @@ struct obj *apply_contn(CPS_ARGS) {
 	if (CDR(obj) != NIL) {
 		fputs("warning: apply: too many arguments given\n", stderr);
 	}
-	*ret = AS_OBJ_CONTN(self->data);
+	*ret = AS_CONTN(self->data);
 	return CAR(obj);
 }
 

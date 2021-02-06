@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?> 
 <AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
   <Type Name="obj">
-    <DisplayString Condition="type >= CELL &amp;&amp; type &lt;= OBJ_CONTN">{(obj_union*)this,na}</DisplayString>
-    <DisplayString Condition="type == BARE_CONTN">{(contn*)this,na}</DisplayString>
+    <DisplayString Condition="type >= CELL &amp;&amp; type &lt;= BUILTIN">{(obj_union*)this,na}</DisplayString>
+    <DisplayString Condition="type == CONTN">{(contn*)this,na}</DisplayString>
     <DisplayString Condition="type == STRING || type == SYMBOL">{(string*)this,na}</DisplayString>
     <DisplayString Condition="type == ENV">{(env*)this,na}</DisplayString>
     <Expand>
-      <ExpandedItem Condition="type >= CELL &amp;&amp; type &lt;= OBJ_CONTN">(obj_union*)this</ExpandedItem>
-      <ExpandedItem Condition="type == BARE_CONTN">(contn*)this</ExpandedItem>
+      <ExpandedItem Condition="type >= CELL &amp;&amp; type &lt;= BUILTIN">(obj_union*)this</ExpandedItem>
+      <ExpandedItem Condition="type == CONTN">(contn*)this</ExpandedItem>
       <ExpandedItem Condition="type == STRING || type == SYMBOL">(string*)this</ExpandedItem>
       <ExpandedItem Condition="type == ENV">(env*)this</ExpandedItem>
     </Expand>
@@ -27,7 +27,6 @@
     <DisplayString Condition="o.type == MACRO &amp;&amp; !closure.closurename">[macro args={*closure.args}]</DisplayString>
     <DisplayString Condition="o.type == MACRO &amp;&amp; closure.closurename">[macro {closure.closurename,na} args={*closure.args}]</DisplayString>
     <DisplayString Condition="o.type == BUILTIN">{builtin,sb}</DisplayString>
-    <DisplayString Condition="o.type == OBJ_CONTN">{*contnp}</DisplayString>
     <Expand>
       <Item Name="Type">o.type</Item>
       
@@ -44,8 +43,6 @@
       <Item Name="Code" Condition="o.type == LAMBDA || o.type == MACRO">*closure.code</Item>
 
       <Item Name="Builtin" Condition="o.type == BUILTIN">builtin,sb</Item>
-
-      <ExpandedItem Condition="o.type == OBJ_CONTN">contnp</ExpandedItem>
     </Expand>
   </Type>
 

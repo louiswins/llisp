@@ -13,11 +13,10 @@ enum objtype {
 	LAMBDA,
 	MACRO,
 	BUILTIN,
-	OBJ_CONTN,
 
 	SYMBOL,
 	STRING,
-	BARE_CONTN,
+	CONTN,
 	ENV,
 	HASHTABARR
 };
@@ -30,8 +29,7 @@ struct obj {
 };
 
 #define TYPE(o) ((o)->type)
-#define TYPEISOBJ(type) ((type) >= CELL && (type) <= OBJ_CONTN)
-
+#define TYPE_IS_OBJUNION(type) ((type) >= CELL && (type) <= BUILTIN)
 #define STATIC_OBJ(type) { NULL, NULL, type, 0 }
 
 struct string {
@@ -99,7 +97,6 @@ struct obj_union {
 		};
 		struct closure closure;
 		const char *builtin;
-		struct contn *contnp;
 	};
 };
 #define CAR(o) (((struct obj_union*)(o))->head)
@@ -108,7 +105,6 @@ struct obj_union {
 #define AS_FN(o) ((struct obj_union*)(o))
 #define AS_CLOSURE(o) (&((struct obj_union*)(o))->closure)
 #define AS_BUILTIN(o) ((struct obj_union*)(o))
-#define AS_OBJ_CONTN(o) (((struct obj_union*)(o))->contnp)
 #define AS_CONTN(o) ((struct contn*)(o))
 #define AS_SYMBOL(o) ((struct string*)(o))
 #define AS_STRING(o) ((struct string*)(o))

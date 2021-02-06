@@ -96,7 +96,7 @@ static void print_on_helper(FILE *f, struct obj *obj, int verbose) {
 		putc(')', f);
 		break;
 	}
-	case OBJ_CONTN:
+	case CONTN:
 		fputs("<#continuation>", f);
 		break;
 	}

@@ -298,9 +298,7 @@ static struct obj *fn_callcc(CPS_ARGS) {
 	}
 	*ret = dupcontn(self);
 	(*ret)->fn = eval_cps;
-	struct obj *contp = make_obj(OBJ_CONTN);
-	AS_OBJ_CONTN(contp) = self->next;
-	return cons(CAR(obj), cons(contp, NIL));
+	return cons(CAR(obj), cons((struct obj *) self->next, NIL));
 }
 
 static struct obj *fn_error(CPS_ARGS) {
@@ -316,7 +314,7 @@ static struct obj *fn_apply(CPS_ARGS) {
 	}
 	struct obj* fun = CAR(obj);
 	*ret = dupcontn(self);
-	if (TYPE(fun) == OBJ_CONTN) {
+	if (TYPE(fun) == CONTN) {
 		(*ret)->data = fun;
 		(*ret)->fn = apply_contn;
 	} else if (TYPE(fun) == FN || TYPE(fun) == SPECFORM) {

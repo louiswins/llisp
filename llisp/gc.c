@@ -75,14 +75,14 @@ static void gc_mark(struct obj *obj) {
 		gc_queue((struct obj *) env->parent);
 		return;
 	}
-	if (TYPE(obj) == BARE_CONTN) {
+	if (TYPE(obj) == CONTN) {
 		struct contn *contn = (struct contn *) obj;
 		gc_queue(contn->data);
 		gc_queue((struct obj *) contn->env);
 		gc_queue((struct obj *) contn->next);
 		return;
 	}
-	assert(TYPEISOBJ(TYPE(obj)));
+	assert(TYPE_IS_OBJUNION(TYPE(obj)));
 	switch (TYPE(obj)) {
 	default:
 		fprintf(stderr, "Fatal error: unknown object type %d\n", TYPE(obj));
@@ -105,9 +105,6 @@ static void gc_mark(struct obj *obj) {
 		gc_queue((struct obj *) cobj->closurename);
 		return;
 	}
-	case OBJ_CONTN:
-		gc_queue((struct obj *) AS_OBJ_CONTN(obj));
-		return;
 	}
 }
 

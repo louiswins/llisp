@@ -312,7 +312,6 @@ struct obj *run_cps(struct obj *obj, struct env *env) {
 		gc_cycle();
 	}
 	if (gc_current_contn == &cfail) {
-		puts("\nExecution failed.");
 		/* If we got `(obj)`, just return `obj`. */
 		if (TYPE(gc_current_obj) == CELL && CDR(gc_current_obj) == NIL) {
 			gc_current_obj = CAR(gc_current_obj);

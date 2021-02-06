@@ -12,10 +12,6 @@ struct obj_union true_ = { STATIC_OBJ(BUILTIN), .builtin = "#t" };
 struct obj_union false_ = { STATIC_OBJ(BUILTIN), .builtin = "#f" };
 struct hashtab interned_symbols = EMPTY_HASHTAB;
 
-struct obj *make_obj(enum objtype type) {
-	// This is the only place that actually has to know that we're allocating obj_unions
-	return gc_alloc(type, sizeof(struct obj_union));
-}
 struct obj *intern_symbol(struct string *sym) {
 	struct obj *existing = hashtab_get(&interned_symbols, sym);
 	if (existing) {
@@ -28,7 +24,7 @@ struct obj *intern_symbol(struct string *sym) {
 	}
 }
 struct obj *make_num(double val) {
-	struct obj *ret = make_obj(NUM);
+	struct obj *ret = gc_alloc(NUM, sizeof(struct obj_union));
 	AS_NUM(ret) = val;
 	return ret;
 }
@@ -123,6 +119,7 @@ void init_string_builder(struct string_builder *sb) {
 	sb->used = 0;
 }
 void string_builder_append(struct string_builder *sb, char ch) {
+	assert(sb && sb->buf);
 	size_t cap = sb->buf->len;
 	if (sb->used == cap) {
 		struct string *newdata = unsafe_make_uninitialized_str(cap + cap / 2);
@@ -132,8 +129,13 @@ void string_builder_append(struct string_builder *sb, char ch) {
 	sb->buf->str[sb->used++] = ch;
 }
 struct string *finish_string_builder(struct string_builder *sb) {
+	struct string *ret = NULL;
 	if (sb->used == sb->buf->len) {
-		return sb->buf;
+		ret = sb->buf;
+	} else {
+		ret = make_str_from_ptr_len(sb->buf->str, sb->used);
 	}
-	return make_str_from_ptr_len(sb->buf->str, sb->used);
+	sb->buf = NULL;
+	sb->used = 0;
+	return ret;
 }

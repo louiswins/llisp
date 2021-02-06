@@ -57,7 +57,6 @@ struct obj_union {
 #define AS_NUM(o) (((struct obj_union*)(o))->num)
 #define AS_BUILTIN(o) ((struct obj_union*)(o))
 
-struct obj *make_obj(enum objtype type);
 struct obj *make_num(double val);
 
 
@@ -94,6 +93,11 @@ struct string_builder {
 
 void init_string_builder(struct string_builder *sb);
 void string_builder_append(struct string_builder *sb, char ch);
+/*
+ * Turns string_builder sb into a full-fledged, immutable string. This
+ * will empty out sb's internals - if you want to reuse it you must
+ * call init_string_builder again (at which point it will be empty).
+ */
 struct string *finish_string_builder(struct string_builder *sb);
 void print_string_builder_escaped(FILE *f, struct string_builder *sb);
 

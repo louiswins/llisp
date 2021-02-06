@@ -328,7 +328,7 @@ static struct obj *fn_apply(CPS_ARGS) {
 	return CAR(CDR(obj));
 }
 
-static struct obj *make_closure(const char *name, enum objtype type, CPS_ARGS) {
+static struct obj *make_closure_validate(const char *name, enum objtype type, CPS_ARGS) {
 	if (obj == NIL) {
 		fprintf(stderr, "%s: must have args\n", name);
 		*ret = &cfail;
@@ -360,18 +360,15 @@ static struct obj *make_closure(const char *name, enum objtype type, CPS_ARGS) {
 		return NIL;
 	}
 	*ret = self->next;
-	struct obj *closure = make_obj(type);
-	AS_CLOSURE(closure)->args = CAR(obj);
-	AS_CLOSURE(closure)->code = CDR(obj);
-	AS_CLOSURE(closure)->env = self->env;
+	struct obj *closure = make_closure(type, CAR(obj), CDR(obj), self->env);
 	return closure;
 }
 
 static struct obj *fn_lambda(CPS_ARGS) {
-	return make_closure("lambda", LAMBDA, self, obj, ret);
+	return make_closure_validate("lambda", LAMBDA, self, obj, ret);
 }
 static struct obj *fn_macro(CPS_ARGS) {
-	return make_closure("macro", MACRO, self, obj, ret);
+	return make_closure_validate("macro", MACRO, self, obj, ret);
 }
 
 static struct obj *fn_number_(CPS_ARGS) {

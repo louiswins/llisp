@@ -33,9 +33,18 @@ struct obj *make_num(double val) {
 	return ret;
 }
 struct obj *make_fn(enum objtype type, struct obj *(*fn)(CPS_ARGS), const char *name) {
+	assert(type == FN || type == SPECFORM);
 	struct obj *ret = make_obj(type);
 	AS_FN(ret)->fn = fn;
 	AS_FN(ret)->fnname = name;
+	return ret;
+}
+struct obj *make_closure(enum objtype type, struct obj *args, struct obj *code, struct env *env) {
+	assert(type == LAMBDA || type == MACRO);
+	struct obj *ret = gc_alloc(type, sizeof(struct closure));
+	AS_CLOSURE(ret)->args = args;
+	AS_CLOSURE(ret)->code = code;
+	AS_CLOSURE(ret)->env = env;
 	return ret;
 }
 

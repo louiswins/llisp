@@ -10,10 +10,10 @@ enum objtype {
 	NUM,
 	FN,
 	SPECFORM,
-	LAMBDA,
-	MACRO,
 	BUILTIN,
 
+	LAMBDA,
+	MACRO,
 	SYMBOL,
 	STRING,
 	CONTN,
@@ -76,6 +76,7 @@ struct contn {
 struct contn *dupcontn(struct contn *c);
 
 struct closure {
+	struct obj o;
 	struct obj *args;
 	struct obj *code;
 	struct env *env;
@@ -94,7 +95,6 @@ struct obj_union {
 			struct obj *(*fn)(CPS_ARGS);
 			const char *fnname;
 		};
-		struct closure closure;
 		const char *builtin;
 	};
 };
@@ -102,7 +102,7 @@ struct obj_union {
 #define CDR(o) (((struct obj_union*)(o))->tail)
 #define AS_NUM(o) (((struct obj_union*)(o))->num)
 #define AS_FN(o) ((struct obj_union*)(o))
-#define AS_CLOSURE(o) (&((struct obj_union*)(o))->closure)
+#define AS_CLOSURE(o) ((struct closure*)(o))
 #define AS_BUILTIN(o) ((struct obj_union*)(o))
 #define AS_CONTN(o) ((struct contn*)(o))
 #define AS_SYMBOL(o) ((struct string*)(o))
@@ -123,5 +123,6 @@ struct obj *intern_symbol(struct string *name);
 struct obj *make_obj(enum objtype type);
 struct obj *make_num(double val);
 struct obj *make_fn(enum objtype type, struct obj *(*fn)(CPS_ARGS), const char *name);
+struct obj *make_closure(enum objtype type, struct obj *args, struct obj *code, struct env *env);
 
 struct obj *cons(struct obj *l, struct obj *r);

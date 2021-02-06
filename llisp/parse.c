@@ -375,7 +375,7 @@ static struct obj *parse_one(FILE *f) {
 		case TT_IDENT:
 			return make_symbol(curtok.as.str);
 		case TT_STRING:
-			return make_str_obj(curtok.as.str);
+			return (struct obj *) curtok.as.str;
 		case TT_NUMBER:
 			return make_num(curtok.as.num);
 	}

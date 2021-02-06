@@ -260,8 +260,8 @@ static struct obj *fn_eq_(CPS_ARGS) {
 	if (TYPE(a) == NUM && TYPE(b) == NUM) {
 		return AS_NUM(a) == AS_NUM(b) ? TRUE : FALSE;
 	}
-	if (TYPE(a) == OBJ_STRING && TYPE(b) == OBJ_STRING) {
-		return stringeq(AS_OBJ_STR(a), AS_OBJ_STR(b)) ? TRUE : FALSE;
+	if (TYPE(a) == STRING && TYPE(b) == STRING) {
+		return stringeq(AS_STRING(a), AS_STRING(b)) ? TRUE : FALSE;
 	}
 	return a == b ? TRUE : FALSE;
 }
@@ -468,7 +468,7 @@ static struct obj *fn_string_(CPS_ARGS) {
 		return NIL;
 	}
 	*ret = self->next;
-	return TYPE(CAR(obj)) == OBJ_STRING ? TRUE : FALSE;
+	return TYPE(CAR(obj)) == STRING ? TRUE : FALSE;
 }
 
 static struct obj *fn_string_append(CPS_ARGS) {
@@ -480,24 +480,24 @@ static struct obj *fn_string_append(CPS_ARGS) {
 	struct obj *cur = obj;
 	size_t cap = 0;
 	for (; cur != NIL; cur = CDR(cur)) {
-		if (TYPE(CAR(cur)) != OBJ_STRING) {
+		if (TYPE(CAR(cur)) != STRING) {
 			fputs("string-append: expected string, given ", stderr);
 			print_on(stderr, CAR(cur), 1);
 			fputc('\n', stderr);
 			*ret = &cfail;
 			return NIL;
 		}
-		cap += AS_OBJ_STR(CAR(cur))->len;
+		cap += AS_STRING(CAR(cur))->len;
 	}
 	struct string *result = unsafe_make_uninitialized_str(cap);
 	cur = obj;
 	char *dest = result->str;
 	for (cur = obj; cur != NIL; cur = CDR(cur)) {
-		memcpy(dest, AS_OBJ_STR(CAR(cur))->str, AS_OBJ_STR(CAR(cur))->len);
-		dest += AS_OBJ_STR(CAR(cur))->len;
+		memcpy(dest, AS_STRING(CAR(cur))->str, AS_STRING(CAR(cur))->len);
+		dest += AS_STRING(CAR(cur))->len;
 	}
 	*ret = self->next;
-	return make_str_obj(result);
+	return (struct obj *) result;
 }
 
 static struct obj *fn_string_compare(CPS_ARGS) {
@@ -505,9 +505,9 @@ static struct obj *fn_string_compare(CPS_ARGS) {
 		*ret = &cfail;
 		return NIL;
 	}
-	if (TYPE(CAR(obj)) != OBJ_STRING || TYPE(CAR(CDR(obj))) != OBJ_STRING) {
+	if (TYPE(CAR(obj)) != STRING || TYPE(CAR(CDR(obj))) != STRING) {
 		fputs("string-compare: expected string, given ", stderr);
-		if (TYPE(CAR(obj)) != OBJ_STRING) {
+		if (TYPE(CAR(obj)) != STRING) {
 			print_on(stderr, CAR(obj), 1);
 		} else {
 			print_on(stderr, CAR(CDR(obj)), 1);
@@ -517,7 +517,7 @@ static struct obj *fn_string_compare(CPS_ARGS) {
 		return NIL;
 	}
 	*ret = self->next;
-	return make_num(stringcmp(AS_OBJ_STR(CAR(obj)), AS_OBJ_STR(CAR(CDR(obj)))));
+	return make_num(stringcmp(AS_STRING(CAR(obj)), AS_STRING(CAR(CDR(obj)))));
 }
 
 static struct obj *fn_string_length(CPS_ARGS) {
@@ -525,7 +525,7 @@ static struct obj *fn_string_length(CPS_ARGS) {
 		*ret = &cfail;
 		return NIL;
 	}
-	if (TYPE(CAR(obj)) != OBJ_STRING) {
+	if (TYPE(CAR(obj)) != STRING) {
 		fputs("string-length: expected string, given ", stderr);
 		print_on(stderr, CAR(obj), 1);
 		fputc('\n', stderr);
@@ -533,7 +533,7 @@ static struct obj *fn_string_length(CPS_ARGS) {
 		return NIL;
 	}
 	*ret = self->next;
-	return make_num((double)(AS_OBJ_STR(CAR(obj))->len));
+	return make_num((double)(AS_STRING(CAR(obj))->len));
 }
 
 static struct obj *fn_substring(CPS_ARGS) {
@@ -548,7 +548,7 @@ static struct obj *fn_substring(CPS_ARGS) {
 		*ret = &cfail;
 		return NIL;
 	}
-	if (TYPE(CAR(obj)) != OBJ_STRING) {
+	if (TYPE(CAR(obj)) != STRING) {
 		fputs("substring: expected string, given ", stderr);
 		print_on(stderr, CAR(obj), 1);
 		fputc('\n', stderr);
@@ -566,7 +566,7 @@ static struct obj *fn_substring(CPS_ARGS) {
 		*ret = &cfail;
 		return NIL;
 	}
-	size_t len = AS_OBJ_STR(CAR(obj))->len;
+	size_t len = AS_STRING(CAR(obj))->len;
 
 	double startd = AS_NUM(CAR(CDR(obj)));
 	if (startd < 0) {
@@ -584,7 +584,7 @@ static struct obj *fn_substring(CPS_ARGS) {
 		return NIL;
 	}
 
-	size_t end = AS_OBJ_STR(CAR(obj))->len;
+	size_t end = AS_STRING(CAR(obj))->len;
 	if (nargs == 3) {
 		double endd = AS_NUM(CAR(CDR(CDR(obj))));
 		end = (size_t)endd;
@@ -603,7 +603,7 @@ static struct obj *fn_substring(CPS_ARGS) {
 		}
 	}
 	*ret = self->next;
-	return make_str_obj(make_str_from_ptr_len(AS_OBJ_STR(CAR(obj))->str + start, end - start));
+	return (struct obj *) make_str_from_ptr_len(AS_STRING(CAR(obj))->str + start, end - start);
 }
 
 void add_globals(struct env *env) {

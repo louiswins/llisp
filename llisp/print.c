@@ -31,13 +31,13 @@ static void print_on_helper(FILE *f, struct obj *obj, int verbose) {
 	case SYMBOL:
 		print_str(f, AS_SYMBOL(obj));
 		break;
-	case OBJ_STRING:
+	case STRING:
 		if (verbose) {
 			putc('"', f);
-			print_str_escaped(f, AS_OBJ_STR(obj));
+			print_str_escaped(f, AS_STRING(obj));
 			putc('"', f);
 		} else {
-			print_str(f, AS_OBJ_STR(obj));
+			print_str(f, AS_STRING(obj));
 		}
 		break;
 	case FN:

@@ -39,6 +39,7 @@ int main() {
 	}
 
 #ifdef GC_STATS
+	puts("\n");
 	printf("Total allocations:               %llu\n", gc_total_allocs);
 	printf("Total frees (before collection): %llu\n", gc_total_frees);
 	gc_global_env = NULL; gc_current_contn = NULL; gc_current_obj = NULL;

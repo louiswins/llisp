@@ -63,7 +63,7 @@ static void gc_queue_hashtab_entry_weak(struct string *key, struct obj *value, v
 static void gc_mark(struct obj *item) {
 	if (ISMARKED(item)) return;
 	ADDMARK(item);
-	if (TYPE(item) == BARE_STR) return; /* no pointers in a string :) */
+	if (TYPE(item) == STRING) return; /* no pointers in a string :) */
 	if (TYPE(item) == HASHTABARR) {
 		/* Should be queued as part of its owner, because we don't have the length here */
 		/* Could be added as part of the temp roots while allocating. Hopefully if there's
@@ -102,9 +102,6 @@ static void gc_mark(struct obj *item) {
 		return;
 	case SYMBOL:
 		gc_queue((struct obj *) AS_SYMBOL(obj));
-		return;
-	case OBJ_STRING:
-		gc_queue((struct obj *) AS_OBJ_STR(obj));
 		return;
 	case CELL:
 		gc_queue((struct obj *) CAR(obj));

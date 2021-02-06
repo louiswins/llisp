@@ -15,10 +15,9 @@ enum objtype {
 	MACRO,
 	BUILTIN,
 	OBJ_CONTN,
-	OBJ_STRING,
 
+	STRING,
 	BARE_CONTN,
-	BARE_STR,
 	ENV,
 	HASHTABARR
 };
@@ -31,7 +30,7 @@ struct obj {
 };
 
 #define TYPE(o) ((o)->type)
-#define TYPEISOBJ(type) ((type) >= CELL && (type) <= OBJ_STRING)
+#define TYPEISOBJ(type) ((type) >= CELL && (type) <= OBJ_CONTN)
 
 #define STATIC_OBJ(type) { NULL, NULL, type, 0 }
 
@@ -94,7 +93,7 @@ struct obj_union {
 			struct obj *tail;
 		};
 		double num;
-		struct string *str;
+		struct string *symb;
 		struct {
 			struct obj *(*fn)(CPS_ARGS);
 			const char *fnname;
@@ -107,12 +106,11 @@ struct obj_union {
 #define CAR(o) (((struct obj_union*)(o))->head)
 #define CDR(o) (((struct obj_union*)(o))->tail)
 #define AS_NUM(o) (((struct obj_union*)(o))->num)
-#define AS_SYMBOL(o) (((struct obj_union*)(o))->str)
+#define AS_SYMBOL(o) (((struct obj_union*)(o))->symb)
 #define AS_FN(o) ((struct obj_union*)(o))
 #define AS_CLOSURE(o) (&((struct obj_union*)(o))->closure)
 #define AS_BUILTIN(o) ((struct obj_union*)(o))
 #define AS_OBJ_CONTN(o) (((struct obj_union*)(o))->contnp)
-#define AS_OBJ_STR(o) (((struct obj_union*)(o))->str)
 #define AS_CONTN(o) ((struct contn*)(o))
 #define AS_STRING(o) ((struct string*)(o))
 
@@ -131,6 +129,5 @@ struct obj *make_obj(enum objtype type);
 struct obj *make_symbol(struct string *name);
 struct obj *make_num(double val);
 struct obj *make_fn(enum objtype type, struct obj *(*fn)(CPS_ARGS), const char *name);
-struct obj *make_str_obj(struct string *val);
 
 struct obj *cons(struct obj *l, struct obj *r);

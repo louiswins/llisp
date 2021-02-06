@@ -51,7 +51,7 @@ int direct_eval(struct obj *obj, struct env *env, struct obj **result) {
 	case FN:
 	case LAMBDA:
 	case MACRO:
-	case OBJ_STRING:
+	case STRING:
 	case OBJ_CONTN:
 		*result = obj;
 		return 1;
@@ -81,7 +81,7 @@ struct obj *eval_cps(CPS_ARGS) {
 	case FN:
 	case LAMBDA:
 	case MACRO:
-	case OBJ_STRING:
+	case STRING:
 	case OBJ_CONTN:
 		*ret = self->next;
 		return obj;

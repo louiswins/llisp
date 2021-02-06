@@ -50,47 +50,46 @@ static void gc_queue(struct obj *o) {
 }
 static void gc_queue_hashtab_entry(struct string *key, struct obj *value, void *ignored) {
 	(void)ignored;
-	ADDMARK(GC_FROM_OBJ(key)); /* I know it's a string */
-	gc_queue((struct obj *) value);
+	ADDMARK(key); /* I know it's a string */
+	gc_queue(value);
 }
 /* TODO: delete this after implementing hashtable deletion - no reason to keep
  * the keys alive once we can actually remove them. */
 static void gc_queue_hashtab_entry_weak(struct string *key, struct obj *value, void *ignored) {
 	(void)value;
 	(void)ignored;
-	ADDMARK(GC_FROM_OBJ(key));
+	ADDMARK(key);
 }
-static void gc_mark(struct obj *item) {
-	if (ISMARKED(item)) return;
-	ADDMARK(item);
-	if (TYPE(item) == STRING) return; /* no pointers in a string :) */
-	if (TYPE(item) == HASHTABARR) {
-		/* Should be queued as part of its owner, because we don't have the length here */
+static void gc_mark(struct obj *obj) {
+	if (ISMARKED(obj)) return;
+	ADDMARK(obj);
+	if (TYPE(obj) == STRING) return; /* no pointers in a string :) */
+	if (TYPE(obj) == HASHTABARR) {
+		/* Should have been queued as part of its owner, because we don't have the length here */
 		/* Could be added as part of the temp roots while allocating. Hopefully if there's
 		 * anything in it it's already in the graph, because we don't have size here. */
 		/* TODO: change this to a struct {size, array} */
 		return;
 	}
-	if (TYPE(item) == ENV) {
-		struct env *env = OBJ_FROM_GC(item);
+	if (TYPE(obj) == ENV) {
+		struct env *env = (struct env *) obj;
 		/* If we allocate the environment but then need to collect when trying to allocate
 		 * the initial hashtable, we don't have anything to mark yet. */
 		if (env->table.cap) {
-			ADDMARK(GC_FROM_OBJ(env->table.e));
+			ADDMARK(env->table.e);
 			hashtab_foreach(&env->table, gc_queue_hashtab_entry, NULL);
 		}
 		gc_queue((struct obj *) env->parent);
 		return;
 	}
-	if (TYPE(item) == BARE_CONTN) {
-		struct contn *contn = OBJ_FROM_GC(item);
-		gc_queue((struct obj *) contn->data);
+	if (TYPE(obj) == BARE_CONTN) {
+		struct contn *contn = (struct contn *) obj;
+		gc_queue(contn->data);
 		gc_queue((struct obj *) contn->env);
 		gc_queue((struct obj *) contn->next);
 		return;
 	}
-	assert(TYPEISOBJ(TYPE(item)));
-	struct obj *obj = OBJ_FROM_GC(item);
+	assert(TYPEISOBJ(TYPE(obj)));
 	switch (TYPE(obj)) {
 	default:
 		fprintf(stderr, "Fatal error: unknown object type %d\n", TYPE(obj));
@@ -104,14 +103,14 @@ static void gc_mark(struct obj *item) {
 		gc_queue((struct obj *) AS_SYMBOL(obj));
 		return;
 	case CELL:
-		gc_queue((struct obj *) CAR(obj));
-		gc_queue((struct obj *) CDR(obj));
+		gc_queue(CAR(obj));
+		gc_queue(CDR(obj));
 		return;
 	case LAMBDA:
 	case MACRO: {
 		struct closure *cobj = AS_CLOSURE(obj);
-		gc_queue((struct obj *) cobj->args);
-		gc_queue((struct obj *) cobj->code);
+		gc_queue(cobj->args);
+		gc_queue(cobj->code);
 		gc_queue((struct obj *) cobj->env);
 		gc_queue((struct obj *) cobj->closurename);
 		return;
@@ -154,14 +153,14 @@ void gc_collect() {
 
 	/* queue roots */
 	gc_queue((struct obj *) gc_current_contn);
-	gc_queue((struct obj *) gc_current_obj);
+	gc_queue(gc_current_obj);
 	gc_queue((struct obj *) gc_global_env);
 	for (size_t i = 0; i < ntemproots; ++i) {
 		gc_queue(temp_roots[i]);
 	}
 	/* DON'T queue this normally as it's full of weak references */
 	if (interned_symbols.cap != 0) {
-		ADDMARK(GC_FROM_OBJ(interned_symbols.e));
+		ADDMARK(interned_symbols.e);
 		/* TODO: remove the following line after implementing hashtable deletion */
 		hashtab_foreach(&interned_symbols, gc_queue_hashtab_entry_weak, NULL);
 	}
@@ -186,7 +185,7 @@ void gc_collect() {
 				/* Clear out weak reference in interned_symbols if necessary
 				 * We'll have to figure out something better in case we add weak references somewhere else */
 				struct gc_reverse_lookup_context context = { NULL };
-				context.value = (struct obj *) OBJ_FROM_GC(leaked);
+				context.value = leaked;
 				hashtab_foreach(&interned_symbols, gc_reverse_hashtab_lookup, &context);
 				if (context.key) {
 					/* TODO: implement hashtable deletion */
@@ -217,14 +216,13 @@ struct obj *gc_alloc(enum objtype typ, size_t size) {
 	}
 	ret->next = all_objects;
 	ret->type = typ;
-	typedef char assert_intptr_NULL_is_0[(uintptr_t)NULL == 0u ? 1 : -1];
 	all_objects = ret;
 #ifdef GC_STATS
 	++gc_total_allocs;
 #endif
 	/* Automatically add the new thing to the temporary roots, until it's firmly
 	 * in the object graph */
-	return gc_add_to_temp_roots(OBJ_FROM_GC(ret));
+	return gc_add_to_temp_roots(ret);
 }
 
 void gc_suspend() {

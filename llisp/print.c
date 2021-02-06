@@ -6,9 +6,9 @@
 #include "obj.h"
 #include "print.h"
 
-#define OBJ_MARKED(o) ISMARKED(GC_FROM_OBJ(o))
-#define MARK_OBJ(o) ADDMARK(GC_FROM_OBJ(o))
-#define DEL_OBJMARK(o) DELMARK(GC_FROM_OBJ(o))
+#define OBJ_MARKED(o) ISMARKED(o)
+#define MARK_OBJ(o) ADDMARK(o)
+#define DEL_OBJMARK(o) DELMARK(o)
 
 void print(struct obj *obj) { print_on(stdout, obj, 1); }
 void display(struct obj *obj) { print_on(stdout, obj, 0); }

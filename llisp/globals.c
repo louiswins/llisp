@@ -246,7 +246,7 @@ static struct obj *fn_gensym(CPS_ARGS) {
 	assert(slen < 32);
 	*ret = self->next;
 	/* TODO: consider not interning this symbol? */
-	return make_symbol(make_str_from_ptr_len(buf, slen));
+	return intern_symbol(make_str_from_ptr_len(buf, slen));
 }
 
 static struct obj *fn_eq_(CPS_ARGS) {

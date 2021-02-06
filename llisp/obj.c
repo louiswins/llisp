@@ -16,15 +16,15 @@ struct obj *make_obj(enum objtype type) {
 	// This is the only place that actually has to know that we're allocating obj_unions
 	return gc_alloc(type, sizeof(struct obj_union));
 }
-struct obj *make_symbol(struct string *name) {
-	struct obj *existing = hashtab_get(&interned_symbols, name);
+struct obj *intern_symbol(struct string *sym) {
+	struct obj *existing = hashtab_get(&interned_symbols, sym);
 	if (existing) {
 		return existing;
 	} else {
-		struct obj *ret = make_obj(SYMBOL);
-		AS_SYMBOL(ret) = name;
-		hashtab_put(&interned_symbols, name, ret);
-		return ret;
+		struct obj *sym_as_obj = (struct obj *) sym;
+		TYPE(sym_as_obj) = SYMBOL;
+		hashtab_put(&interned_symbols, sym, sym_as_obj);
+		return sym_as_obj;
 	}
 }
 struct obj *make_num(double val) {

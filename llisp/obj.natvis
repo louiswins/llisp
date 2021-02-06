@@ -3,12 +3,12 @@
   <Type Name="obj">
     <DisplayString Condition="type >= CELL &amp;&amp; type &lt;= OBJ_CONTN">{(obj_union*)this,na}</DisplayString>
     <DisplayString Condition="type == BARE_CONTN">{(contn*)this,na}</DisplayString>
-    <DisplayString Condition="type == STRING">{(string*)this,na}</DisplayString>
+    <DisplayString Condition="type == STRING || type == SYMBOL">{(string*)this,na}</DisplayString>
     <DisplayString Condition="type == ENV">{(env*)this,na}</DisplayString>
     <Expand>
       <ExpandedItem Condition="type >= CELL &amp;&amp; type &lt;= OBJ_CONTN">(obj_union*)this</ExpandedItem>
       <ExpandedItem Condition="type == BARE_CONTN">(contn*)this</ExpandedItem>
-      <ExpandedItem Condition="type == STRING">(string*)this</ExpandedItem>
+      <ExpandedItem Condition="type == STRING || type == SYMBOL">(string*)this</ExpandedItem>
       <ExpandedItem Condition="type == ENV">(env*)this</ExpandedItem>
     </Expand>
   </Type>
@@ -21,7 +21,6 @@
     <DisplayString Condition="o.type == CELL &amp;&amp; tail->type == CELL" IncludeView="noparens">{*head} {*tail,view(noparens)}</DisplayString>
     <DisplayString Condition="o.type == CELL &amp;&amp; tail->type == CELL" ExcludeView="noparens">({*head} {*tail,view(noparens)})</DisplayString>
     <DisplayString Condition="o.type == NUM">{num}</DisplayString>
-    <DisplayString Condition="o.type == SYMBOL">{symb}</DisplayString>
     <DisplayString Condition="o.type == FN || o.type == SPECFORM">{fn,na}</DisplayString>
     <DisplayString Condition="o.type == LAMBDA &amp;&amp; !closure.closurename">[lambda args={*closure.args}]</DisplayString>
     <DisplayString Condition="o.type == LAMBDA &amp;&amp; closure.closurename">[lambda {closure.closurename,na} args={*closure.args}]</DisplayString>
@@ -36,8 +35,6 @@
       <Item Name="Tail" Condition="o.type == CELL">*tail</Item>
 
       <Item Name="Num" Condition="o.type == NUM">num</Item>
-
-      <Item Name="Symbol" Condition="o.type == SYMBOL">symb</Item>
 
       <Item Name="Fn" Condition="o.type == FN || o.type == SPECFORM">fn,na</Item>
       <Item Name="Name" Condition="o.type == FN || o.type == SPECFORM">fnname,na</Item>

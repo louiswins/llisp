@@ -8,7 +8,6 @@
 enum objtype {
 	CELL,
 	NUM,
-	SYMBOL,
 	FN,
 	SPECFORM,
 	LAMBDA,
@@ -16,6 +15,7 @@ enum objtype {
 	BUILTIN,
 	OBJ_CONTN,
 
+	SYMBOL,
 	STRING,
 	BARE_CONTN,
 	ENV,
@@ -93,7 +93,6 @@ struct obj_union {
 			struct obj *tail;
 		};
 		double num;
-		struct string *symb;
 		struct {
 			struct obj *(*fn)(CPS_ARGS);
 			const char *fnname;
@@ -106,12 +105,12 @@ struct obj_union {
 #define CAR(o) (((struct obj_union*)(o))->head)
 #define CDR(o) (((struct obj_union*)(o))->tail)
 #define AS_NUM(o) (((struct obj_union*)(o))->num)
-#define AS_SYMBOL(o) (((struct obj_union*)(o))->symb)
 #define AS_FN(o) ((struct obj_union*)(o))
 #define AS_CLOSURE(o) (&((struct obj_union*)(o))->closure)
 #define AS_BUILTIN(o) ((struct obj_union*)(o))
 #define AS_OBJ_CONTN(o) (((struct obj_union*)(o))->contnp)
 #define AS_CONTN(o) ((struct contn*)(o))
+#define AS_SYMBOL(o) ((struct string*)(o))
 #define AS_STRING(o) ((struct string*)(o))
 
 #define NIL ((struct obj*)&nil)
@@ -124,9 +123,9 @@ extern struct obj_union false_;
 
 // Weak references to every symbol
 extern struct hashtab interned_symbols;
+struct obj *intern_symbol(struct string *name);
 
 struct obj *make_obj(enum objtype type);
-struct obj *make_symbol(struct string *name);
 struct obj *make_num(double val);
 struct obj *make_fn(enum objtype type, struct obj *(*fn)(CPS_ARGS), const char *name);
 

@@ -362,7 +362,7 @@ static struct obj *parse_one(FILE *f) {
 			read_token(f); \
 			struct obj *quoted = parse_one(f); \
 			if (!quoted) return NULL; \
-			return cons(make_symbol(str_from_string_lit(#name)), cons(quoted, NIL)); \
+			return cons(intern_symbol(str_from_string_lit(#name)), cons(quoted, NIL)); \
 		}
 
 	switch (curtok.type) {
@@ -373,7 +373,7 @@ static struct obj *parse_one(FILE *f) {
 		QUOTE_CASE(TT_UNQUOTE, unquote)
 		QUOTE_CASE(TT_UNQUOTE_SPL, unquote-splicing)
 		case TT_IDENT:
-			return make_symbol(curtok.as.str);
+			return intern_symbol(curtok.as.str);
 		case TT_STRING:
 			return (struct obj *) curtok.as.str;
 		case TT_NUMBER:

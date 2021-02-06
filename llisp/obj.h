@@ -7,12 +7,10 @@
 
 enum objtype {
 	CELL,
-
 	NUM,
 	FN,
 	SPECFORM,
 	BUILTIN,
-
 	LAMBDA,
 	MACRO,
 	SYMBOL,
@@ -100,21 +98,26 @@ struct closure {
 	struct string *closurename;
 };
 
+/*
+ * A function/special form implemented in C instead of lisp.
+ */
+struct fn {
+	struct obj o;
+	struct obj *(*fn)(CPS_ARGS);
+	const char *fnname;
+};
+
 struct obj_union {
 	struct obj o;
 	union {
 		double num;
-		struct {
-			struct obj *(*fn)(CPS_ARGS);
-			const char *fnname;
-		};
 		const char *builtin;
 	};
 };
 #define CAR(o) (((struct cell*)(o))->head)
 #define CDR(o) (((struct cell*)(o))->tail)
 #define AS_NUM(o) (((struct obj_union*)(o))->num)
-#define AS_FN(o) ((struct obj_union*)(o))
+#define AS_FN(o) ((struct fn*)(o))
 #define AS_CLOSURE(o) ((struct closure*)(o))
 #define AS_BUILTIN(o) ((struct obj_union*)(o))
 #define AS_CONTN(o) ((struct contn*)(o))

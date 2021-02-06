@@ -34,7 +34,7 @@ struct obj *make_num(double val) {
 }
 struct obj *make_fn(enum objtype type, struct obj *(*fn)(CPS_ARGS), const char *name) {
 	assert(type == FN || type == SPECFORM);
-	struct obj *ret = make_obj(type);
+	struct obj *ret = gc_alloc(type, sizeof(struct fn));
 	AS_FN(ret)->fn = fn;
 	AS_FN(ret)->fnname = name;
 	return ret;

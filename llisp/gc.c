@@ -56,15 +56,21 @@ static void gc_queue_hashtab_entry(struct string *key, struct obj *value, void *
 static void gc_mark(struct obj *obj) {
 	if (ISMARKED(obj)) return;
 	ADDMARK(obj);
-	if (TYPE(obj) == STRING || TYPE(obj) == SYMBOL) return; /* no pointers in a string :) */
-	if (TYPE(obj) == HASHTABARR) {
+	switch (TYPE(obj)) {
+	default:
+		fprintf(stderr, "Fatal error: unknown object type %d\n", TYPE(obj));
+		abort();
+	case STRING:
+	case SYMBOL:
+		/* no pointers in a string :) */
+		return;
+	case HASHTABARR:
 		/* Should have been queued as part of its owner, because we don't have the length here */
 		/* Could be added as part of the temp roots while allocating. Hopefully if there's
 		 * anything in it it's already in the graph, because we don't have size here. */
 		/* TODO: change this to a struct {size, array} */
 		return;
-	}
-	if (TYPE(obj) == ENV) {
+	case ENV: {
 		struct env *env = (struct env *) obj;
 		/* If we allocate the environment but then need to collect when trying to allocate
 		 * the initial hashtable, we don't have anything to mark yet. */
@@ -75,18 +81,13 @@ static void gc_mark(struct obj *obj) {
 		gc_queue((struct obj *) env->parent);
 		return;
 	}
-	if (TYPE(obj) == CONTN) {
+	case CONTN: {
 		struct contn *contn = (struct contn *) obj;
 		gc_queue(contn->data);
 		gc_queue((struct obj *) contn->env);
 		gc_queue((struct obj *) contn->next);
 		return;
 	}
-	assert(TYPE_IS_OBJUNION(TYPE(obj)));
-	switch (TYPE(obj)) {
-	default:
-		fprintf(stderr, "Fatal error: unknown object type %d\n", TYPE(obj));
-		abort();
 	case NUM:
 	case FN:
 	case SPECFORM:

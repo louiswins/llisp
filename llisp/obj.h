@@ -29,7 +29,6 @@ struct obj {
 };
 
 #define TYPE(o) ((o)->type)
-#define TYPE_IS_OBJUNION(type) ((type) >= CELL && (type) <= BUILTIN)
 #define STATIC_OBJ(type) { NULL, NULL, type, 0 }
 
 struct string {

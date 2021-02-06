@@ -260,9 +260,6 @@ static struct obj *fn_eq_(CPS_ARGS) {
 	if (TYPE(a) == NUM && TYPE(b) == NUM) {
 		return AS_NUM(a) == AS_NUM(b) ? TRUE : FALSE;
 	}
-	if (TYPE(a) == STRING && TYPE(b) == STRING) {
-		return stringeq(AS_STRING(a), AS_STRING(b)) ? TRUE : FALSE;
-	}
 	return a == b ? TRUE : FALSE;
 }
 

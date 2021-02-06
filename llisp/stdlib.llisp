@@ -156,6 +156,7 @@
 
 (define equal? (lambda (a b)
   (cond ((eq? a b))
+        ((and (string? a) (string? b)) (eq? (string-compare a b) 0))
         ((and (pair? a) (pair? b)) (and (equal? (car a) (car b))
                                         (equal? (cdr a) (cdr b)))))))
 

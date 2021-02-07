@@ -141,6 +141,28 @@
 
 (define pi 3.14159265358979323846)
 
+(define Y (lambda (f)
+  ((lambda (x) (x x))
+   (lambda (x) (f (lambda v (apply (x x) v)))))))
+
+(define factorial-with-Y-demo (Y (lambda (rec)
+  (lambda (n)
+    (if (<= n 1)
+        1
+        (* n (rec (- n 1))))))))
+
+(define Y! (lambda (f-maker)
+  ((lambda (f)
+     (set! f (f-maker (lambda v (apply f v))))
+     f)
+   'NONE)))
+
+(define factorial-with-Y!-demo (Y! (lambda (rec)
+  (lambda (n)
+    (if (<= n 1)
+        1
+        (* n (rec (- n 1))))))))
+
 ; Disgustingly inefficient
 ; Also not guaranteed to work since we use doubles everywhere. Who knows about fmod.
 (define prime? (lambda (n)

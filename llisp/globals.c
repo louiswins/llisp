@@ -328,6 +328,40 @@ static struct obj *fn_apply(CPS_ARGS) {
 	return CAR(CDR(obj));
 }
 
+static struct obj *cons_with_true(CPS_ARGS) {
+	*ret = self->next;
+	return cons(obj, TRUE);
+}
+
+static struct obj *fn_macroexpand_1(CPS_ARGS) {
+	if (!check_args("macroexpand-1", obj, 1)) {
+		*ret = &cfail;
+		return NIL;
+	}
+	struct obj *form = CAR(obj);
+	if (TYPE(form) != CELL || TYPE(CAR(form)) != SYMBOL) {
+		// Not a simple application
+		*ret = self->next;
+		return cons(form, FALSE);
+	}
+	struct obj *funname = CAR(form);
+	struct obj *fun = getsym(self->env, AS_SYMBOL(funname));
+	if (TYPE(fun) != MACRO) {
+		// Not a macro
+		*ret = self->next;
+		return cons(form, FALSE);
+	}
+	struct contn *finish = dupcontn(self);
+	finish->data = NIL;
+	finish->fn = cons_with_true;
+
+	*ret = dupcontn(self);
+	(*ret)->data = fun;
+	(*ret)->next = finish;
+	(*ret)->fn = apply_closure;
+	return CDR(form);
+}
+
 static struct obj *make_closure_validate(const char *name, enum objtype type, CPS_ARGS) {
 	if (obj == NIL) {
 		fprintf(stderr, "%s: must have args\n", name);
@@ -613,6 +647,7 @@ void add_globals(struct env *env) {
 	DEFSYM(if, fn_if, SPECFORM);
 	DEFSYM(lambda, fn_lambda, SPECFORM);
 	DEFSYM(macro, fn_macro, SPECFORM);
+	DEFSYM(macroexpand-1, fn_macroexpand_1, FN);
 	DEFSYM(newline, fn_newline, FN);
 	DEFSYM(number?, fn_number_, FN);
 	DEFSYM(pair?, fn_pair_, FN);

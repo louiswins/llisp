@@ -139,6 +139,17 @@
         ((zero? n) (car lst))
         (else (nth (- n 1) (cdr lst))))))
 
+(define macroexpand (lambda (form)
+  (define macroexpand-until-#f (lambda (form)
+    (let ((res (macroexpand-1 form)))
+      (if (cdr res)
+          (macroexpand-until-#f (car res))
+          (car res)))))
+  (let ((res (macroexpand-1 form)))
+    (if (cdr res)
+        (cons (macroexpand-until-#f (car res)) #t)
+        res))))
+
 (define pi 3.14159265358979323846)
 
 (define Y (lambda (f)

@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?> 
 <AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
   <Type Name="obj">
-    <DisplayString Condition="type == CELL">{(cell*)this,na}</DisplayString>
+    <DisplayString Condition="type == CELL" IncludeView="noparens">{(cell*)this,view(noparens)}</DisplayString>
+    <DisplayString Condition="type == CELL" ExcludeView="noparens">{(cell*)this,na}</DisplayString>
     <DisplayString Condition="type == NUM">{(num*)this,na}</DisplayString>
     <DisplayString Condition="type == SYMBOL">{*(string*)this,sb}</DisplayString>
     <DisplayString Condition="type == STRING">{*(string*)this}</DisplayString>

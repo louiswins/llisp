@@ -228,15 +228,6 @@ static struct obj *fn_symbol_(CPS_ARGS) {
 	return TYPE(CAR(obj)) == SYMBOL ? TRUE : FALSE;
 }
 
-static struct obj *fn_begin(CPS_ARGS) {
-	*ret = self->next;
-	struct obj *val = NIL;
-	for (; TYPE(obj) == CELL; obj = CDR(obj)) {
-		val = CAR(obj);
-	}
-	return val;
-}
-
 static struct obj *fn_gensym(CPS_ARGS) {
 	static int symnum = 0;
 	int len = length(obj);
@@ -610,7 +601,6 @@ static struct obj *fn_substring(CPS_ARGS) {
 void add_globals(struct env *env) {
 #define DEFSYM(name, fn, type) definesym(env, str_from_string_lit(#name), make_fn(type, fn, #name)); gc_cycle()
 	DEFSYM(apply, fn_apply, FN);
-	DEFSYM(begin, fn_begin, FN);
 	DEFSYM(call-with-current-continuation, fn_callcc, FN);
 	DEFSYM(car, fn_car, FN);
 	DEFSYM(cdr, fn_cdr, FN);

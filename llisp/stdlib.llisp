@@ -13,6 +13,12 @@
 (define caddr (lambda (p) (car (cdr (cdr p)))))
 
 ; bootstrap macros
+
+; quasiquote uses cond which uses let, so avoid quasiquote
+(define let (macro (bindings . body)
+  (cons (cons 'lambda (cons (map car bindings) body))
+        (map cadr bindings))))
+
 (define unquote (lambda args (error "unquote , must only be used within quasiquote `")))
 (define unquote-splicing (lambda args (error "unquote-splicing ,@ must only be used within quasiquote `")))
 (define quasiquote (macro (data)
@@ -25,41 +31,37 @@
         (else   ; `(x . y) => (`x . `y)
          (list 'cons (list 'quasiquote (car data)) (list 'quasiquote (cdr data)))))))
 
-; if in terms of cond
-;(define if (macro (cnd then . els)
-;  (cons 'cond (cons (list cnd then)
-;                           (cond ((null? els) ())
-;                                 (else (list (cons #t els))))))))
-
 ; cond in terms of if
 ; (quasiquote) uses (cond), so do it manually
 (define cond (macro condns
   (if (null? condns)
       #f
       (if (null? (cdr (car condns)))
-          (let ((sym (gensym)))                         ; hygiene :)
+          (let ((sym (gensym)))                                 ; "hygiene" :)
             (list 'let (list (list sym (car (car condns))))
                (list 'if sym sym (cons 'cond (cdr condns)))))
           (if (if (null? (cdr condns)) (eq? (car (car condns)) 'else))
-              (cons 'begin (cdr (car condns)))          ; just do it if you saw else in the last slot
-              (list 'if (car (car condns))              ; test
-                    (cons 'begin (cdr (car condns)))    ; result
+              (cons 'let (cons () (cdr (car condns))))          ; just do it if you saw else in the last slot
+              (list 'if (car (car condns))                      ; test
+                    (cons 'let (cons () (cdr (car condns))))    ; result
                     (cons 'cond (cdr condns))))))))
 
 (define map (lambda (fn lst)
-  (if (null? lst)
-      nil
-      (cons (fn (car lst)) (map fn (cdr lst))))))
+  (foldr (lambda (elem rest) (cons (fn elem) rest))
+         nil
+         lst)))
+
 (define for-each (lambda (fn lst)
   (map fn lst)
   nil))
 
 (define filter (lambda (fn lst)
-  (define filter-helper (lambda (fn lst accum)
-    (cond ((null? lst) accum)
-          ((fn (car lst)) (filter-helper fn (cdr lst) (cons (car lst) accum)))
-          (else (filter-helper fn (cdr lst) accum)))))
-  (reverse (filter-helper fn lst nil))))
+  (foldr (lambda (elem rest)
+           (if (fn elem)
+               (cons elem rest)
+               rest))
+         ()
+         lst)))
 
 (define foldl (lambda (fn init lst)
   (if (null? lst)
@@ -84,22 +86,18 @@
   (cond ((null? lst))
         ((pair? lst) (list?-helper lst (cdr lst))))))
 
-(define let (macro (bindings . body)
-  `((lambda ,(map car bindings) ,@body)
-    ,@(map cadr bindings))))
+(define begin (macro exprs
+  `(let () ,@exprs)))
 
 (define let* (macro (bindings . body)
-  (cond ((null? bindings)
-         `(begin ,@body))
-        ((null? (cdr bindings))
-         `(let ,bindings ,@body))
-        (else
-         `(let (,(car bindings))
-            (let* ,(cdr bindings) ,@body))))))
+  (if (null? bindings)
+      `(let () ,@body)
+      `(let (,(car bindings))
+        (let* ,(cdr bindings) ,@body)))))
 
 (define letrec (macro (bindings . body)
-  `((lambda ()
-     ,@(map (lambda (binding) `(define ,@binding)) bindings) ,@body))))
+  `(let ()
+     ,@(map (lambda (binding) `(define ,@binding)) bindings) ,@body)))
 
 (define reverse (lambda (lst)
   (foldl (lambda (rest cur) (cons cur rest)) () lst)))

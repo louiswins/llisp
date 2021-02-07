@@ -219,6 +219,15 @@ static struct obj *fn_pair_(CPS_ARGS) {
 	return TYPE(CAR(obj)) == CELL ? TRUE : FALSE;
 }
 
+static struct obj *fn_symbol_(CPS_ARGS) {
+	if (!check_args("symbol?", obj, 1)) {
+		*ret = &cfail;
+		return NIL;
+	}
+	*ret = self->next;
+	return TYPE(CAR(obj)) == SYMBOL ? TRUE : FALSE;
+}
+
 static struct obj *fn_begin(CPS_ARGS) {
 	*ret = self->next;
 	struct obj *val = NIL;
@@ -626,6 +635,7 @@ void add_globals(struct env *env) {
 	DEFSYM(string-compare, fn_string_compare, FN);
 	DEFSYM(string-length, fn_string_length, FN);
 	DEFSYM(substring, fn_substring, FN);
+	DEFSYM(symbol?, fn_symbol_, FN);
 	DEFSYM(write, fn_write, FN);
 #define REGISTER_FN(name, op, ...) DEFSYM(op, name, FN);
 	ARITH_OPS(REGISTER_FN)

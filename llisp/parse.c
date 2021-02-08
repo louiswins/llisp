@@ -44,6 +44,8 @@ enum token_type {
 	TT_IDENT,
 	TT_STRING,
 	TT_NUMBER,
+	TT_SHARPT,
+	TT_SHARPF,
 	TT_EOF,
 	TT_ERROR,
 };
@@ -213,7 +215,7 @@ static void read_token(FILE *f) {
 			return;
 	}
 
-	// identifier, number, or .
+	// identifier, number, #t/#f, or .
 	int validident = 1;
 	struct string_builder sb;
 	init_string_builder(&sb);
@@ -243,6 +245,24 @@ static void read_token(FILE *f) {
 			curtok.as.num = val;
 			return;
 		}
+	}
+	// Identifiers can't start with #
+	if (sb.buf->str[0] == '#') {
+		// But we do support #t and #f specially
+		if (sb.used == 2) {
+			if (sb.buf->str[1] == 't') {
+				curtok.type = TT_SHARPT;
+				return;
+			} else if (sb.buf->str[1] == 'f') {
+				curtok.type = TT_SHARPF;
+				return;
+			}
+		}
+		fprintf(stderr, "[line %d]: invalid identifier ", curtok.line);
+		print_string_builder_escaped(stderr, &sb);
+		fputc('\n', stderr);
+		curtok.type = TT_ERROR;
+		return;
 	}
 	curtok.type = TT_IDENT;
 	curtok.as.str = finish_string_builder(&sb);
@@ -281,6 +301,12 @@ static void print_curtok(FILE *f) {
 		break;
 	case TT_NUMBER:
 		fprintf(f, "%f", curtok.as.num);
+		break;
+	case TT_SHARPT:
+		fputs("#t", f);
+		break;
+	case TT_SHARPF:
+		fputs("#f", f);
 		break;
 	case TT_EOF:
 		fputs("<EOF>", f);
@@ -378,6 +404,10 @@ static struct obj *parse_one(FILE *f) {
 			return (struct obj *) curtok.as.str;
 		case TT_NUMBER:
 			return make_num(curtok.as.num);
+		case TT_SHARPT:
+			return TRUE;
+		case TT_SHARPF:
+			return FALSE;
 	}
 
 	error("unexpected token");

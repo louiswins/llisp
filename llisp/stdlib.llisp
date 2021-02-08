@@ -3,8 +3,6 @@
 
 (define zero? (lambda(n) (= 0 n)))
 
-(define #t (= 0 0))
-(define #f (= 0 1))
 (define not (lambda (x) (if x #f #t)))
 (define id (lambda (x) x))
 

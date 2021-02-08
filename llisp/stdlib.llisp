@@ -220,16 +220,16 @@
         ((and (pair? a) (pair? b)) (and (equal? (car a) (car b))
                                         (equal? (cdr a) (cdr b)))))))
 
-(define member 'UNDEFINED)
-(define memq 'UNDEFINED)
-(let ((make-searcher (lambda (pred)
-        (define searcher (lambda (elem lst)
-          (cond ((null? lst) #f)
-                ((pred elem (car lst)) lst)
-                (else (searcher elem (cdr lst))))))
-        searcher)))
-  (set! member (make-searcher equal?))
-  (set! memq (make-searcher eq?)))
+(define memf (lambda (pred lst)
+  (cond ((null? lst) #f)
+        ((pred (car lst)) lst)
+        (else (memf pred (cdr lst))))))
+
+(define member (lambda (elem lst)
+  (memf (lambda (lst-val) (equal? elem lst-val)) lst)))
+
+(define memq (lambda (elem lst)
+  (memf (lambda (lst-val) (eq? elem lst-val)) lst)))
 
 (define match (macro (expr . clauses)
   (let ((val-to-match (gensym)))

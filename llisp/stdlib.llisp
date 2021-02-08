@@ -231,6 +231,17 @@
 (define memq (lambda (elem lst)
   (memf (lambda (lst-val) (eq? elem lst-val)) lst)))
 
+(define assf (lambda (pred alst)
+  (cond ((null? alst) #f)
+        ((pred (car (car alst))) (car alst))
+        (else (assf pred (cdr alst))))))
+
+(define assoc (lambda (elem alst)
+  (assf (lambda (lst-val) (equal? elem lst-val)) alst)))
+
+(define assq (lambda (elem alst)
+  (assf (lambda (lst-val) (eq? elem lst-val)) alst)))
+
 (define match (macro (expr . clauses)
   (let ((val-to-match (gensym)))
     `(let ((,val-to-match ,expr))

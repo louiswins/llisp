@@ -94,31 +94,38 @@ static struct obj *fn_quote(CPS_ARGS) {
 	return CAR(obj);
 }
 
-static struct obj *set_symbol_cps(const char *name, struct obj *(*next)(CPS_ARGS), CPS_ARGS) {
-	if (!check_args(name, obj, 2)) {
-		*ret = &cfail;
-		return NIL;
-	}
-	if (TYPE(CAR(obj)) != SYMBOL) {
-		fprintf(stderr, "%s: must define a symbol\n", name);
+static struct obj *set_symbol_cps(const char *fnname, struct obj *(*next)(CPS_ARGS), struct obj *sym, struct obj *defn, struct contn *self, struct contn **ret) {
+	if (TYPE(sym) != SYMBOL) {
+		fprintf(stderr, "%s: must define a symbol\n", fnname);
 		*ret = &cfail;
 		return NIL;
 	}
 	struct contn *resume = dupcontn(self);
-	resume->data = CAR(obj);
+	resume->data = sym;
 	resume->fn = next;
 
 	*ret = dupcontn(self);
 	(*ret)->next = resume;
 	(*ret)->fn = eval_cps;
-	return CAR(CDR(obj));
+	return defn;
 }
 
 static struct obj *fn_define(CPS_ARGS);
 static struct obj *do_definesym(CPS_ARGS);
 
 static struct obj *fn_define(CPS_ARGS) {
-	return set_symbol_cps("define", do_definesym, self, obj, ret);
+	if (TYPE(CAR(obj)) == CELL) {
+		struct obj *name = CAR(CAR(obj));
+		struct obj *args = CDR(CAR(obj));
+		struct obj *body = CDR(obj);
+		struct obj *lambda = cons(intern_symbol(str_from_string_lit("lambda")), cons(args, body));
+		return set_symbol_cps("define", do_definesym, name, lambda, self, ret);
+	}
+	if (!check_args("define", obj, 2)) {
+		*ret = &cfail;
+		return NIL;
+	}
+	return set_symbol_cps("define", do_definesym, CAR(obj), CAR(CDR(obj)), self, ret);
 }
 /* obj = eval(defn), self->data = sym */
 static struct obj *do_definesym(CPS_ARGS) {
@@ -131,7 +138,11 @@ static struct obj *fn_set_(CPS_ARGS);
 static struct obj *do_setsym(CPS_ARGS);
 
 static struct obj *fn_set_(CPS_ARGS) {
-	return set_symbol_cps("set!", do_setsym, self, obj, ret);
+	if (!check_args("set!", obj, 2)) {
+		*ret = &cfail;
+		return NIL;
+	}
+	return set_symbol_cps("set!", do_setsym, CAR(obj), CAR(CDR(obj)), self, ret);
 }
 /* obj = eval(defn), self->data = sym */
 static struct obj *do_setsym(CPS_ARGS) {

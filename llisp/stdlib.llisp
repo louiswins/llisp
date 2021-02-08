@@ -1,25 +1,30 @@
 (define nil ())
-(define null? (lambda (x) (eq? x nil)))
+(define (null? x) (eq? x nil))
 
-(define zero? (lambda(n) (= 0 n)))
+(define (zero? n) (= 0 n))
 
-(define not (lambda (x) (if x #f #t)))
-(define id (lambda (x) x))
+(define (not x) (if x #f #t))
+(define (id x) x)
 
-(define cadr (lambda (p) (car (cdr p))))
-(define cddr (lambda (p) (cdr (cdr p))))
-(define caddr (lambda (p) (car (cdr (cdr p)))))
+(define (list . args) args)
+
+(define (cadr p) (car (cdr p)))
+(define (cddr p) (cdr (cdr p)))
+(define (caddr p) (car (cdr (cdr p))))
 
 ; bootstrap macros
 
-; quasiquote uses cond which uses let, so avoid quasiquote
-(define let (macro (bindings . body)
-  (cons (cons 'lambda (cons (map car bindings) body))
-        (map cadr bindings))))
+(define defmacro (macro (nameargs . body)
+  (list 'define (car nameargs) (cons 'macro (cons (cdr nameargs) body)))))
 
-(define unquote (lambda args (error "unquote , must only be used within quasiquote `")))
-(define unquote-splicing (lambda args (error "unquote-splicing ,@ must only be used within quasiquote `")))
-(define quasiquote (macro (data)
+; quasiquote uses cond which uses let, so avoid quasiquote
+(defmacro (let bindings . body)
+  (cons (cons 'lambda (cons (map car bindings) body))
+        (map cadr bindings)))
+
+(define (unquote . args) (error "unquote , must only be used within quasiquote `"))
+(define (unquote-splicing . args) (error "unquote-splicing ,@ must only be used within quasiquote `"))
+(defmacro (quasiquote data)
   (cond ((not (pair? data))   ; `x => 'x
          (list 'quote data))
         ((eq? (car data) 'unquote)   ; `,x => x
@@ -27,11 +32,11 @@
         ((and (pair? (car data)) (eq? (car (car data)) 'unquote-splicing))   ; `(,@x . y) => (append x `y)
          (list 'append (cadr (car data)) (list 'quasiquote (cdr data))))
         (else   ; `(x . y) => (`x . `y)
-         (list 'cons (list 'quasiquote (car data)) (list 'quasiquote (cdr data)))))))
+         (list 'cons (list 'quasiquote (car data)) (list 'quasiquote (cdr data))))))
 
 ; cond in terms of if
 ; (quasiquote) uses (cond), so do it manually
-(define cond (macro condns
+(defmacro (cond . condns)
   (if (null? condns)
       #f
       (if (null? (cdr (car condns)))
@@ -42,66 +47,64 @@
               (cons 'let (cons () (cdr (car condns))))          ; just do it if you saw else in the last slot
               (list 'if (car (car condns))                      ; test
                     (cons 'let (cons () (cdr (car condns))))    ; result
-                    (cons 'cond (cdr condns))))))))
+                    (cons 'cond (cdr condns)))))))
 
-(define map (lambda (fn lst)
+(define (map fn lst)
   (foldr (lambda (elem rest) (cons (fn elem) rest))
          nil
-         lst)))
+         lst))
 
-(define for-each (lambda (fn lst)
+(define (for-each fn lst)
   (map fn lst)
-  nil))
+  nil)
 
-(define filter (lambda (fn lst)
+(define (filter fn lst)
   (foldr (lambda (elem rest)
            (if (fn elem)
                (cons elem rest)
                rest))
          ()
-         lst)))
+         lst))
 
-(define foldl (lambda (fn init lst)
+(define (foldl fn init lst)
   (if (null? lst)
       init
-      (foldl fn (fn init (car lst)) (cdr lst)))))
+      (foldl fn (fn init (car lst)) (cdr lst))))
 
-(define foldr (lambda (fn init lst)
+(define (foldr fn init lst)
   (if (null? lst)
       init
-      (fn (car lst) (foldr fn init (cdr lst))))))
+      (fn (car lst) (foldr fn init (cdr lst)))))
 
-(define list (lambda args args))
-
-(define list? (lambda (lst)
-  (define list?-helper (lambda (tortoise hare)
+(define (list? lst)
+  (define (list?-helper tortoise hare)
     (cond ((null? hare))
           ((eq? tortoise hare) #f) ; circular
           ((pair? hare)
            (if (null? (cdr hare))
                #t
-               (list?-helper (cdr tortoise) (cddr hare)))))))
+               (list?-helper (cdr tortoise) (cddr hare))))))
   (cond ((null? lst))
-        ((pair? lst) (list?-helper lst (cdr lst))))))
+        ((pair? lst) (list?-helper lst (cdr lst)))))
 
-(define begin (macro exprs
-  `(let () ,@exprs)))
+(defmacro (begin . exprs)
+  `(let () ,@exprs))
 
-(define let* (macro (bindings . body)
+(defmacro (let* bindings . body)
   (if (null? bindings)
       `(let () ,@body)
       `(let (,(car bindings))
-        (let* ,(cdr bindings) ,@body)))))
+        (let* ,(cdr bindings) ,@body))))
 
-(define letrec (macro (bindings . body)
+(defmacro (letrec bindings . body)
   `(let ()
-     ,@(map (lambda (binding) `(define ,@binding)) bindings) ,@body)))
+     ,@(map (lambda (binding) `(define ,@binding)) bindings) ,@body))
 
-(define reverse (lambda (lst)
-  (foldl (lambda (rest cur) (cons cur rest)) () lst)))
+(define (reverse lst)
+  (foldl (lambda (rest cur) (cons cur rest)) () lst))
 
 ; matches python
-(define range (lambda args
+(define (range . args)
   (define nargs (length args))
   (define start
     (if (> nargs 1) (car args) 0))
@@ -109,73 +112,73 @@
     (if (> nargs 1) (cadr args) (car args)))
   (define step
     (if (> nargs 2) (caddr args) 1))
-  (define make-conser (lambda (el contn)
-    (lambda (tail) (contn (cons el tail)))))
-  (define range-helper (lambda (cur accum)
+  (define (make-conser el contn)
+    (lambda (tail) (contn (cons el tail))))
+  (define (range-helper cur accum)
     (if (>= cur end)
         accum
-        (range-helper (+ cur step) (make-conser cur accum)))))
-  ((range-helper start id) nil)))
+        (range-helper (+ cur step) (make-conser cur accum))))
+  ((range-helper start id) nil))
 
 ; (quasiquote) uses (and), so do it the long way
-(define and (macro args
+(defmacro (and . args)
   (cond ((null? args) #t) ; (and)
         ((not (pair? args)) (error "and must be given a list")) ; (and . x)
         ((null? (cdr args)) (car args)) ; (and x)
-        (else (list 'if (car args) (cons 'and (cdr args)))))))
+        (else (list 'if (car args) (cons 'and (cdr args))))))
 
-(define or (macro args
+(defmacro (or . args)
   (if (null? args)
       #f
-      `(cond ,@(map list args)))))
+      `(cond ,@(map list args))))
 
-(define append (lambda (xs ys)
-  (foldr cons ys xs)))
+(define (append xs ys)
+  (foldr cons ys xs))
 
-(define nth (lambda (n lst)
+(define (nth n lst)
   (cond ((null? lst) (error "list too short"))
         ((zero? n) (car lst))
-        (else (nth (- n 1) (cdr lst))))))
+        (else (nth (- n 1) (cdr lst)))))
 
-(define macroexpand (lambda (form)
-  (define macroexpand-until-#f (lambda (form)
+(define (macroexpand form)
+  (define (macroexpand-until-#f form)
     (let ((res (macroexpand-1 form)))
       (if (cdr res)
           (macroexpand-until-#f (car res))
-          (car res)))))
+          (car res))))
   (let ((res (macroexpand-1 form)))
     (if (cdr res)
         (cons (macroexpand-until-#f (car res)) #t)
-        res))))
+        res)))
 
 ; This isn't 100% accurate. It makes a couple assumptions:
 ; 1. The form passed in doesn't bind or create any macros, and
 ; 2. No existing macros are shadowed with define (or derived forms such as letrec).
 ; However, it does support shadowing macros with lambda and derived forms like let
-(define macroexpand-all (lambda (form)
-  (define map-macroexpand-all (lambda (lst shadowed-macros)
+(define (macroexpand-all form)
+  (define (map-macroexpand-all lst shadowed-macros)
     (if (pair? lst)
         (cons (real-macroexpand-all (car lst) shadowed-macros) (map-macroexpand-all (cdr lst) shadowed-macros))
-        (real-macroexpand-all lst shadowed-macros))))
-  (define append-improper (lambda (a b)
+        (real-macroexpand-all lst shadowed-macros)))
+  (define (append-improper a b)
     (cond ((pair? a) (append-improper (cdr a) (cons (car a) b)))
           ((null? a) b)
-          (else (cons a b)))))
-  (define real-macroexpand-all (lambda (form shadowed-macros)
+          (else (cons a b))))
+  (define (real-macroexpand-all form shadowed-macros)
     (cond ((not (pair? form)) form)
           ((memq (car form) shadowed-macros)
            (cons (car form)
                  (map-macroexpand-all (cdr form) shadowed-macros)))
           ((eq? 'lambda (car form))
            `(lambda ,(cadr form) ,@(map-macroexpand-all (cddr form) (append-improper (cadr form) shadowed-macros))))
-          (else (map-macroexpand-all (car (macroexpand form)) shadowed-macros)))))
-  (real-macroexpand-all form '())))
+          (else (map-macroexpand-all (car (macroexpand form)) shadowed-macros))))
+  (real-macroexpand-all form '()))
 
 (define pi 3.14159265358979323846)
 
-(define Y (lambda (f)
+(define (Y f)
   ((lambda (x) (x x))
-   (lambda (x) (f (lambda v (apply (x x) v)))))))
+   (lambda (x) (f (lambda v (apply (x x) v))))))
 
 (define factorial-with-Y-demo (Y (lambda (rec)
   (lambda (n)
@@ -183,11 +186,11 @@
         1
         (* n (rec (- n 1))))))))
 
-(define Y! (lambda (f-maker)
+(define (Y! f-maker)
   ((lambda (f)
      (set! f (f-maker (lambda v (apply f v))))
      f)
-   'UNDEFINED)))
+   'UNDEFINED))
 
 (define factorial-with-Y!-demo (Y! (lambda (rec)
   (lambda (n)
@@ -197,57 +200,57 @@
 
 ; Disgustingly inefficient
 ; Also not guaranteed to work since we use doubles everywhere. Who knows about fmod.
-(define prime? (lambda (n)
-  (define prime-helper (lambda (k)
+(define (prime? n)
+  (define (prime-helper k)
     (cond ((<= k 1) #t)
           ((= (% n k) 0) #f)
-          (else (prime-helper (- k 2))))))
+          (else (prime-helper (- k 2)))))
   (cond ((< n 2) #f)
         ((= n 2) #t)
         ((= 0 (% n 2)) #f)
-        (else (prime-helper (- n 2))))))
+        (else (prime-helper (- n 2)))))
 
-(define length (lambda (lst)
-  (define length-helper (lambda (n lst)
+(define (length lst)
+  (define (length-helper n lst)
     (cond ((null? lst) n)
           ((pair? lst) (length-helper (+ n 1) (cdr lst)))
-          (else (error "not a list")))))
-  (length-helper 0 lst)))
+          (else (error "not a list"))))
+  (length-helper 0 lst))
 
-(define equal? (lambda (a b)
+(define (equal? a b)
   (cond ((eq? a b))
         ((and (string? a) (string? b)) (eq? (string-compare a b) 0))
         ((and (pair? a) (pair? b)) (and (equal? (car a) (car b))
-                                        (equal? (cdr a) (cdr b)))))))
+                                        (equal? (cdr a) (cdr b))))))
 
-(define memf (lambda (pred lst)
+(define (memf pred lst)
   (cond ((null? lst) #f)
         ((pred (car lst)) lst)
-        (else (memf pred (cdr lst))))))
+        (else (memf pred (cdr lst)))))
 
-(define member (lambda (elem lst)
-  (memf (lambda (lst-val) (equal? elem lst-val)) lst)))
+(define (member elem lst)
+  (memf (lambda (lst-val) (equal? elem lst-val)) lst))
 
-(define memq (lambda (elem lst)
-  (memf (lambda (lst-val) (eq? elem lst-val)) lst)))
+(define (memq elem lst)
+  (memf (lambda (lst-val) (eq? elem lst-val)) lst))
 
-(define assf (lambda (pred alst)
+(define (assf pred alst)
   (cond ((null? alst) #f)
         ((pred (car (car alst))) (car alst))
-        (else (assf pred (cdr alst))))))
+        (else (assf pred (cdr alst)))))
 
-(define assoc (lambda (elem alst)
-  (assf (lambda (lst-val) (equal? elem lst-val)) alst)))
+(define (assoc elem alst)
+  (assf (lambda (lst-val) (equal? elem lst-val)) alst))
 
-(define assq (lambda (elem alst)
-  (assf (lambda (lst-val) (eq? elem lst-val)) alst)))
+(define (assq elem alst)
+  (assf (lambda (lst-val) (eq? elem lst-val)) alst))
 
-(define match (macro (expr . clauses)
+(defmacro (match expr . clauses)
   (let ((val-to-match (gensym)))
     `(let ((,val-to-match ,expr))
-      (match* ,val-to-match ,@clauses)))))
+      (match* ,val-to-match ,@clauses))))
 
-(define match* (macro (val . clauses)
+(defmacro (match* val . clauses)
   (if (null? clauses)
       ()                   ; No matching clauses. You could also consider something like `(error)
       (let ((pattern (car (car clauses)))
@@ -255,9 +258,9 @@
             (rest (cdr clauses))
             (fail (gensym)))
         `(let ((,fail (lambda () (match* ,val ,@rest))))
-          (match-pattern ,val ,pattern (let () ,@exps) (,fail)))))))
+          (match-pattern ,val ,pattern (let () ,@exps) (,fail))))))
 
-(define match-pattern (macro (val pattern kt kf)
+(defmacro (match-pattern val pattern kt kf)
   (cond ((eq? pattern '_) kt)
         ((eq? pattern '()) `(if (null? ,val) ,kt ,kf))
         ((symbol? pattern) `(let ((,pattern ,val)) ,kt))
@@ -273,10 +276,6 @@
                         (match-pattern ,valy ,(cdr pattern) ,kt ,kf)
                         ,kf))
                     ,kf))))
-        (else `(if (equal? ,val (quote ,pattern)) ,kt ,kf)))))
+        (else `(if (equal? ,val (quote ,pattern)) ,kt ,kf))))
 
 (define call/cc call-with-current-continuation)
-
-; to help with copy/pasting from repl.it
-(define define-macro (macro (nameargs . body)
-  `(define ,(car nameargs) (macro ,(cdr nameargs) ,@body))))

@@ -373,47 +373,65 @@ static struct obj *fn_macroexpand_1(CPS_ARGS) {
 	return CDR(form);
 }
 
-static struct obj *make_closure_validate(const char *name, enum objtype type, CPS_ARGS) {
-	if (obj == NIL) {
-		fprintf(stderr, "%s: must have args\n", name);
-		*ret = &cfail;
-		return NIL;
-	}
-	struct obj *args = CAR(obj);
+static struct obj *make_closure_validate(const char *name, enum objtype type, struct obj *args, struct obj *body, struct env *env) {
 	if (args != NIL && TYPE(args) != SYMBOL && TYPE(args) != CELL) {
 		fprintf(stderr, "%s: expected symbol or list of symbols\n", name);
-		*ret = &cfail;
 		return NIL;
 	}
 	if (TYPE(args) == CELL) {
-		for (; TYPE(args) == CELL; args = CDR(args)) {
-			if (TYPE(CAR(args)) != SYMBOL) {
+		struct obj *curarg = args;
+		for (; TYPE(curarg) == CELL; curarg = CDR(curarg)) {
+			if (TYPE(CAR(curarg)) != SYMBOL) {
 				fprintf(stderr, "%s: expected symbol or list of symbols\n", name);
-				*ret = &cfail;
 				return NIL;
 			}
 		}
-		if (args != NIL && TYPE(args) != SYMBOL) {
+		if (curarg != NIL && TYPE(curarg) != SYMBOL) {
 			fprintf(stderr, "%s: expected symbol or list of symbols\n", name);
-			*ret = &cfail;
 			return NIL;
 		}
 	}
-	if (TYPE(CDR(obj)) != CELL) {
+	if (TYPE(body) != CELL) {
 		fprintf(stderr, "%s: invalid body\n", name);
-		*ret = &cfail;
 		return NIL;
 	}
-	*ret = self->next;
-	struct obj *closure = make_closure(type, CAR(obj), CDR(obj), self->env);
-	return closure;
+	return make_closure(type, args, body, env);
 }
 
 static struct obj *fn_lambda(CPS_ARGS) {
-	return make_closure_validate("lambda", LAMBDA, self, obj, ret);
+	if (TYPE(obj) != CELL) {
+		fputs("lambda: invalid args\n", stderr);
+		*ret = &cfail;
+		return NIL;
+	}
+	struct obj *val = make_closure_validate("lambda", LAMBDA, CAR(obj), CDR(obj), self->env);
+	if (val) {
+		*ret = self->next;
+		return val;
+	} else {
+		*ret = &cfail;
+		return NIL;
+	}
 }
-static struct obj *fn_macro(CPS_ARGS) {
-	return make_closure_validate("macro", MACRO, self, obj, ret);
+
+static struct obj *fn_defmacro(CPS_ARGS) {
+	if (TYPE(obj) != CELL || TYPE(CAR(obj)) != CELL) {
+		fputs("defmacro: invalid macro name/args\n", stderr);
+		*ret = &cfail;
+		return NIL;
+	}
+	struct obj *name = CAR(CAR(obj));
+	struct obj *args = CDR(CAR(obj));
+	struct obj *body = CDR(obj);
+	struct obj *macro = make_closure_validate("defmacro", MACRO, args, body, self->env);
+	if (!macro) {
+		*ret = &cfail;
+		return NIL;
+	}
+
+	definesym(self->env, AS_SYMBOL(name), macro);
+	*ret = self->next;
+	return NIL;
 }
 
 static struct obj *fn_number_(CPS_ARGS) {
@@ -651,13 +669,13 @@ void add_globals(struct env *env) {
 	DEFSYM(cdr, fn_cdr, FN);
 	DEFSYM(cons, fn_cons, FN);
 	DEFSYM(define, fn_define, SPECFORM);
+	DEFSYM(defmacro, fn_defmacro, SPECFORM);
 	DEFSYM(display, fn_display, FN);
 	DEFSYM(eq?, fn_eq_, FN);
 	DEFSYM(error, fn_error, FN);
 	DEFSYM(gensym, fn_gensym, FN);
 	DEFSYM(if, fn_if, SPECFORM);
 	DEFSYM(lambda, fn_lambda, SPECFORM);
-	DEFSYM(macro, fn_macro, SPECFORM);
 	DEFSYM(macroexpand-1, fn_macroexpand_1, FN);
 	DEFSYM(newline, fn_newline, FN);
 	DEFSYM(number?, fn_number_, FN);

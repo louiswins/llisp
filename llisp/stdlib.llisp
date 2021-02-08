@@ -14,9 +14,6 @@
 
 ; bootstrap macros
 
-(define defmacro (macro (nameargs . body)
-  (list 'define (car nameargs) (cons 'macro (cons (cdr nameargs) body)))))
-
 ; quasiquote uses cond which uses let, so avoid quasiquote
 (defmacro (let bindings . body)
   (cons (cons 'lambda (cons (map car bindings) body))

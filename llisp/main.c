@@ -4,6 +4,7 @@
 #include "env.h"
 #include "gc.h"
 #include "globals.h"
+#include "macroexpander.h"
 #include "obj.h"
 #include "parse.h"
 #include "print.h"
@@ -30,7 +31,12 @@ int main() {
 	struct obj *obj;
 	while (!repl_done && (obj = parse(stdin)) != NULL) {
 		obj = run_cps(obj, gc_global_env);
-		printf("=> ");print(obj);
+		printf("=> ");
+		if (obj) {
+			print(obj);
+		} else {
+			printf("NULL");
+		}
 		gc_collect();
 		if (!repl_done) {
 			printf("\n\n$ ");

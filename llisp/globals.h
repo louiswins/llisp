@@ -4,7 +4,9 @@ struct env;
 struct obj;
 
 void add_globals(struct env *env);
-
+_Bool is_real_lambda(struct obj *obj, struct env *env);
+_Bool is_real_define(struct obj *obj, struct env *env);
+_Bool is_real_defmacro(struct obj *obj, struct env *env);
 
 /* Helpers for defining more builtins */
 

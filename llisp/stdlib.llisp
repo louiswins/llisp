@@ -12,24 +12,33 @@
 (define (cddr p) (cdr (cdr p)))
 (define (caddr p) (car (cdr (cdr p))))
 
+(define (foldr fn init lst)
+  (if (null? lst)
+      init
+      (fn (car lst) (foldr fn init (cdr lst)))))
+
+(define (map fn lst)
+  (foldr (lambda (elem rest) (cons (fn elem) rest))
+         nil
+         lst))
+
+(define (filter fn lst)
+  (foldr (lambda (elem rest)
+           (if (fn elem)
+               (cons elem rest)
+               rest))
+         ()
+         lst))
+
+(define (append xs ys)
+  (foldr cons ys xs))
+
 ; bootstrap macros
 
 ; quasiquote uses cond which uses let, so avoid quasiquote
 (defmacro (let bindings . body)
   (cons (cons 'lambda (cons (map car bindings) body))
         (map cadr bindings)))
-
-(define (unquote . args) (error "unquote , must only be used within quasiquote `"))
-(define (unquote-splicing . args) (error "unquote-splicing ,@ must only be used within quasiquote `"))
-(defmacro (quasiquote data)
-  (cond ((not (pair? data))   ; `x => 'x
-         (list 'quote data))
-        ((eq? (car data) 'unquote)   ; `,x => x
-         (cadr data))
-        ((and (pair? (car data)) (eq? (car (car data)) 'unquote-splicing))   ; `(,@x . y) => (append x `y)
-         (list 'append (cadr (car data)) (list 'quasiquote (cdr data))))
-        (else   ; `(x . y) => (`x . `y)
-         (list 'cons (list 'quasiquote (car data)) (list 'quasiquote (cdr data))))))
 
 ; cond in terms of if
 ; (quasiquote) uses (cond), so do it manually
@@ -46,43 +55,29 @@
                     (cons 'let (cons () (cdr (car condns))))    ; result
                     (cons 'cond (cdr condns)))))))
 
-(define (map fn lst)
-  (foldr (lambda (elem rest) (cons (fn elem) rest))
-         nil
-         lst))
+; quasiquote uses and, so do it the long way
+(defmacro (and . args)
+  (cond ((null? args) #t) ; (and)
+        ((not (pair? args)) (error "and must be given a list")) ; (and . x)
+        ((null? (cdr args)) (car args)) ; (and x)
+        (else (list 'if (car args) (cons 'and (cdr args))))))
 
-(define (for-each fn lst)
-  (map fn lst)
-  nil)
+(define (unquote . args) (error "unquote , must only be used within quasiquote `"))
+(define (unquote-splicing . args) (error "unquote-splicing ,@ must only be used within quasiquote `"))
+(defmacro (quasiquote data)
+  (cond ((not (pair? data))   ; `x => 'x
+         (list 'quote data))
+        ((eq? (car data) 'unquote)   ; `,x => x
+         (cadr data))
+        ((and (pair? (car data)) (eq? (car (car data)) 'unquote-splicing))   ; `(,@x . y) => (append x `y)
+         (list 'append (cadr (car data)) (list 'quasiquote (cdr data))))
+        (else   ; `(x . y) => (`x . `y)
+         (list 'cons (list 'quasiquote (car data)) (list 'quasiquote (cdr data))))))
 
-(define (filter fn lst)
-  (foldr (lambda (elem rest)
-           (if (fn elem)
-               (cons elem rest)
-               rest))
-         ()
-         lst))
-
-(define (foldl fn init lst)
-  (if (null? lst)
-      init
-      (foldl fn (fn init (car lst)) (cdr lst))))
-
-(define (foldr fn init lst)
-  (if (null? lst)
-      init
-      (fn (car lst) (foldr fn init (cdr lst)))))
-
-(define (list? lst)
-  (define (list?-helper tortoise hare)
-    (cond ((null? hare))
-          ((eq? tortoise hare) #f) ; circular
-          ((pair? hare)
-           (if (null? (cdr hare))
-               #t
-               (list?-helper (cdr tortoise) (cddr hare))))))
-  (cond ((null? lst))
-        ((pair? lst) (list?-helper lst (cdr lst)))))
+(defmacro (or . args)
+  (if (null? args)
+      #f
+      `(cond ,@(map list args))))
 
 (defmacro (begin . exprs)
   `(let () ,@exprs))
@@ -96,6 +91,26 @@
 (defmacro (letrec bindings . body)
   `(let ()
      ,@(map (lambda (binding) `(define ,@binding)) bindings) ,@body))
+
+(define (for-each fn lst)
+  (map fn lst)
+  nil)
+
+(define (foldl fn init lst)
+  (if (null? lst)
+      init
+      (foldl fn (fn init (car lst)) (cdr lst))))
+
+(define (list? lst)
+  (define (list?-helper tortoise hare)
+    (cond ((null? hare))
+          ((eq? tortoise hare) #f) ; circular
+          ((pair? hare)
+           (if (null? (cdr hare))
+               #t
+               (list?-helper (cdr tortoise) (cddr hare))))))
+  (cond ((null? lst))
+        ((pair? lst) (list?-helper lst (cdr lst)))))
 
 (define (reverse lst)
   (foldl (lambda (rest cur) (cons cur rest)) () lst))
@@ -116,21 +131,6 @@
         accum
         (range-helper (+ cur step) (make-conser cur accum))))
   ((range-helper start id) nil))
-
-; (quasiquote) uses (and), so do it the long way
-(defmacro (and . args)
-  (cond ((null? args) #t) ; (and)
-        ((not (pair? args)) (error "and must be given a list")) ; (and . x)
-        ((null? (cdr args)) (car args)) ; (and x)
-        (else (list 'if (car args) (cons 'and (cdr args))))))
-
-(defmacro (or . args)
-  (if (null? args)
-      #f
-      `(cond ,@(map list args))))
-
-(define (append xs ys)
-  (foldr cons ys xs))
 
 (define (nth n lst)
   (cond ((null? lst) (error "list too short"))

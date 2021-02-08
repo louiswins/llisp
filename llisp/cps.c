@@ -4,6 +4,7 @@
 #include <string.h>
 #include "cps.h"
 #include "gc.h"
+#include "macroexpander.h"
 #include "obj.h"
 #include "print.h"
 
@@ -157,6 +158,8 @@ static struct obj *eval_doapply(CPS_ARGS) {
 		*ret = appcnt;
 
 		if (TYPE(obj) == MACRO) {
+			fputs("apply: warning: applying a macro. This is now unexpected.\n", stderr);
+
 			/* expand the macro in place and reeval afterwards */
 			struct contn *expand = dupcontn(self);
 			expand->fn = eval_macroreeval;
@@ -300,11 +303,16 @@ struct obj *apply_contn(CPS_ARGS) {
 }
 
 struct obj *run_cps(struct obj *obj, struct env *env) {
+	// First macroexpand this puppy
+	gc_current_obj = macroexpand_cps(obj, env);
+	if (!gc_current_obj) {
+		return NULL;
+	}
+	// Now run it for real
 	cbegin.env = env;
 	cbegin.next = &cend;
 	cbegin.fn = eval_cps;
 	gc_current_contn = &cbegin;
-	gc_current_obj = obj;
 	struct contn *next = NULL;
 	while (gc_current_contn != &cend && gc_current_contn != &cfail) {
 		gc_current_obj = gc_current_contn->fn(gc_current_contn, gc_current_obj, &next);

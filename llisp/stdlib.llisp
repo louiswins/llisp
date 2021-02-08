@@ -150,6 +150,29 @@
         (cons (macroexpand-until-#f (car res)) #t)
         res))))
 
+; This isn't 100% accurate. It makes a couple assumptions:
+; 1. The form passed in doesn't bind or create any macros, and
+; 2. No existing macros are shadowed with define (or derived forms such as letrec).
+; However, it does support shadowing macros with lambda and derived forms like let
+(define macroexpand-all (lambda (form)
+  (define map-macroexpand-all (lambda (lst shadowed-macros)
+    (if (pair? lst)
+        (cons (real-macroexpand-all (car lst) shadowed-macros) (map-macroexpand-all (cdr lst) shadowed-macros))
+        (real-macroexpand-all lst shadowed-macros))))
+  (define append-improper (lambda (a b)
+    (cond ((pair? a) (append-improper (cdr a) (cons (car a) b)))
+          ((null? a) b)
+          (else (cons a b)))))
+  (define real-macroexpand-all (lambda (form shadowed-macros)
+    (cond ((not (pair? form)) form)
+          ((memq (car form) shadowed-macros)
+           (cons (car form)
+                 (map-macroexpand-all (cdr form) shadowed-macros)))
+          ((eq? 'lambda (car form))
+           `(lambda ,(cadr form) ,@(map-macroexpand-all (cddr form) (append-improper (cadr form) shadowed-macros))))
+          (else (map-macroexpand-all (car (macroexpand form)) shadowed-macros)))))
+  (real-macroexpand-all form '())))
+
 (define pi 3.14159265358979323846)
 
 (define Y (lambda (f)
@@ -166,7 +189,7 @@
   ((lambda (f)
      (set! f (f-maker (lambda v (apply f v))))
      f)
-   'NONE)))
+   'UNDEFINED)))
 
 (define factorial-with-Y!-demo (Y! (lambda (rec)
   (lambda (n)
@@ -198,6 +221,17 @@
         ((and (string? a) (string? b)) (eq? (string-compare a b) 0))
         ((and (pair? a) (pair? b)) (and (equal? (car a) (car b))
                                         (equal? (cdr a) (cdr b)))))))
+
+(define member 'UNDEFINED)
+(define memq 'UNDEFINED)
+(let ((make-searcher (lambda (pred)
+        (define searcher (lambda (elem lst)
+          (cond ((null? lst) #f)
+                ((pred elem (car lst)) lst)
+                (else (searcher elem (cdr lst))))))
+        searcher)))
+  (set! member (make-searcher equal?))
+  (set! memq (make-searcher eq?)))
 
 (define match (macro (expr . clauses)
   (let ((val-to-match (gensym)))

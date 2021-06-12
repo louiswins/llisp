@@ -1,6 +1,6 @@
-# Little lisp - or Louis's lisp. A simple interpreter.
+# Little lisp—or Louis's lisp. A simple interpreter.
 
-This is an experiment in writing a little scheme-like lisp. It implements some runtime features like tail call elimination, (non-hygienic) macros, and first-class continuations, but is lacking many other basic language features. It is mostly intended as a way for me to try out writing a simple garbage collector and continuation-passing style from scratch in C without depending on built-in features of higher-level languages.
+This is an experiment in writing a little scheme-like lisp. It implements some runtime features like tail call elimination, `defmacro`-style macros, and first-class continuations, but is lacking many other basic language features. It is mostly intended as a way for me to try out writing a simple garbage collector and continuation-passing style from scratch in C without depending on built-in features of higher-level languages.
 
 An example of some actual llisp code is given in `stdlib.llisp` where the (extremely minimal) standard library is implemented. The language constructs implemented in C can be found in `globals.c`.
 

@@ -36,9 +36,17 @@
 ; bootstrap macros
 
 ; quasiquote uses cond which uses let, so avoid quasiquote
-(defmacro (let bindings . body)
-  (cons (cons 'lambda (cons (map car bindings) body))
-        (map cadr bindings)))
+(defmacro (let name-or-bindings . rest)
+  (if (symbol? name-or-bindings) ; named let
+      (if (null? rest)
+          (error "let must be provided with a list of bindings")
+          (list (list 'lambda ()
+            (cons 'define
+                  (cons (cons name-or-bindings (map car (car rest)))
+                        (cdr rest)))
+            (cons name-or-bindings (map cadr (car rest))))))
+      (cons (cons 'lambda (cons (map car name-or-bindings) rest))
+            (map cadr name-or-bindings))))
 
 ; cond in terms of if
 ; (quasiquote) uses (cond), so do it manually

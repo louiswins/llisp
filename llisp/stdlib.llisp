@@ -216,11 +216,10 @@
         (else (prime-helper (- n 2)))))
 
 (define (length lst)
-  (define (length-helper n lst)
+  (let loop ((n 0) (lst lst))
     (cond ((null? lst) n)
-          ((pair? lst) (length-helper (+ n 1) (cdr lst)))
-          (else (error "not a list"))))
-  (length-helper 0 lst))
+          ((pair? lst) (loop (+ n 1) (cdr lst)))
+          (else (error "not a list")))))
 
 (define (equal? a b)
   (cond ((eq? a b))

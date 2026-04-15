@@ -2,6 +2,7 @@ from pathlib import Path
 from dataclasses import dataclass
 from typing import Optional
 from collections.abc import Iterator
+import subprocess
 import sys
 
 # TODO: pass these on the command line or something
@@ -17,13 +18,18 @@ class Testcase:
 
 def find_tests() -> Iterator[Testcase]:
     for t in TESTCASE_PATH.glob('**/*.llisp'):
-        t = t.relative_to(TESTCASE_PATH)
-        parts = t.parts
+        rel = t.relative_to(TESTCASE_PATH)
+        parts = rel.parts
         category: Optional[str] = None
         if len(parts) > 1:
             category = '/'.join(parts[:-1])
         yield Testcase(t.stem, category, t)
 
+
+def run_test(test: Testcase) -> bool:
+    res = subprocess.run([EXECUTABLE_PATH, test.file], capture_output=True)
+    # TODO: should test more than running successfully & empty stderr
+    return res.returncode == 0 and not res.stderr
 
 if __name__ == '__main__':
     if not EXECUTABLE_PATH.is_file():
@@ -33,4 +39,32 @@ if __name__ == '__main__':
         print(f'Could not find test cases in {TESTCASE_PATH}.', file=sys.stderr)
         sys.exit(1)
 
-    print(list(find_tests()))
+    tests: dict[Optional[str], dict[str, Testcase]] = {}
+    for test in find_tests():
+        if test.category not in tests:
+            tests[test.category] = {}
+        tests[test.category][test.name] = test
+
+    num_failures = 0
+    num_tests = 0
+    for category, cases in tests.items():
+        indent = ''
+        if category is not None:
+            print(f'{category}:')
+            indent = '\t'
+        for name, case in cases.items():
+            num_tests += 1
+            print(f'{indent}{name}: ', end='')
+            sys.stdout.flush()
+            result = run_test(case)
+            if result:
+                print('PASSED')
+            else:
+                print('FAILED')
+                num_failures += 1
+        print()
+    if num_failures:
+        print(f'{num_tests-num_failures}/{num_tests} tests passed.')
+        print(f'{num_failures} failures.')
+    else:
+        print(f'All tests passed ({num_tests}/{num_tests}).')

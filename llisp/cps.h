@@ -12,7 +12,7 @@ struct obj* apply_contn(CPS_ARGS);
 /* Evaluate obj in env in a continuation-passing style
  * Suitable for calling at the top-level outside of any other
  * llisp computation */
-struct obj *run_cps(struct obj *obj, struct env *env);
+struct obj *run_cps(struct obj *obj, struct env *env, _Bool* failed);
 
 extern struct contn cend;
 extern struct contn cfail;

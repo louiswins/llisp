@@ -34,12 +34,19 @@ int realmain() {
 	data_source_from_file(stdin, &stdin_ds);
 
 	while (!repl_done && (obj = parse(&stdin_ds)) != NULL) {
-		obj = run_cps(obj, globals);
-		printf("=> ");
-		if (obj) {
-			print(obj);
+		_Bool failed = 0;
+		FILE *output = stdout;
+		obj = run_cps(obj, globals, &failed);
+		if (failed) {
+			printf(" failed with ");
+			output = stderr;
 		} else {
-			printf("NULL");
+			printf("=> ");
+		}
+		if (obj) {
+			print_on(output, obj, 1);
+		} else {
+			fprintf(output, "NULL");
 		}
 		gc_collect();
 		if (!repl_done) {

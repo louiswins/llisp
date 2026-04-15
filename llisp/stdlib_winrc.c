@@ -25,6 +25,6 @@ void add_stdlib(struct env *env) {
 	init_parser();
 	struct obj *obj;
 	while ((obj = parse(&stdlib)) != NULL) {
-		run_cps(obj, env);
+		run_cps(obj, env, NULL /*failed*/);
 	}
 }

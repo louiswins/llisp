@@ -307,7 +307,7 @@ struct obj *apply_contn(CPS_ARGS) {
 	return CAR(obj);
 }
 
-struct obj *run_cps(struct obj *obj, struct env *env) {
+struct obj *run_cps(struct obj *obj, struct env *env, _Bool* failed) {
 	// First macroexpand this puppy
 	obj = macroexpand_cps(obj, env);
 	if (!obj) {
@@ -327,6 +327,9 @@ struct obj *run_cps(struct obj *obj, struct env *env) {
 		if (TYPE(obj) == CELL && CDR(obj) == NIL) {
 			obj = CAR(obj);
 		}
+	}
+	if (failed != NULL) {
+		*failed = cur == &cfail;
 	}
 	return obj;
 }

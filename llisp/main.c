@@ -29,7 +29,11 @@ int realmain() {
 	printf("$ ");
 	fflush(stdout);
 	struct obj *obj;
-	while (!repl_done && (obj = parse(stdin)) != NULL) {
+
+	struct data_source stdin_ds;
+	data_source_from_file(stdin, &stdin_ds);
+
+	while (!repl_done && (obj = parse(&stdin_ds)) != NULL) {
 		obj = run_cps(obj, globals);
 		printf("=> ");
 		if (obj) {

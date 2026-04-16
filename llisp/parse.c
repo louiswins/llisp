@@ -7,22 +7,73 @@
 #include "obj.h"
 #include "parse.h"
 
+static int file_ds_getc(struct data_source *ds) {
+	return getc((FILE *)ds->rawdata);
+}
+static int file_ds_ungetc(int ch, struct data_source *ds) {
+	return ungetc(ch, (FILE *)ds->rawdata);
+}
+
+void data_source_from_file(FILE *f, struct data_source *ds) {
+	if (f == NULL || ds == NULL) {
+		return;
+	}
+	ds->dsgetc = file_ds_getc;
+	ds->dsungetc = file_ds_ungetc;
+	ds->rawdata = f;
+	ds->cur = NULL;
+	ds->end = NULL;
+}
+
+static int mem_ds_getc(struct data_source *ds) {
+	if (ds->cur == ds->end) {
+		return EOF;
+	}
+	char ret = *(char *)ds->cur;
+	ds->cur = ((char *)ds->cur) + 1;
+	return ret;
+}
+
+static int mem_ds_ungetc(int ch, struct data_source *ds) {
+	if (ch == EOF || ds->cur == ds->rawdata) {
+		return EOF;
+	}
+	if (*((char *)ds->cur) != ch) {
+		return EOF;
+	}
+	ds->cur = (char *)ds->cur - 1;
+	return ch;
+}
+
+void data_source_from_memory(const char *s, size_t len, struct data_source *ds) {
+	if (s == NULL || ds == NULL) {
+		return;
+	}
+	ds->dsgetc = mem_ds_getc;
+	ds->dsungetc = mem_ds_ungetc;
+	/* Cast away const; this is fine because we never write to it. The FILE* one can't be const. */
+	char *ms = (char *)s;
+	ds->rawdata = ms;
+	ds->cur = ms;
+	ds->end = ms + len;
+}
+
 int line;
 
-static int readch(FILE *f) {
-	int ret = getc(f);
+static int readch(struct data_source *ds) {
+	int ret = ds->dsgetc(ds);
 	if (ret == '\n') ++line;
 	return ret;
 }
-static int unreadch(int ch, FILE *f) {
+static int unreadch(int ch, struct data_source *ds) {
 	if (ch == '\n') --line;
-	return ungetc(ch, f);
+	return ds->dsungetc(ch, ds);
 }
 
-static int peekch(FILE *f) {
+static int peekch(struct data_source *ds) {
 	// don't use readch/unreadch because we're not updating positions anyway
-	int ret = getc(f);
-	ungetc(ret, f);
+	int ret = ds->dsgetc(ds);
+	ds->dsungetc(ret, ds);
 	return ret;
 }
 
@@ -60,10 +111,10 @@ struct token {
 
 struct token curtok;
 
-static uint32_t read_unicode_escape(FILE *f, int len) {
+static uint32_t read_unicode_escape(struct data_source *ds, int len) {
 	uint32_t ret = 0;
 	while (len--) {
-		int ch = readch(f);
+		int ch = readch(ds);
 		if ('0' <= ch && ch <= '9') {
 			ret = (ret << 4) | (ch - '0');
 		} else if ('a' <= ch && ch <= 'f') {
@@ -104,13 +155,13 @@ static int write_utf8(struct string_builder *sb, uint32_t codepoint) {
 	return 0;
 }
 
-static void read_string(FILE *f) {
+static void read_string(struct data_source *ds) {
 	int haserror = 0;
 	struct string_builder sb;
 	init_string_builder(&sb);
 	for (;;) {
 		uint32_t codepoint;
-		int ch = readch(f);
+		int ch = readch(ds);
 		if (ch == EOF) {
 			fprintf(stderr, "[line %d]: unterminated string\n", curtok.line);
 			curtok.type = TT_ERROR;
@@ -130,7 +181,7 @@ static void read_string(FILE *f) {
 			continue;
 		}
 		int escape_line = line;
-		ch = readch(f);
+		ch = readch(ds);
 		switch (ch) {
 		default:
 			fprintf(stderr, "[line %d]: unknown escape \\%c, treating as %c\n", escape_line, ch, ch);
@@ -151,7 +202,7 @@ static void read_string(FILE *f) {
 			break;
 		case 'u':
 		case 'U':
-			codepoint = read_unicode_escape(f, 4 + 4 * (ch == 'U'));
+			codepoint = read_unicode_escape(ds, 4 + 4 * (ch == 'U'));
 			if (codepoint != (uint32_t)-1) {
 				if (!write_utf8(&sb, codepoint)) {
 					haserror = 1;
@@ -169,17 +220,17 @@ static int can_begin_num(char ch) {
 	return isdigit(ch) || ch == '.' || ch == '+' || ch == '-';
 }
 
-static void read_token(FILE *f) {
+static void read_token(struct data_source *ds) {
 	int ch;
 	for (;;) {
-		ch = readch(f);
+		ch = readch(ds);
 		if (ch == EOF) {
 			curtok.type = TT_EOF;
 			return;
 		}
 		if (isspace(ch)) continue;
 		if (ch == ';') {
-			while ((ch = readch(f)) != EOF && ch != '\n');
+			while ((ch = readch(ds)) != EOF && ch != '\n');
 			continue;
 		}
 		break;
@@ -197,9 +248,9 @@ static void read_token(FILE *f) {
 			curtok.type = TT_QUOTE;
 			return;
 		case ',': {
-			int next = peekch(f);
+			int next = peekch(ds);
 			if (next == '@') {
-				readch(f);
+				readch(ds);
 				curtok.type = TT_UNQUOTE_SPL;
 			} else {
 				curtok.type = TT_UNQUOTE;
@@ -210,7 +261,7 @@ static void read_token(FILE *f) {
 			curtok.type = TT_QUASIQUOTE;
 			return;
 		case '"':
-			read_string(f);
+			read_string(ds);
 			return;
 	}
 
@@ -223,8 +274,8 @@ static void read_token(FILE *f) {
 			validident = 0;
 		}
 		string_builder_append(&sb, (char) ch);
-	} while ((ch = readch(f)) != EOF && !isdelimiter((char) ch));
-	unreadch(ch, f);
+	} while ((ch = readch(ds)) != EOF && !isdelimiter((char) ch));
+	unreadch(ch, ds);
 	if (!validident) {
 		fprintf(stderr, "[line %d]: invalid identifier ", curtok.line);
 		print_string_builder_escaped(stderr, &sb);
@@ -330,8 +381,8 @@ static void error(const char *message, ...) {
 	va_end(args);
 }
 
-static struct obj *parse_one(FILE *f);
-static struct obj *parse_list(FILE *f) {
+static struct obj *parse_one(struct data_source *ds);
+static struct obj *parse_list(struct data_source *ds) {
 	struct obj *list = NIL;
 	struct obj *cur = NIL;
 	enum dot_status {
@@ -340,7 +391,7 @@ static struct obj *parse_list(FILE *f) {
 		DOT_AND_SYMBOL,
 	} dot_status = NO_DOT;
 	for (;;) {
-		read_token(f);
+		read_token(ds);
 		if (curtok.type == TT_DOT) {
 			if (dot_status == SEEN_DOT) {
 				error("too many dots");
@@ -364,7 +415,7 @@ static struct obj *parse_list(FILE *f) {
 			return NULL;
 		}
 
-		struct obj *obj = parse_one(f);
+		struct obj *obj = parse_one(ds);
 		if (!obj) {
 			return NULL;
 		}
@@ -381,18 +432,18 @@ static struct obj *parse_list(FILE *f) {
 	}
 }
 
-static struct obj *parse_one(FILE *f) {
+static struct obj *parse_one(struct data_source *ds) {
 #define QUOTE_CASE(type, name) \
 		case type: { \
-			read_token(f); \
-			struct obj *quoted = parse_one(f); \
+			read_token(ds); \
+			struct obj *quoted = parse_one(ds); \
 			if (!quoted) return NULL; \
 			return cons(intern_symbol(str_from_string_lit(#name)), cons(quoted, NIL)); \
 		}
 
 	switch (curtok.type) {
 		case TT_LPAREN:
-			return parse_list(f);
+			return parse_list(ds);
 		QUOTE_CASE(TT_QUOTE, quote)
 		QUOTE_CASE(TT_QUASIQUOTE, quasiquote)
 		QUOTE_CASE(TT_UNQUOTE, unquote)
@@ -415,11 +466,11 @@ static struct obj *parse_one(FILE *f) {
 #undef QUOTE_CASE
 }
 
-struct obj *parse(FILE *f) {
+struct obj *parse(struct data_source *ds) {
 	struct obj *ret = NULL;
-	read_token(f);
+	read_token(ds);
 	if (curtok.type != TT_EOF) {
-		ret = parse_one(f);
+		ret = parse_one(ds);
 	}
 	return ret;
 }

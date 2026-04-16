@@ -6,8 +6,8 @@ import subprocess
 import sys
 
 # TODO: pass these on the command line or something
-TESTCASE_PATH = Path('testcases')
-EXECUTABLE_PATH = Path('../x64/Debug/llisp.exe')
+TESTCASE_PATH = Path(__file__).parent / 'testcases'
+EXECUTABLE_PATH = Path(__file__).parent.parent / 'x64/Debug/llisp.exe'
 
 @dataclass
 class Testcase:

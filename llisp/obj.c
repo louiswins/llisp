@@ -130,6 +130,22 @@ void string_builder_append(struct string_builder *sb, char ch) {
 	}
 	sb->buf->str[sb->used++] = ch;
 }
+void string_builder_append_str(struct string_builder *sb, const char *s, size_t len) {
+	assert(sb && sb->buf);
+	size_t cap = sb->buf->len;
+	size_t needed = sb->used + len;
+	if (needed > cap) {
+		size_t newcap = cap + cap / 2;
+		if (needed > newcap) {
+			newcap = needed;
+		}
+		struct string *newdata = unsafe_make_uninitialized_str(newcap);
+		memcpy(newdata->str, sb->buf->str, sb->used);
+		sb->buf = newdata;
+	}
+	memcpy(sb->buf->str + sb->used, s, len);
+	sb->used = needed;
+}
 struct string *finish_string_builder(struct string_builder *sb) {
 	struct string *ret = NULL;
 	if (sb->used == sb->buf->len) {

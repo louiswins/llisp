@@ -100,6 +100,7 @@ struct string_builder {
 
 void init_string_builder(struct string_builder *sb);
 void string_builder_append(struct string_builder *sb, char ch);
+void string_builder_append_str(struct string_builder *sb, const char *s, size_t len);
 /*
  * Turns string_builder sb into a full-fledged, immutable string. This
  * will empty out sb's internals - if you want to reuse it you must

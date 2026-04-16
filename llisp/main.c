@@ -4,7 +4,6 @@
 #include "env.h"
 #include "gc.h"
 #include "globals.h"
-#include "macroexpander.h"
 #include "obj.h"
 #include "parse.h"
 #include "print.h"
@@ -18,11 +17,7 @@ static struct obj *fn_quit(CPS_ARGS) {
 	return obj;
 }
 
-_declspec(noinline)
-int realmain() {
-	struct env *globals = make_env(NULL);
-	add_globals(globals);
-	add_stdlib(globals);
+void repl(struct env *globals) {
 	definesym(globals, str_from_string_lit("quit"), make_fn(FN, fn_quit, "quit"));
 
 	init_parser();
@@ -54,6 +49,15 @@ int realmain() {
 			fflush(stdout);
 		}
 	}
+}
+
+_declspec(noinline)
+int realmain() {
+	struct env *globals = make_env(NULL);
+	add_globals(globals);
+	add_stdlib(globals);
+
+	repl(globals);
 
 #ifdef GC_STATS
 	puts("\n");

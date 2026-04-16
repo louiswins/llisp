@@ -157,6 +157,7 @@
     <ClInclude Include="parse.h" />
     <ClInclude Include="perf.h" />
     <ClInclude Include="print.h" />
+    <ClInclude Include="resource.h" />
     <ClInclude Include="stdlib.h" />
   </ItemGroup>
   <ItemGroup>
@@ -164,6 +165,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="stdlib.llisp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="llisp.rc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

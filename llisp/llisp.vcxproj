@@ -142,7 +142,7 @@
     <ClCompile Include="parse.c" />
     <ClCompile Include="perf_win32.c" />
     <ClCompile Include="print.c" />
-    <ClCompile Include="stdlib.c" />
+    <ClCompile Include="stdlib_winrc.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="cps.h" />

@@ -33,9 +33,6 @@
     <ClCompile Include="cps.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="stdlib.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="globals.c">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -46,6 +43,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="macroexpander.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="stdlib_winrc.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

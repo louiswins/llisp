@@ -28,7 +28,7 @@ void repl(struct env *globals) {
 	struct data_source stdin_ds;
 	data_source_from_file(stdin, &stdin_ds);
 
-	while (!repl_done && (obj = parse(&stdin_ds)) != NULL) {
+	while (!repl_done && parse(&stdin_ds, &obj) == PARSE_OK) {
 		_Bool failed = 0;
 		FILE *output = stdout;
 		obj = run_cps(obj, globals, &failed);

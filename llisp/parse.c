@@ -99,6 +99,7 @@ enum token_type {
 	TT_SHARPF,
 	TT_EOF,
 	TT_ERROR,
+	TT_ERROR_UNTERMINATEDSTR,
 };
 
 struct token {
@@ -157,7 +158,7 @@ static int write_utf8(struct string_builder *sb, uint32_t codepoint) {
 }
 
 static void read_string(struct data_source *ds) {
-	int haserror = 0;
+	_Bool unicodeerror = 0;
 	struct string_builder sb;
 	init_string_builder(&sb);
 	for (;;) {
@@ -165,11 +166,11 @@ static void read_string(struct data_source *ds) {
 		int ch = readch(ds);
 		if (ch == EOF) {
 			fprintf(stderr, "[line %d]: unterminated string\n", curtok.line);
-			curtok.type = TT_ERROR;
+			curtok.type = TT_ERROR_UNTERMINATEDSTR;
 			return;
 		}
 		if (ch == '"') {
-			if (haserror) {
+			if (unicodeerror) {
 				curtok.type = TT_ERROR;
 			} else {
 				curtok.type = TT_STRING;
@@ -206,11 +207,11 @@ static void read_string(struct data_source *ds) {
 			codepoint = read_unicode_escape(ds, 4 + 4 * (ch == 'U'));
 			if (codepoint != (uint32_t)-1) {
 				if (!write_utf8(&sb, codepoint)) {
-					haserror = 1;
+					unicodeerror = 1;
 				}
 			} else {
 				fprintf(stderr, "[line %d]: invalid unicode escape sequence.\n", escape_line);
-				haserror = 1;
+				unicodeerror = 1;
 			}
 			break;
 		}
@@ -382,8 +383,8 @@ static void error(const char *message, ...) {
 	va_end(args);
 }
 
-static struct obj *parse_one(struct data_source *ds);
-static struct obj *parse_list(struct data_source *ds) {
+static enum parse_result parse_one(struct data_source *ds, struct obj **result);
+static enum parse_result parse_list(struct data_source *ds, struct obj **result) {
 	struct obj *list = NIL;
 	struct obj *cur = NIL;
 	enum dot_status {
@@ -396,10 +397,10 @@ static struct obj *parse_list(struct data_source *ds) {
 		if (curtok.type == TT_DOT) {
 			if (dot_status == SEEN_DOT) {
 				error("too many dots");
-				return NULL;
+				return PARSE_INVALID;
 			} else if (list == NIL) {
 				error("illegal dot - no first element");
-				return NULL;
+				return PARSE_INVALID;
 			}
 			dot_status = SEEN_DOT;
 			continue;
@@ -407,18 +408,20 @@ static struct obj *parse_list(struct data_source *ds) {
 		if (curtok.type == TT_RPAREN) {
 			if (dot_status == SEEN_DOT) {
 				error("illegal dot - no final element");
-				return NULL;
+				return PARSE_INVALID;
 			}
-			return list;
+			*result = list;
+			return PARSE_OK;
 		}
 		if (dot_status == DOT_AND_SYMBOL) {
 			error("too many elements after last dot");
-			return NULL;
+			return PARSE_INVALID;
 		}
 
-		struct obj *obj = parse_one(ds);
-		if (!obj) {
-			return NULL;
+		struct obj *obj;
+		enum parse_result ret = parse_one(ds, &obj);
+		if (ret != PARSE_OK) {
+			return ret;
 		}
 
 		if (dot_status == SEEN_DOT) {
@@ -433,45 +436,60 @@ static struct obj *parse_list(struct data_source *ds) {
 	}
 }
 
-static struct obj *parse_one(struct data_source *ds) {
+static enum parse_result parse_one(struct data_source *ds, struct obj **result) {
 #define QUOTE_CASE(type, name) \
 		case type: { \
 			read_token(ds); \
-			struct obj *quoted = parse_one(ds); \
-			if (!quoted) return NULL; \
-			return cons(intern_symbol(str_from_string_lit(#name)), cons(quoted, NIL)); \
+			struct obj *quoted; \
+			enum parse_result ret = parse_one(ds, &quoted); \
+			if (ret == PARSE_OK) { \
+				*result = cons(intern_symbol(str_from_string_lit(#name)), cons(quoted, NIL)); \
+			} \
+			return ret; \
 		}
 
 	switch (curtok.type) {
 		case TT_LPAREN:
-			return parse_list(ds);
+			return parse_list(ds, result);
 		QUOTE_CASE(TT_QUOTE, quote)
 		QUOTE_CASE(TT_QUASIQUOTE, quasiquote)
 		QUOTE_CASE(TT_UNQUOTE, unquote)
 		QUOTE_CASE(TT_UNQUOTE_SPL, unquote-splicing)
 		case TT_IDENT:
-			return intern_symbol(curtok.as.str);
+			*result = intern_symbol(curtok.as.str);
+			return PARSE_OK;
 		case TT_STRING:
-			return (struct obj *) curtok.as.str;
+			*result = (struct obj *)curtok.as.str;
+			return PARSE_OK;
 		case TT_NUMBER:
-			return make_num(curtok.as.num);
+			*result = make_num(curtok.as.num);
+			return PARSE_OK;
 		case TT_SHARPT:
-			return TRUE;
+			*result = TRUE;
+			return PARSE_OK;
 		case TT_SHARPF:
-			return FALSE;
+			*result = FALSE;
+			return PARSE_OK;
+		case TT_ERROR_UNTERMINATEDSTR:
+		case TT_EOF:
+			return PARSE_NEEDMORE;
 	}
 
 	error("unexpected token");
-	return NULL;
+	return PARSE_INVALID;
 
 #undef QUOTE_CASE
 }
 
-struct obj *parse(struct data_source *ds) {
-	struct obj *ret = NULL;
+enum parse_result parse(struct data_source *ds, struct obj **result) {
+	if (ds == NULL || result == NULL) {
+		return PARSE_INVALIDPARAM;
+	}
+	enum parse_result ret = PARSE_INVALID;
 	read_token(ds);
+	/* An EOF at the start(no data) is invalid. Otherwise parse_one would return PARSE_NEEDMORE. */
 	if (curtok.type != TT_EOF) {
-		ret = parse_one(ds);
+		ret = parse_one(ds, result);
 	}
 	return ret;
 }

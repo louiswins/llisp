@@ -14,6 +14,14 @@ struct data_source {
 void data_source_from_file(FILE *f, struct data_source *ds);
 void data_source_from_memory(const char *s, size_t len, struct data_source *ds);
 
-struct obj *parse(struct data_source *ds);
+enum parse_result {
+	PARSE_OK,
+	PARSE_INVALIDPARAM,
+	PARSE_INVALID,
+	PARSE_NEEDMORE,
+};
+
+enum parse_result parse(struct data_source *ds, struct obj **result);
+
 
 void init_parser();

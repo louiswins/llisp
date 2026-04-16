@@ -94,9 +94,9 @@
     <DisplayString Condition="data">{*data} -&gt; {fn,na}</DisplayString>
     <DisplayString Condition="!data">NULL -&gt; {fn}</DisplayString>
     <Expand>
-      <Item Name="Data">data</Item>
-      <Item Name="Env">env</Item>
-      <Item Name="Next" Condition="next">next</Item>
+      <Item Name="Data">data,na</Item>
+      <Item Name="Env">env,na</Item>
+      <Item Name="Next" Condition="next">next,na</Item>
       <Item Name="Fn" Condition="fn">fn,na</Item>
     </Expand>
   </Type>
@@ -110,7 +110,7 @@
   </Type>
 
   <Type Name="ht_entry">
-    <DisplayString>{key} -&gt; {*value}</DisplayString>
+    <DisplayString>{key,na} -&gt; {*value}</DisplayString>
   </Type>
   <Type Name="hashtab">
     <DisplayString>hashtab {{size = {size}}}</DisplayString>

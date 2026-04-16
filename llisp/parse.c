@@ -38,10 +38,11 @@ static int mem_ds_ungetc(int ch, struct data_source *ds) {
 	if (ch == EOF || ds->cur == ds->rawdata) {
 		return EOF;
 	}
-	if (*((char *)ds->cur) != ch) {
+	char *prev = (char *)ds->cur - 1;
+	if (*prev != ch) {
 		return EOF;
 	}
-	ds->cur = (char *)ds->cur - 1;
+	ds->cur = prev;
 	return ch;
 }
 

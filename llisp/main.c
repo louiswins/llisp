@@ -19,6 +19,9 @@ static struct obj *fn_quit(CPS_ARGS) {
 }
 
 int main() {
+	void *bottom_of_stack = &bottom_of_stack;
+	gc_init(bottom_of_stack);
+
 	gc_global_env = make_env(NULL);
 	add_globals(gc_global_env);
 	add_stdlib(gc_global_env);

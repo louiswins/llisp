@@ -19,7 +19,6 @@ enum objtype {
 };
 
 struct obj {
-	struct obj *next;
 	struct obj *marknext;
 	enum objtype type;
 	_Bool marked;
@@ -65,7 +64,7 @@ struct builtin {
 	const char *name;
 };
 #define AS_BUILTIN(o) ((struct builtin*)(o))
-#define STATIC_BUILTIN(name) { { NULL, NULL, BUILTIN, 0 }, name }
+#define STATIC_BUILTIN(name) { { NULL, BUILTIN, 0 }, name }
 
 
 /*

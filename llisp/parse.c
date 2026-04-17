@@ -420,7 +420,9 @@ static enum parse_result parse_list(struct data_source *ds, struct obj **result)
 
 		struct obj *obj;
 		enum parse_result ret = parse_one(ds, &obj);
-		if (ret != PARSE_OK) {
+		if (ret == PARSE_EMPTY) {
+			return PARSE_PARTIAL;
+		} else if (ret != PARSE_OK) {
 			return ret;
 		}
 
@@ -471,8 +473,9 @@ static enum parse_result parse_one(struct data_source *ds, struct obj **result) 
 			*result = FALSE;
 			return PARSE_OK;
 		case TT_ERROR_UNTERMINATEDSTR:
+			return PARSE_PARTIAL;
 		case TT_EOF:
-			return PARSE_NEEDMORE;
+			return PARSE_EMPTY;
 	}
 
 	error("unexpected token");
@@ -487,11 +490,7 @@ enum parse_result parse(struct data_source *ds, struct obj **result) {
 	}
 	enum parse_result ret = PARSE_INVALID;
 	read_token(ds);
-	/* An EOF at the start(no data) is invalid. Otherwise parse_one would return PARSE_NEEDMORE. */
-	if (curtok.type != TT_EOF) {
-		ret = parse_one(ds, result);
-	}
-	return ret;
+	return parse_one(ds, result);
 }
 
 void init_parser() {

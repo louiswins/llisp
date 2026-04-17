@@ -22,7 +22,6 @@ void add_stdlib(struct env *env) {
 	struct data_source stdlib;
 	data_source_from_memory(stdlibData, stdlibLen, &stdlib);
 
-	init_parser();
 	struct obj *obj;
 	if (parse(&stdlib, &obj) != PARSE_OK) {
 		abort();

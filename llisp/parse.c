@@ -488,6 +488,9 @@ enum parse_result parse(struct data_source *ds, struct obj **result) {
 	if (ds == NULL || result == NULL) {
 		return PARSE_INVALIDPARAM;
 	}
+	line = 1;
+	curtok.type = TT_ERROR;
+
 	enum parse_result ret = PARSE_EMPTY;
 	*result = NIL;
 	struct obj **next = result;
@@ -508,9 +511,4 @@ enum parse_result parse(struct data_source *ds, struct obj **result) {
 		return PARSE_OK;
 	}
 	return ret;
-}
-
-void init_parser() {
-	line = 1;
-	curtok.type = TT_ERROR;
 }

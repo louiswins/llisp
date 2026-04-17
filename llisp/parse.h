@@ -28,6 +28,3 @@ enum parse_result {
 };
 
 enum parse_result parse(struct data_source *ds, struct obj **result);
-
-
-void init_parser();

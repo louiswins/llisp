@@ -31,7 +31,6 @@ void read_line(struct string_builder *current) {
 void repl(struct env *globals) {
 	definesym(globals, str_from_string_lit("quit"), make_fn(FN, fn_quit, "quit"));
 
-	init_parser();
 	printf("$ ");
 	fflush(stdout);
 	struct obj *obj;

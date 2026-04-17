@@ -381,6 +381,7 @@ static void error(const char *message, ...) {
 	va_start(args, message);
 	vfprintf(stderr, message, args);
 	va_end(args);
+	fputs("\n", stderr);
 }
 
 static enum parse_result parse_one(struct data_source *ds, struct obj **result);

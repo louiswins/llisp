@@ -30,9 +30,6 @@ void read_line(struct string_builder *current) {
 
 void repl(struct env *globals) {
 	definesym(globals, str_from_string_lit("quit"), make_fn(FN, fn_quit, "quit"));
-
-	printf("$ ");
-	fflush(stdout);
 	struct obj *obj;
 
 	struct string_builder line;
@@ -42,10 +39,14 @@ void repl(struct env *globals) {
 		init_string_builder(&line);
 		// Keep reading lines until the parse is clean (or fails outright)
 		enum parse_result result;
+		const char *prompt = "$ ";
 		do {
+			printf(prompt);
+			fflush(stdout);
 			read_line(&line);
 			init_buf(line.buf->str, line.used, &linebuf);
 			result = parse(&linebuf, &obj);
+			prompt = "| ";
 		} while (result == PARSE_PARTIAL);
 
 		while (obj != NULL && obj != NIL) {
@@ -68,10 +69,6 @@ void repl(struct env *globals) {
 			obj = CDR(obj);
 		}
 		gc_collect();
-		if (!repl_done) {
-			printf("$ ");
-			fflush(stdout);
-		}
 	}
 }
 

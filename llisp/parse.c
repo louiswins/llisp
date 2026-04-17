@@ -10,8 +10,10 @@
 static int file_ds_getc(struct data_source *ds) {
 	return getc((FILE *)ds->rawdata);
 }
-static int file_ds_ungetc(int ch, struct data_source *ds) {
-	return ungetc(ch, (FILE *)ds->rawdata);
+static int file_ds_peek(struct data_source *ds) {
+	int ch = getc((FILE *)ds->rawdata);
+	ungetc(ch, (FILE *)ds->rawdata);
+	return ch;
 }
 
 void data_source_from_file(FILE *f, struct data_source *ds) {
@@ -19,7 +21,7 @@ void data_source_from_file(FILE *f, struct data_source *ds) {
 		return;
 	}
 	ds->dsgetc = file_ds_getc;
-	ds->dsungetc = file_ds_ungetc;
+	ds->dspeek = file_ds_peek;
 	ds->rawdata = f;
 	ds->cur = NULL;
 	ds->end = NULL;
@@ -34,16 +36,11 @@ static int mem_ds_getc(struct data_source *ds) {
 	return ret;
 }
 
-static int mem_ds_ungetc(int ch, struct data_source *ds) {
-	if (ch == EOF || ds->cur == ds->rawdata) {
+static int mem_ds_peek(struct data_source *ds) {
+	if (ds->cur == ds->end) {
 		return EOF;
 	}
-	char *prev = (char *)ds->cur - 1;
-	if (*prev != ch) {
-		return EOF;
-	}
-	ds->cur = prev;
-	return ch;
+	return *(char *)ds->cur;
 }
 
 void data_source_from_memory(const char *s, size_t len, struct data_source *ds) {
@@ -51,7 +48,7 @@ void data_source_from_memory(const char *s, size_t len, struct data_source *ds) 
 		return;
 	}
 	ds->dsgetc = mem_ds_getc;
-	ds->dsungetc = mem_ds_ungetc;
+	ds->dspeek = mem_ds_peek;
 	/* Cast away const; this is fine because we never write to it. The FILE* one can't be const. */
 	char *ms = (char *)s;
 	ds->rawdata = ms;
@@ -66,22 +63,15 @@ static int readch(struct data_source *ds) {
 	if (ret == '\n') ++line;
 	return ret;
 }
-static int unreadch(int ch, struct data_source *ds) {
-	if (ch == '\n') --line;
-	return ds->dsungetc(ch, ds);
-}
 
 static int peekch(struct data_source *ds) {
-	// don't use readch/unreadch because we're not updating positions anyway
-	int ret = ds->dsgetc(ds);
-	ds->dsungetc(ret, ds);
-	return ret;
+	return ds->dspeek(ds);
 }
 
 static int isdelimiter(char ch) {
 	return isspace(ch) ||
 		ch == '(' || ch == ')' || ch == '"' || ch == ',' ||
-		ch == '\'' || ch == '`' || ch == ';';
+		ch == '\'' || ch == '`' || ch == ';' || ch == EOF;
 }
 
 enum token_type {
@@ -271,13 +261,17 @@ static void read_token(struct data_source *ds) {
 	int validident = 1;
 	struct string_builder sb;
 	init_string_builder(&sb);
-	do {
+	for (;;) {
 		if (!isprint(ch)) {
 			validident = 0;
 		}
 		string_builder_append(&sb, (char) ch);
-	} while ((ch = readch(ds)) != EOF && !isdelimiter((char) ch));
-	unreadch(ch, ds);
+		ch = peekch(ds);
+		if (isdelimiter((char)ch)) {
+			break;
+		}
+		readch(ds);
+	}
 	if (!validident) {
 		fprintf(stderr, "[line %d]: invalid identifier ", curtok.line);
 		print_string_builder_escaped(stderr, &sb);

@@ -5,7 +5,7 @@ struct obj;
 
 struct data_source {
 	int (*dsgetc)(struct data_source *src);
-	int (*dsungetc)(int ch, struct data_source *src);
+	int (*dspeek)(struct data_source *src);
 	void *rawdata;
 	void *cur;
 	void *end;

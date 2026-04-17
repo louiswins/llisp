@@ -69,12 +69,6 @@ struct contn *gc_current_contn = NULL;
 struct obj *gc_current_obj = NULL;
 struct env *gc_global_env = NULL;
 
-static int gc_active = 1;
-
-#define MAX_TEMP_ROOTS 32
-static size_t ntemproots = 0;
-static void *temp_roots[MAX_TEMP_ROOTS];
-
 static uintptr_t gc_start_of_stack = 0;
 void gc_init(void *bottom_of_stack) {
 	uintptr_t bottom = (uintptr_t)bottom_of_stack;
@@ -88,13 +82,6 @@ static struct obj *objs_to_mark = NULL;
 unsigned long long gc_total_allocs = 0;
 unsigned long long gc_total_frees = 0;
 #endif
-
-static void *gc_add_to_temp_roots(void *root) {
-	if (!gc_active) return root;
-	assert(ntemproots < MAX_TEMP_ROOTS);
-	return temp_roots[ntemproots++] = root;
-}
-void gc_cycle() { ntemproots = 0; }
 
 static void gc_mark(struct obj *item);
 static void gc_queue(struct obj *obj);
@@ -188,7 +175,7 @@ static uintptr_t get_end_of_stack() {
 }
 
 void gc_collect() {
-	if (!gc_active || all_allocations == all_allocations_end) return;
+	if (all_allocations == all_allocations_end) return;
 	/* Messing with the interned symbols hashtable can trigger another collection
 	 * but collection is not reentrant. Block it. */
 	static _Bool collection_active = 0;
@@ -213,9 +200,7 @@ void gc_collect() {
 	gc_queue((struct obj *) gc_current_contn);
 	gc_queue(gc_current_obj);
 	gc_queue((struct obj *) gc_global_env);
-	for (size_t i = 0; i < ntemproots; ++i) {
-		gc_queue(temp_roots[i]);
-	}
+
 	/* DON'T queue this normally as it's full of weak references */
 	if (interned_symbols.cap != 0) {
 		ADDMARK(interned_symbols.e);
@@ -277,14 +262,6 @@ struct obj *gc_alloc(enum objtype typ, size_t size) {
 #ifdef GC_STATS
 	++gc_total_allocs;
 #endif
-	/* Automatically add the new thing to the temporary roots, until it's firmly
-	 * in the object graph */
-	return gc_add_to_temp_roots(ret);
-}
 
-void gc_suspend() {
-	gc_active = 0;
-}
-void gc_resume() {
-	gc_active = 1;
+	return ret;
 }

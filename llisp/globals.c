@@ -677,7 +677,7 @@ _Bool is_real_defmacro(struct obj *obj, struct env *env) {
 }
 
 void add_globals(struct env *env) {
-#define DEFSYM(name, fn, type) definesym(env, str_from_string_lit(#name), make_fn(type, fn, #name)); gc_cycle()
+#define DEFSYM(name, fn, type) definesym(env, str_from_string_lit(#name), make_fn(type, fn, #name))
 	DEFSYM(apply, fn_apply, FN);
 	DEFSYM(call-with-current-continuation, fn_callcc, FN);
 	DEFSYM(car, fn_car, FN);

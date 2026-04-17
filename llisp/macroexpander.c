@@ -157,7 +157,6 @@ struct obj *macroexpand_cps(struct obj *obj, struct env *env) {
 	while (gc_current_contn != &cend && gc_current_contn != &cfail) {
 		gc_current_obj = gc_current_contn->fn(gc_current_contn, gc_current_obj, &next);
 		gc_current_contn = next;
-		gc_cycle();
 	}
 	if (gc_current_contn == &cfail) {
 		return NULL;

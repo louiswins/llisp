@@ -4,7 +4,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "gc.h"
 #include "obj.h"
 #include "parse.h"
 
@@ -418,12 +417,10 @@ static struct obj *parse_one(FILE *f) {
 
 struct obj *parse(FILE *f) {
 	struct obj *ret = NULL;
-	gc_suspend();
 	read_token(f);
 	if (curtok.type != TT_EOF) {
 		ret = parse_one(f);
 	}
-	gc_resume();
 	return ret;
 }
 

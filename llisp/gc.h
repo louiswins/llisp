@@ -13,17 +13,8 @@ void gc_init(void *bottom_of_stack);
 
 /* Allocate an object of type `typ' and size `size' */
 struct obj *gc_alloc(enum objtype typ, size_t size);
-/* Assert that every allocated object is reachable from the three
- * roots above. This is cheap - in particular, it doesn't collect
- * garbage. */
-void gc_cycle();
 /* Manually collect garbage. */
 void gc_collect();
-
-/* GC will not collect while suspended. Make sure everything is
- * reachable from one of the GC roots once you resume. */
-void gc_suspend();
-void gc_resume();
 
 #ifdef GC_STATS
 extern unsigned long long gc_total_allocs;

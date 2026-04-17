@@ -26,7 +26,6 @@ int main() {
 	add_globals(gc_global_env);
 	add_stdlib(gc_global_env);
 	definesym(gc_global_env, str_from_string_lit("quit"), make_fn(FN, fn_quit, "quit"));
-	gc_cycle();
 
 	init_parser();
 	printf("$ ");
@@ -53,7 +52,7 @@ int main() {
 	printf("Total frees (before collection): %llu\n", gc_total_frees);
 	gc_global_env = NULL; gc_current_contn = NULL; gc_current_obj = NULL;
 	memset(&interned_symbols, 0, sizeof(interned_symbols));
-	gc_cycle(); gc_collect();
+	gc_collect();
 	printf("Total frees (after collection):  %llu\n", gc_total_frees);
 	printf("Leaked memory:                   %llu\n", gc_total_allocs - gc_total_frees);
 #endif

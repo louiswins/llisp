@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <setjmp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -192,6 +193,9 @@ void gc_collect() {
 #ifdef GC_STATS
 	double start = gettime_perf();
 #endif
+	jmp_buf jb;
+	setjmp(jb);
+
 	uintptr_t end_of_stack = get_end_of_stack();
 
 	if (gc_start_of_stack == 0) abort();

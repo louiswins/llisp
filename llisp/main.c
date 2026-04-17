@@ -55,6 +55,9 @@ int main() {
 	gc_collect();
 	printf("Total frees (after collection):  %llu\n", gc_total_frees);
 	printf("Leaked memory:                   %llu\n", gc_total_allocs - gc_total_frees);
+	printf("Time rootfinding:                %f\n", time_rootfinding);
+	printf("Time marking:                    %f\n", time_marking);
+	printf("Time sweeping:                   %f\n", time_sweeping);
 #endif
 
 	return 0;

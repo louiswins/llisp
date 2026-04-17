@@ -7,6 +7,9 @@
 #include "gc-private.h"
 #include "hashtab.h"
 #include "obj.h"
+#ifdef GC_STATS
+#include "perf.h"
+#endif
 
 static uintptr_t *all_allocations = NULL;
 static uintptr_t *all_allocations_end = NULL;
@@ -81,6 +84,9 @@ static struct obj *objs_to_mark = NULL;
 #ifdef GC_STATS
 unsigned long long gc_total_allocs = 0;
 unsigned long long gc_total_frees = 0;
+double time_rootfinding = 0.;
+double time_marking = 0.;
+double time_sweeping = 0.;
 #endif
 
 static void gc_mark(struct obj *item);
@@ -183,6 +189,9 @@ void gc_collect() {
 	collection_active = 1;
 
 	/* Find roots */
+#ifdef GC_STATS
+	double start = gettime_perf();
+#endif
 	uintptr_t end_of_stack = get_end_of_stack();
 
 	if (gc_start_of_stack == 0) abort();
@@ -206,6 +215,12 @@ void gc_collect() {
 		ADDMARK(interned_symbols.e);
 	}
 
+#ifdef GC_STATS
+	double end = gettime_perf();
+	time_rootfinding += end - start;
+	start = end;
+#endif
+
 	/* mark */
 	while (objs_to_mark != NULL) {
 		struct obj *cur = objs_to_mark;
@@ -213,6 +228,12 @@ void gc_collect() {
 		SETNEXTTOMARK(cur, NULL);
 		gc_mark(cur);
 	}
+
+#ifdef GC_STATS
+	end = gettime_perf();
+	time_marking += end - start;
+	start = end;
+#endif
 
 	/* sweep */
 	uintptr_t *writeptr = all_allocations;
@@ -240,6 +261,12 @@ void gc_collect() {
 		}
 	}
 	all_allocations_end = writeptr;
+
+#ifdef GC_STATS
+	end = gettime_perf();
+	time_sweeping += end - start;
+#endif
+
 	collection_active = 0;
 }
 

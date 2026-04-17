@@ -140,6 +140,7 @@
     <ClCompile Include="main.c" />
     <ClCompile Include="obj.c" />
     <ClCompile Include="parse.c" />
+    <ClCompile Include="perf_win32.c" />
     <ClCompile Include="print.c" />
     <ClCompile Include="stdlib.c" />
   </ItemGroup>
@@ -154,6 +155,7 @@
     <ClInclude Include="macroexpander.h" />
     <ClInclude Include="obj.h" />
     <ClInclude Include="parse.h" />
+    <ClInclude Include="perf.h" />
     <ClInclude Include="print.h" />
     <ClInclude Include="stdlib.h" />
   </ItemGroup>

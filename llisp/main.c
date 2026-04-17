@@ -72,13 +72,63 @@ void repl(struct env *globals) {
 	}
 }
 
+void run_file(char *filename, struct env *globals) {
+	FILE *fp = fopen(filename, "rb");
+	if (fp == NULL) {
+		fprintf(stderr, "Error opening file \"%s\"\n", filename);
+		exit(1);
+	}
+	fseek(fp, 0, SEEK_END);
+	size_t file_size = ftell(fp);
+	rewind(fp);
+
+	struct string *file_contents = unsafe_make_uninitialized_str(file_size);
+	size_t bytes_read = 0;
+	while (bytes_read < file_size) {
+		size_t this_read = fread(file_contents->str + bytes_read, 1, file_size - bytes_read, fp);
+		if (this_read == 0) {
+			fprintf(stderr, "Error reading file \"%s\"\n", filename);
+			exit(1);
+		}
+		bytes_read += this_read;
+	}
+	fclose(fp);
+
+	struct buf buf;
+	init_buf(file_contents->str, file_contents->len, &buf);
+
+	struct obj *obj;
+	enum parse_result parse_res = parse(&buf, &obj);
+	if (parse_res == PARSE_EMPTY) {
+		/* I don't know why you'd do this, but I guess it's fine */
+		return;
+	}
+	if (parse_res != PARSE_OK) {
+		fprintf(stderr, "Syntax error in \"%s\"\n", filename);
+		exit(1);
+	}
+
+	/* parsed successfully - run it */
+	while (obj != NIL) {
+		run_cps(CAR(obj), globals, NULL /*failed*/);
+		obj = CDR(obj);
+	}
+}
+
 _declspec(noinline)
-int realmain() {
+int realmain(int argc, char *argv[]) {
 	struct env *globals = make_env(NULL);
 	add_globals(globals);
 	add_stdlib(globals);
 
-	repl(globals);
+	if (argc == 1) {
+		repl(globals);
+	} else if (argc == 2) {
+		run_file(argv[1], globals);
+	} else {
+		fprintf(stderr, "Usage: %s [file]\n", argv[0]);
+		return 1;
+	}
 
 #ifdef GC_STATS
 	puts("\n");
@@ -96,9 +146,9 @@ int realmain() {
 	return 0;
 }
 
-int main() {
+int main(int argc, char *argv[]) {
 	/* make sure the GC scans everything in main */
 	void *bottom_of_stack = &bottom_of_stack;
 	gc_init(bottom_of_stack);
-	return realmain();
+	return realmain(argc, argv);
 }

@@ -17,6 +17,17 @@ static struct obj *fn_quit(CPS_ARGS) {
 	return obj;
 }
 
+void read_line(struct string_builder *current) {
+#define BUF_SIZE 1024
+	char buf[BUF_SIZE];
+	_Bool is_done = 0;
+	while (!is_done && fgets(buf, BUF_SIZE, stdin)) {
+		size_t real_len = strlen(buf);
+		is_done = strchr(buf, '\n') != NULL;
+		string_builder_append_str(current, buf, real_len);
+	}
+}
+
 void repl(struct env *globals) {
 	definesym(globals, str_from_string_lit("quit"), make_fn(FN, fn_quit, "quit"));
 
@@ -25,10 +36,16 @@ void repl(struct env *globals) {
 	fflush(stdout);
 	struct obj *obj;
 
-	struct data_source stdin_ds;
-	data_source_from_file(stdin, &stdin_ds);
+	struct string_builder line;
+	struct data_source lineds;
 
-	while (!repl_done && parse(&stdin_ds, &obj) == PARSE_OK) {
+	while (!repl_done) {
+		init_string_builder(&line);
+		read_line(&line);
+		data_source_from_memory(line.buf->str, line.used, &lineds);
+		if (parse(&lineds, &obj) != PARSE_OK) {
+			break;
+		}
 		_Bool failed = 0;
 		FILE *output = stdout;
 		obj = run_cps(obj, globals, &failed);

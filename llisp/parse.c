@@ -7,65 +7,34 @@
 #include "obj.h"
 #include "parse.h"
 
-static int file_ds_getc(struct data_source *ds) {
-	return getc((FILE *)ds->rawdata);
-}
-static int file_ds_peek(struct data_source *ds) {
-	int ch = getc((FILE *)ds->rawdata);
-	ungetc(ch, (FILE *)ds->rawdata);
-	return ch;
-}
-
-void data_source_from_file(FILE *f, struct data_source *ds) {
-	if (f == NULL || ds == NULL) {
-		return;
-	}
-	ds->dsgetc = file_ds_getc;
-	ds->dspeek = file_ds_peek;
-	ds->rawdata = f;
-	ds->cur = NULL;
-	ds->end = NULL;
-}
-
-static int mem_ds_getc(struct data_source *ds) {
-	if (ds->cur == ds->end) {
+static int buf_getc_impl(struct buf *buf, _Bool advance) {
+	if (buf->cur == buf->end) {
 		return EOF;
 	}
-	char ret = *(char *)ds->cur;
-	ds->cur = ((char *)ds->cur) + 1;
+	char ret = *(char *)buf->cur;
+	buf->cur = ((char *)buf->cur) + advance;
 	return ret;
 }
 
-static int mem_ds_peek(struct data_source *ds) {
-	if (ds->cur == ds->end) {
-		return EOF;
-	}
-	return *(char *)ds->cur;
-}
-
-void data_source_from_memory(const char *s, size_t len, struct data_source *ds) {
-	if (s == NULL || ds == NULL) {
+void init_buf(const char *s, size_t len, struct buf *buf) {
+	if (s == NULL || buf == NULL) {
 		return;
 	}
-	ds->dsgetc = mem_ds_getc;
-	ds->dspeek = mem_ds_peek;
-	/* Cast away const; this is fine because we never write to it. The FILE* one can't be const. */
-	char *ms = (char *)s;
-	ds->rawdata = ms;
-	ds->cur = ms;
-	ds->end = ms + len;
+	buf->begin = s;
+	buf->cur = s;
+	buf->end = s + len;
 }
 
 int line;
 
-static int readch(struct data_source *ds) {
-	int ret = ds->dsgetc(ds);
+static int readch(struct buf *buf) {
+	int ret = buf_getc_impl(buf, 1);
 	if (ret == '\n') ++line;
 	return ret;
 }
 
-static int peekch(struct data_source *ds) {
-	return ds->dspeek(ds);
+static int peekch(struct buf *buf) {
+	return buf_getc_impl(buf, 0);
 }
 
 static int isdelimiter(char ch) {
@@ -103,10 +72,10 @@ struct token {
 
 struct token curtok;
 
-static uint32_t read_unicode_escape(struct data_source *ds, int len) {
+static uint32_t read_unicode_escape(struct buf *buf, int len) {
 	uint32_t ret = 0;
 	while (len--) {
-		int ch = readch(ds);
+		int ch = readch(buf);
 		if ('0' <= ch && ch <= '9') {
 			ret = (ret << 4) | (ch - '0');
 		} else if ('a' <= ch && ch <= 'f') {
@@ -147,13 +116,13 @@ static int write_utf8(struct string_builder *sb, uint32_t codepoint) {
 	return 0;
 }
 
-static void read_string(struct data_source *ds) {
+static void read_string(struct buf *buf) {
 	_Bool unicodeerror = 0;
 	struct string_builder sb;
 	init_string_builder(&sb);
 	for (;;) {
 		uint32_t codepoint;
-		int ch = readch(ds);
+		int ch = readch(buf);
 		if (ch == EOF) {
 			fprintf(stderr, "[line %d]: unterminated string\n", curtok.line);
 			curtok.type = TT_ERROR_UNTERMINATEDSTR;
@@ -173,7 +142,7 @@ static void read_string(struct data_source *ds) {
 			continue;
 		}
 		int escape_line = line;
-		ch = readch(ds);
+		ch = readch(buf);
 		switch (ch) {
 		default:
 			fprintf(stderr, "[line %d]: unknown escape \\%c, treating as %c\n", escape_line, ch, ch);
@@ -194,7 +163,7 @@ static void read_string(struct data_source *ds) {
 			break;
 		case 'u':
 		case 'U':
-			codepoint = read_unicode_escape(ds, 4 + 4 * (ch == 'U'));
+			codepoint = read_unicode_escape(buf, 4 + 4 * (ch == 'U'));
 			if (codepoint != (uint32_t)-1) {
 				if (!write_utf8(&sb, codepoint)) {
 					unicodeerror = 1;
@@ -212,17 +181,17 @@ static int can_begin_num(char ch) {
 	return isdigit(ch) || ch == '.' || ch == '+' || ch == '-';
 }
 
-static void read_token(struct data_source *ds) {
+static void read_token(struct buf *buf) {
 	int ch;
 	for (;;) {
-		ch = readch(ds);
+		ch = readch(buf);
 		if (ch == EOF) {
 			curtok.type = TT_EOF;
 			return;
 		}
 		if (isspace(ch)) continue;
 		if (ch == ';') {
-			while ((ch = readch(ds)) != EOF && ch != '\n');
+			while ((ch = readch(buf)) != EOF && ch != '\n');
 			continue;
 		}
 		break;
@@ -240,9 +209,9 @@ static void read_token(struct data_source *ds) {
 			curtok.type = TT_QUOTE;
 			return;
 		case ',': {
-			int next = peekch(ds);
+			int next = peekch(buf);
 			if (next == '@') {
-				readch(ds);
+				readch(buf);
 				curtok.type = TT_UNQUOTE_SPL;
 			} else {
 				curtok.type = TT_UNQUOTE;
@@ -253,7 +222,7 @@ static void read_token(struct data_source *ds) {
 			curtok.type = TT_QUASIQUOTE;
 			return;
 		case '"':
-			read_string(ds);
+			read_string(buf);
 			return;
 	}
 
@@ -266,11 +235,11 @@ static void read_token(struct data_source *ds) {
 			validident = 0;
 		}
 		string_builder_append(&sb, (char) ch);
-		ch = peekch(ds);
+		ch = peekch(buf);
 		if (isdelimiter((char)ch)) {
 			break;
 		}
-		readch(ds);
+		readch(buf);
 	}
 	if (!validident) {
 		fprintf(stderr, "[line %d]: invalid identifier ", curtok.line);
@@ -378,8 +347,8 @@ static void error(const char *message, ...) {
 	fputs("\n", stderr);
 }
 
-static enum parse_result parse_one(struct data_source *ds, struct obj **result);
-static enum parse_result parse_list(struct data_source *ds, struct obj **result) {
+static enum parse_result parse_one(struct buf *buf, struct obj **result);
+static enum parse_result parse_list(struct buf *buf, struct obj **result) {
 	struct obj *list = NIL;
 	struct obj *cur = NIL;
 	enum dot_status {
@@ -388,7 +357,7 @@ static enum parse_result parse_list(struct data_source *ds, struct obj **result)
 		DOT_AND_SYMBOL,
 	} dot_status = NO_DOT;
 	for (;;) {
-		read_token(ds);
+		read_token(buf);
 		if (curtok.type == TT_DOT) {
 			if (dot_status == SEEN_DOT) {
 				error("too many dots");
@@ -414,7 +383,7 @@ static enum parse_result parse_list(struct data_source *ds, struct obj **result)
 		}
 
 		struct obj *obj;
-		enum parse_result ret = parse_one(ds, &obj);
+		enum parse_result ret = parse_one(buf, &obj);
 		if (ret == PARSE_EMPTY) {
 			return PARSE_PARTIAL;
 		} else if (ret != PARSE_OK) {
@@ -433,12 +402,12 @@ static enum parse_result parse_list(struct data_source *ds, struct obj **result)
 	}
 }
 
-static enum parse_result parse_one(struct data_source *ds, struct obj **result) {
+static enum parse_result parse_one(struct buf *buf, struct obj **result) {
 #define QUOTE_CASE(type, name) \
 		case type: { \
-			read_token(ds); \
+			read_token(buf); \
 			struct obj *quoted; \
-			enum parse_result ret = parse_one(ds, &quoted); \
+			enum parse_result ret = parse_one(buf, &quoted); \
 			if (ret == PARSE_OK) { \
 				*result = cons(intern_symbol(str_from_string_lit(#name)), cons(quoted, NIL)); \
 			} \
@@ -447,7 +416,7 @@ static enum parse_result parse_one(struct data_source *ds, struct obj **result) 
 
 	switch (curtok.type) {
 		case TT_LPAREN:
-			return parse_list(ds, result);
+			return parse_list(buf, result);
 		QUOTE_CASE(TT_QUOTE, quote)
 		QUOTE_CASE(TT_QUASIQUOTE, quasiquote)
 		QUOTE_CASE(TT_UNQUOTE, unquote)
@@ -479,8 +448,8 @@ static enum parse_result parse_one(struct data_source *ds, struct obj **result) 
 #undef QUOTE_CASE
 }
 
-enum parse_result parse(struct data_source *ds, struct obj **result) {
-	if (ds == NULL || result == NULL) {
+enum parse_result parse(struct buf *buf, struct obj **result) {
+	if (buf == NULL || result == NULL) {
 		return PARSE_INVALIDPARAM;
 	}
 	line = 1;
@@ -491,8 +460,8 @@ enum parse_result parse(struct data_source *ds, struct obj **result) {
 	struct obj **next = result;
 	struct obj *cur;
 	for (;;) {
-		read_token(ds);
-		ret = parse_one(ds, &cur);
+		read_token(buf);
+		ret = parse_one(buf, &cur);
 		if (ret == PARSE_OK) {
 			*next = cons(cur, NIL);
 			next = &CDR(*next);

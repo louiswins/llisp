@@ -1,18 +1,13 @@
 #pragma once
-#include <stdio.h>
 
 struct obj;
-
-struct data_source {
-	int (*dsgetc)(struct data_source *src);
-	int (*dspeek)(struct data_source *src);
-	void *rawdata;
-	void *cur;
-	void *end;
+struct buf {
+	const char *begin;
+	const char *end;
+	const char *cur;
 };
 
-void data_source_from_file(FILE *f, struct data_source *ds);
-void data_source_from_memory(const char *s, size_t len, struct data_source *ds);
+void init_buf(const char *s, size_t len, struct buf *buf);
 
 enum parse_result {
 	/* Fully parsed an entire result */
@@ -27,4 +22,4 @@ enum parse_result {
 	PARSE_EMPTY,
 };
 
-enum parse_result parse(struct data_source *ds, struct obj **result);
+enum parse_result parse(struct buf* buf, struct obj **result);

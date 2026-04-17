@@ -36,7 +36,7 @@ void repl(struct env *globals) {
 	struct obj *obj;
 
 	struct string_builder line;
-	struct data_source lineds;
+	struct buf linebuf;
 
 	while (!repl_done) {
 		init_string_builder(&line);
@@ -44,8 +44,8 @@ void repl(struct env *globals) {
 		enum parse_result result;
 		do {
 			read_line(&line);
-			data_source_from_memory(line.buf->str, line.used, &lineds);
-			result = parse(&lineds, &obj);
+			init_buf(line.buf->str, line.used, &linebuf);
+			result = parse(&linebuf, &obj);
 		} while (result == PARSE_PARTIAL);
 
 		while (obj != NULL && obj != NIL) {

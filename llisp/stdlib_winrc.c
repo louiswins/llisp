@@ -19,8 +19,8 @@ void add_stdlib(struct env *env) {
 	if (!hStdlib) abort();
 	const char *stdlibData = LockResource(hStdlib);
 
-	struct data_source stdlib;
-	data_source_from_memory(stdlibData, stdlibLen, &stdlib);
+	struct buf stdlib;
+	init_buf(stdlibData, stdlibLen, &stdlib);
 
 	struct obj *obj;
 	if (parse(&stdlib, &obj) != PARSE_OK) {

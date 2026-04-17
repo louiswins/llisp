@@ -488,9 +488,26 @@ enum parse_result parse(struct data_source *ds, struct obj **result) {
 	if (ds == NULL || result == NULL) {
 		return PARSE_INVALIDPARAM;
 	}
-	enum parse_result ret = PARSE_INVALID;
-	read_token(ds);
-	return parse_one(ds, result);
+	enum parse_result ret = PARSE_EMPTY;
+	*result = NIL;
+	struct obj **next = result;
+	struct obj *cur;
+	for (;;) {
+		read_token(ds);
+		ret = parse_one(ds, &cur);
+		if (ret == PARSE_OK) {
+			*next = cons(cur, NIL);
+			next = &CDR(*next);
+		} else {
+			break;
+		}
+	}
+	if (ret == PARSE_EMPTY && *result != NIL) {
+		/* The call to parse_one after we have parsed the last form will
+		 * return PARSE_EMPTY. But the overall parse succeeded. */
+		return PARSE_OK;
+	}
+	return ret;
 }
 
 void init_parser() {

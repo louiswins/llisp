@@ -41,28 +41,36 @@ void repl(struct env *globals) {
 
 	while (!repl_done) {
 		init_string_builder(&line);
-		read_line(&line);
-		data_source_from_memory(line.buf->str, line.used, &lineds);
-		if (parse(&lineds, &obj) != PARSE_OK) {
-			break;
-		}
-		_Bool failed = 0;
-		FILE *output = stdout;
-		obj = run_cps(obj, globals, &failed);
-		if (failed) {
-			printf(" failed with ");
-			output = stderr;
-		} else {
-			printf("=> ");
-		}
-		if (obj) {
-			print_on(output, obj, 1);
-		} else {
-			fprintf(output, "NULL");
+		// Keep reading lines until the parse is clean (or fails outright)
+		enum parse_result result;
+		do {
+			read_line(&line);
+			data_source_from_memory(line.buf->str, line.used, &lineds);
+			result = parse(&lineds, &obj);
+		} while (result == PARSE_PARTIAL);
+
+		while (obj != NULL && obj != NIL) {
+			_Bool failed = 0;
+			FILE *output = stdout;
+			struct obj* thisres = run_cps(CAR(obj), globals, &failed);
+			if (failed) {
+				printf(" failed with ");
+				output = stderr;
+			} else {
+				printf("=> ");
+			}
+			if (thisres) {
+				print_on(output, thisres, 1);
+			} else {
+				fprintf(output, "NULL");
+			}
+			puts("");
+
+			obj = CDR(obj);
 		}
 		gc_collect();
 		if (!repl_done) {
-			printf("\n\n$ ");
+			printf("$ ");
 			fflush(stdout);
 		}
 	}

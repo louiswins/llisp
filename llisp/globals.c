@@ -314,6 +314,16 @@ static struct obj *fn_callcc(CPS_ARGS) {
 
 static struct obj *fn_error(CPS_ARGS) {
 	(void)self;
+	fputs("Error", stderr);
+	if (TYPE(obj) == CELL) {
+		putc(':', stderr);
+		while (obj != NIL) {
+			putc(' ', stderr);
+			print_on(stderr, CAR(obj), 0);
+			obj = CDR(obj);
+		}
+	}
+	putc('\n', stderr);
 	*ret = &cfail;
 	return obj;
 }

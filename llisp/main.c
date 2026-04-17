@@ -51,20 +51,17 @@ void repl(struct env *globals) {
 
 		while (obj != NULL && obj != NIL) {
 			_Bool failed = 0;
-			FILE *output = stdout;
 			struct obj* thisres = run_cps(CAR(obj), globals, &failed);
-			if (failed) {
-				printf(" failed with ");
-				output = stderr;
-			} else {
+			if (!failed) {
 				printf("=> ");
+
+				if (thisres) {
+					print(thisres);
+					puts("");
+				} else {
+					puts("NULL");
+				}
 			}
-			if (thisres) {
-				print_on(output, thisres, 1);
-			} else {
-				fprintf(output, "NULL");
-			}
-			puts("");
 
 			obj = CDR(obj);
 		}

@@ -68,11 +68,6 @@ static _Bool is_valid_allocation(uintptr_t ptr) {
 	return slot != all_allocations_end && *slot == ptr;
 }
 
-/* GC roots */
-struct contn *gc_current_contn = NULL;
-struct obj *gc_current_obj = NULL;
-struct env *gc_global_env = NULL;
-
 static uintptr_t gc_start_of_stack = 0;
 void gc_init(void *bottom_of_stack) {
 	uintptr_t bottom = (uintptr_t)bottom_of_stack;
@@ -208,11 +203,6 @@ void gc_collect() {
 		}
 		gc_queue((struct obj *)value_on_stack);
 	}
-
-	/* eventually shouldn't need these anymore - they should just live on the stack instead of being globals */
-	gc_queue((struct obj *) gc_current_contn);
-	gc_queue(gc_current_obj);
-	gc_queue((struct obj *) gc_global_env);
 
 	/* DON'T queue this normally as it's full of weak references */
 	if (interned_symbols.cap != 0) {

@@ -1,13 +1,6 @@
 #pragma once
 #include <stdlib.h>
 #include "obj.h"
-struct contn;
-struct env;
-
-/* GC roots */
-extern struct contn *gc_current_contn;
-extern struct obj *gc_current_obj;
-extern struct env *gc_global_env;
 
 void gc_init(void *bottom_of_stack);
 

@@ -18,21 +18,19 @@ static struct obj *fn_quit(CPS_ARGS) {
 	return obj;
 }
 
-int main() {
-	void *bottom_of_stack = &bottom_of_stack;
-	gc_init(bottom_of_stack);
-
-	gc_global_env = make_env(NULL);
-	add_globals(gc_global_env);
-	add_stdlib(gc_global_env);
-	definesym(gc_global_env, str_from_string_lit("quit"), make_fn(FN, fn_quit, "quit"));
+_declspec(noinline)
+int realmain() {
+	struct env *globals = make_env(NULL);
+	add_globals(globals);
+	add_stdlib(globals);
+	definesym(globals, str_from_string_lit("quit"), make_fn(FN, fn_quit, "quit"));
 
 	init_parser();
 	printf("$ ");
 	fflush(stdout);
 	struct obj *obj;
 	while (!repl_done && (obj = parse(stdin)) != NULL) {
-		obj = run_cps(obj, gc_global_env);
+		obj = run_cps(obj, globals);
 		printf("=> ");
 		if (obj) {
 			print(obj);
@@ -50,7 +48,6 @@ int main() {
 	puts("\n");
 	printf("Total allocations:               %llu\n", gc_total_allocs);
 	printf("Total frees (before collection): %llu\n", gc_total_frees);
-	gc_global_env = NULL; gc_current_contn = NULL; gc_current_obj = NULL;
 	memset(&interned_symbols, 0, sizeof(interned_symbols));
 	gc_collect();
 	printf("Total frees (after collection):  %llu\n", gc_total_frees);
@@ -61,4 +58,11 @@ int main() {
 #endif
 
 	return 0;
+}
+
+int main() {
+	/* make sure the GC scans everything in main */
+	void *bottom_of_stack = &bottom_of_stack;
+	gc_init(bottom_of_stack);
+	return realmain();
 }

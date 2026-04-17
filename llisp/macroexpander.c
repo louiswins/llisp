@@ -148,19 +148,16 @@ static struct obj *macroexpand_list_cons(CPS_ARGS) {
 }
 
 struct obj *macroexpand_cps(struct obj *obj, struct env *env) {
-	cbegin.env = make_env(env); // don't mess with the actual environment passed in
-	cbegin.next = &cend;
-	cbegin.fn = do_macroexpand;
-	gc_current_contn = &cbegin;
-	gc_current_obj = obj;
+	struct contn *cur = make_empty_contn();
+	cur->env = make_env(env); /* don't mess with the actual environment passed in */
+	cur->fn = do_macroexpand;
 	struct contn *next = NULL;
-	while (gc_current_contn != &cend && gc_current_contn != &cfail) {
-		gc_current_obj = gc_current_contn->fn(gc_current_contn, gc_current_obj, &next);
-		gc_current_contn = next;
+	while (cur != &cend && cur != &cfail) {
+		obj = cur->fn(cur, obj, &next);
+		cur = next;
 	}
-	if (gc_current_contn == &cfail) {
+	if (cur == &cfail) {
 		return NULL;
 	}
-	gc_current_contn = NULL;
-	return gc_current_obj;
+	return obj;
 }

@@ -16,4 +16,3 @@ struct obj *run_cps(struct obj *obj, struct env *env);
 
 extern struct contn cend;
 extern struct contn cfail;
-extern struct contn cbegin;

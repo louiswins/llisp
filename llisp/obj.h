@@ -159,6 +159,7 @@ struct contn {
 };
 #define AS_CONTN(o) ((struct contn*)(o))
 
+struct contn *make_empty_contn();
 /* duplicate an existing continuation */
 struct contn *dupcontn(struct contn *c);
 

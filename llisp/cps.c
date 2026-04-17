@@ -8,8 +8,14 @@
 #include "obj.h"
 #include "print.h"
 
+struct contn *make_empty_contn() {
+	struct contn *ret = (struct contn *)gc_alloc(CONTN, sizeof(*ret));
+	ret->next = &cend;
+	return ret;
+}
+
 struct contn *dupcontn(struct contn *c) {
-	struct contn *ret = (struct contn *) gc_alloc(CONTN, sizeof(*ret));
+	struct contn *ret = make_empty_contn();
 	memcpy(&ret->data, &c->data, sizeof(*ret) - offsetof(struct contn, data));
 	return ret;
 }
@@ -24,7 +30,6 @@ static int is_callable(enum objtype type) {
 
 struct contn cend = { NULL };
 struct contn cfail = { NULL };
-struct contn cbegin = { NULL };
 
 /* Eval an object */
 struct obj *eval_cps(CPS_ARGS);
@@ -304,26 +309,24 @@ struct obj *apply_contn(CPS_ARGS) {
 
 struct obj *run_cps(struct obj *obj, struct env *env) {
 	// First macroexpand this puppy
-	gc_current_obj = macroexpand_cps(obj, env);
-	if (!gc_current_obj) {
+	obj = macroexpand_cps(obj, env);
+	if (!obj) {
 		return NULL;
 	}
 	// Now run it for real
-	cbegin.env = env;
-	cbegin.next = &cend;
-	cbegin.fn = eval_cps;
-	gc_current_contn = &cbegin;
+	struct contn *cur = make_empty_contn();
+	cur->env = env;
+	cur->fn = eval_cps;
 	struct contn *next = NULL;
-	while (gc_current_contn != &cend && gc_current_contn != &cfail) {
-		gc_current_obj = gc_current_contn->fn(gc_current_contn, gc_current_obj, &next);
-		gc_current_contn = next;
+	while (cur != &cend && cur != &cfail) {
+		obj = cur->fn(cur, obj, &next);
+		cur = next;
 	}
-	if (gc_current_contn == &cfail) {
+	if (cur == &cfail) {
 		/* If we got `(obj)`, just return `obj`. */
-		if (TYPE(gc_current_obj) == CELL && CDR(gc_current_obj) == NIL) {
-			gc_current_obj = CAR(gc_current_obj);
+		if (TYPE(obj) == CELL && CDR(obj) == NIL) {
+			obj = CAR(obj);
 		}
 	}
-	gc_current_contn = NULL;
-	return gc_current_obj;
+	return obj;
 }

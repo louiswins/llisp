@@ -1,0 +1,4 @@
+(display (car ''abc)) (newline)
+(display (car '`abc)) (newline)
+(display (car ',abc)) (newline)
+(display (car ',@abc)) (newline)

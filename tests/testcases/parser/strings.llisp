@@ -1,0 +1,9 @@
+(display "abc") (newline) ; expect: abc
+
+; backslash escapes
+(display "de\tf") (newline) ; expect: de	f
+(display "g\\h") (newline) ; expect: g\h
+(display "i\"j") (newline) ; expect: i"j
+; unicode
+(display "\u2603") (newline) ; expect: ☃
+(display "\U0001F4A9") (newline) ; expect: 💩

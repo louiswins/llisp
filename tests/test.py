@@ -9,6 +9,8 @@ import sys
 TESTCASE_PATH = Path(__file__).parent / 'testcases'
 EXECUTABLE_PATH = Path(__file__).parent.parent / 'x64/Debug/llisp.exe'
 
+NAME_WIDTH = 60
+
 @dataclass
 class Testcase:
     name: str
@@ -49,12 +51,16 @@ if __name__ == '__main__':
     num_tests = 0
     for category, cases in tests.items():
         indent = ''
-        if category is not None:
-            print(f'{category}:')
-            indent = '\t'
+        if category is None:
+            category = '<root tests>'
+        print(f'{category}:')
         for name, case in cases.items():
             num_tests += 1
-            print(f'{indent}{name}: ', end='')
+            if len(name) > NAME_WIDTH:
+                name = name[:NAME_WIDTH - 3] + '...'
+            name += ':'
+            # +1 for the colon
+            print(f'    {name.ljust(NAME_WIDTH + 1)} ', end='')
             sys.stdout.flush()
             result = run_test(case)
             if result:

@@ -63,6 +63,10 @@ static struct obj *do_macroexpand(CPS_ARGS) {
 		*ret = self->next;
 		return obj;
 	}
+	if (is_real_quote(CAR(obj), self->env)) {
+		*ret = self->next;
+		return obj;
+	}
 	if (is_real_lambda(CAR(obj), self->env) && (TYPE(CDR(obj)) == CELL)) {
 		struct contn *lambdacons = dupcontn(self);
 		lambdacons->data = CAR(CDR(obj));

@@ -461,7 +461,7 @@ static struct obj *fn_number_(CPS_ARGS) {
 		return NIL;
 	}
 	*ret = self->next;
-	return TYPE(obj) == NUM ? TRUE : FALSE;
+	return TYPE(CAR(obj)) == NUM ? TRUE : FALSE;
 }
 
 #define ARITH_OPS(arith) \

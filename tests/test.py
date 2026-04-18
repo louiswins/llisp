@@ -2,6 +2,7 @@ from pathlib import Path
 from dataclasses import dataclass
 from typing import Optional
 from collections.abc import Iterator
+import re
 import subprocess
 import sys
 
@@ -11,12 +12,21 @@ EXECUTABLE_PATH = Path(__file__).parent.parent / 'x64/Debug/llisp.exe'
 
 NAME_WIDTH = 60
 
+REQUIREMENTS_PATTERN = re.compile('; expect: (.*)')
+PROHIBITIONS_PATTERN = re.compile('; forbid: (.*)')
+
 @dataclass
 class Testcase:
     name: str
     category: Optional[str]
     file: Path
+    expects: list[str]
+    forbids: list[str]
 
+
+def find_expectations(srcfile: Path) -> tuple[list[str], list[str]]:
+    source = srcfile.read_text()
+    return (REQUIREMENTS_PATTERN.findall(source), PROHIBITIONS_PATTERN.findall(source))
 
 def find_tests() -> Iterator[Testcase]:
     for t in TESTCASE_PATH.glob('**/*.llisp'):
@@ -25,7 +35,8 @@ def find_tests() -> Iterator[Testcase]:
         category: Optional[str] = None
         if len(parts) > 1:
             category = '/'.join(parts[:-1])
-        yield Testcase(t.stem, category, t)
+        exp, fbd = find_expectations(t)
+        yield Testcase(t.stem, category, t, exp, fbd)
 
 
 def run_test(test: Testcase) -> bool:

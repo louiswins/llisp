@@ -1,4 +1,4 @@
-(display (car ''abc)) (newline)
-(display (car '`abc)) (newline)
-(display (car ',abc)) (newline)
-(display (car ',@abc)) (newline)
+(display (car ''abc)) (newline)  ; expect: quote
+(display (car '`abc)) (newline)  ; expect: quasiquote
+(display (car ',abc)) (newline)  ; expect: unquote
+(display (car ',@abc)) (newline) ; expect: unquote-splicing

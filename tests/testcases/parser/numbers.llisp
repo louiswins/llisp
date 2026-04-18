@@ -8,3 +8,5 @@
 (display (number? 12345.6e7)) (newline)
 (display (number? 12345.6e+7)) (newline)
 (display (number? 12345.6e-7)) (newline)
+; expect: #t
+; forbid: #f

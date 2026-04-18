@@ -39,10 +39,21 @@ def find_tests() -> Iterator[Testcase]:
         yield Testcase(t.stem, category, t, exp, fbd)
 
 
-def run_test(test: Testcase) -> bool:
-    res = subprocess.run([EXECUTABLE_PATH, test.file], capture_output=True)
-    # TODO: should test more than running successfully & empty stderr
-    return res.returncode == 0 and not res.stderr
+def run_test(test: Testcase) -> list[str]:
+    res = subprocess.run([EXECUTABLE_PATH, test.file], capture_output=True, text=True)
+    failures: list[str] = []
+    if res.returncode != 0:
+        failures.append(f'Exited with {res.returncode}')
+    if res.stderr:
+        failures.append(f'Wrote to stderr:\n{res.stderr}')
+    for exp in test.expects:
+        if exp not in res.stdout:
+            failures.append(f'Expected "{exp}"')
+    for fbd in test.forbids:
+        if fbd in res.stdout:
+            failures.append(f'Did not expect "{fbd}"')
+
+    return failures
 
 if __name__ == '__main__':
     if not EXECUTABLE_PATH.is_file():
@@ -73,13 +84,22 @@ if __name__ == '__main__':
             # +1 for the colon
             print(f'    {name.ljust(NAME_WIDTH + 1)} ', end='')
             sys.stdout.flush()
-            result = run_test(case)
-            if result:
+
+            failures = run_test(case)
+
+            if not failures:
                 print('PASSED')
             else:
                 print('FAILED')
                 num_failures += 1
+                for fail in failures:
+                    fl = fail.splitlines()
+                    print('      - ' + fl[0])
+                    for l in fl[1:]:
+                        print('        ' + l)
+
         print()
+
     if num_failures:
         print(f'{num_tests-num_failures}/{num_tests} tests passed.')
         print(f'{num_failures} failures.')

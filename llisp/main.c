@@ -51,13 +51,19 @@ void repl(struct env *globals) {
 
 		while (obj != NULL && obj != NIL) {
 			_Bool failed = 0;
+			repl_needs_newline = 0;
 			struct obj* thisres = run_cps(CAR(obj), globals, &failed);
+			if (repl_needs_newline) {
+				/* Add a newline so we don't put the => immediately on top of it */
+				/* (or the next prompt */
+				putchar('\n');
+			}
 			if (!failed) {
 				printf("=> ");
 
 				if (thisres) {
 					print(thisres);
-					puts("");
+					putchar('\n');
 				} else {
 					puts("NULL");
 				}

@@ -10,6 +10,8 @@
 #include "obj.h"
 #include "print.h"
 
+_Bool repl_needs_newline = 0;
+
 int length(struct obj *obj) {
 	int ret = 0;
 	struct obj* tortoise = obj;
@@ -280,6 +282,13 @@ static struct obj *fn_display(CPS_ARGS) {
 		return NIL;
 	}
 	display(CAR(obj));
+	repl_needs_newline = 1;
+	if (TYPE(CAR(obj)) == STRING) {
+		struct string *s = AS_STRING(CAR(obj));
+		if (s->len > 0 && s->str[s->len - 1] == '\n') {
+			repl_needs_newline = 0;
+		}
+	}
 	*ret = self->next;
 	return NIL;
 }
@@ -289,6 +298,7 @@ static struct obj *fn_write(CPS_ARGS) {
 		return NIL;
 	}
 	print(CAR(obj));
+	repl_needs_newline = 1;
 	*ret = self->next;
 	return NIL;
 }
@@ -298,6 +308,7 @@ static struct obj *fn_newline(CPS_ARGS) {
 		return NIL;
 	}
 	putchar('\n');
+	repl_needs_newline = 0;
 	*ret = self->next;
 	return NIL;
 }

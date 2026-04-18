@@ -8,6 +8,9 @@ _Bool is_real_lambda(struct obj *obj, struct env *env);
 _Bool is_real_define(struct obj *obj, struct env *env);
 _Bool is_real_defmacro(struct obj *obj, struct env *env);
 
+/* Help the REPL be more fluent */
+extern _Bool repl_needs_newline;
+
 /* Helpers for defining more builtins */
 
 /* Length of list. -1 if atom or improper (dotted) list */

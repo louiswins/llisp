@@ -6,7 +6,7 @@ import re
 import subprocess
 import sys
 
-# TODO: pass these on the command line or something
+# TODO: add the ability to specify which tests to run on the commandline
 TESTCASE_PATH = Path(__file__).parent / 'testcases'
 EXECUTABLE_PATH = Path(__file__).parent.parent / 'x64/Debug/llisp.exe'
 
@@ -55,6 +55,9 @@ def run_test(test: Testcase) -> list[str]:
     return failures
 
 if __name__ == '__main__':
+    if len(sys.argv) > 1:
+        EXECUTABLE_PATH = Path(sys.argv[1])
+
     if not EXECUTABLE_PATH.is_file():
         print(f'Executable {EXECUTABLE_PATH} is not a valid file.', file=sys.stderr)
         sys.exit(1)

@@ -102,5 +102,6 @@ if __name__ == '__main__':
     if num_failures:
         print(f'{num_tests-num_failures}/{num_tests} tests passed.')
         print(f'{num_failures} failures.')
+        sys.exit(1)
     else:
         print(f'All tests passed ({num_tests}/{num_tests}).')

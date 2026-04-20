@@ -1,0 +1,15 @@
+; Disgustingly inefficient
+; Also not guaranteed to work since we use doubles everywhere. Who knows about fmod.
+(define (prime? n)
+  (define (prime-helper k)
+    (cond ((<= k 1) #t)
+          ((= (% n k) 0) #f)
+          (else (prime-helper (- k 2)))))
+  (cond ((< n 2) #f)
+        ((= n 2) #t)
+        ((= 0 (% n 2)) #f)
+        (else (prime-helper (- n 2)))))
+
+(displayln (map prime? (range 1 21)))
+;          01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20
+; expect: (#f #t #t #f #t #f #t #f #f #f #t #f #t #f #f #f #t #f #t #f)

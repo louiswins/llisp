@@ -172,41 +172,6 @@
   (real-macroexpand-all form '()))
 
 (define pi 3.14159265358979323846)
-
-(define (Y f)
-  ((lambda (x) (x x))
-   (lambda (x) (f (lambda v (apply (x x) v))))))
-
-(define factorial-with-Y-demo (Y (lambda (rec)
-  (lambda (n)
-    (if (<= n 1)
-        1
-        (* n (rec (- n 1))))))))
-
-(define (Y! f-maker)
-  ((lambda (f)
-     (set! f (f-maker (lambda v (apply f v))))
-     f)
-   'UNDEFINED))
-
-(define factorial-with-Y!-demo (Y! (lambda (rec)
-  (lambda (n)
-    (if (<= n 1)
-        1
-        (* n (rec (- n 1))))))))
-
-; Disgustingly inefficient
-; Also not guaranteed to work since we use doubles everywhere. Who knows about fmod.
-(define (prime? n)
-  (define (prime-helper k)
-    (cond ((<= k 1) #t)
-          ((= (% n k) 0) #f)
-          (else (prime-helper (- k 2)))))
-  (cond ((< n 2) #f)
-        ((= n 2) #t)
-        ((= 0 (% n 2)) #f)
-        (else (prime-helper (- n 2)))))
-
 (define (length lst)
   (define (length-helper n lst)
     (cond ((null? lst) n)

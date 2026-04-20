@@ -2,9 +2,9 @@ name: Build & Test
 
 on:
   push:
-    branches: [ "test-ci" ]
+    branches: [ "*" ]
   pull_request:
-    branches: [ "test-ci" ]
+    branches: [ "*" ]
 
 env:
   # Path to the solution file relative to the root of the project.

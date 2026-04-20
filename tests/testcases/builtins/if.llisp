@@ -1,0 +1,13 @@
+; expect: ok
+; forbid: wrong
+
+(display (if #t "ok" "wrong")) (newline)
+(display (if #f "wrong" "ok")) (newline)
+
+; only false itself is falsy
+(display (if () "ok" "wrong")) (newline)
+(display (if 0 "ok" "wrong")) (newline)
+(display (if "" "ok" "wrong")) (newline)
+
+; (if #f anything) with no else-part returns #f
+(display (if (if #f "wrong") "wrong" "ok")) (newline)

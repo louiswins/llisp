@@ -18,16 +18,24 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        configuration: [ "Debug", "Release" ]
+        config: [ "Debug", "Release" ]
 
     steps:
     - uses: actions/checkout@v4
 
-    - name: Add MSBuild to PATH
-      uses: microsoft/setup-msbuild@v1.0.2
+    # from https://stackoverflow.com/questions/79852888/
+    - name: Install Visual Studio Build Tools
+      shell: pwsh
+      run: |
+        Write-Host "Installing VS 2026 Build Tools..."
+        choco install visualstudio2026buildtools `
+          --package-parameters "--add Microsoft.VisualStudio.Workload.VCTools --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --includeRecommended --quiet" `
+          -y --ignore-package-exit-codes=3010
+        Write-Host "VS 2026 Build Tools installation completed" 
 
     - name: Build
       working-directory: ${{env.GITHUB_WORKSPACE}}
-      # Add additional options to the MSBuild command line here (like platform or verbosity level).
-      # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
-      run: msbuild /m /p:Configuration=${{ matrix.configuration }} ${{env.SOLUTION_FILE_PATH}}
+      shell: cmd
+      run: |
+        call "C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\Common7\Tools\VsDevCmd.bat"
+        msbuild /m /p:Configuration=${{ matrix.config }} /p:Platform=x64 ${{env.SOLUTION_FILE_PATH}}

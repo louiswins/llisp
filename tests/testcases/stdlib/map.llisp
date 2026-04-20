@@ -1,6 +1,6 @@
 (define (1+ n) (+ 1 n))
-(display (map 1+ '(1 2 3 4 5))) (newline) ; expect: (2 3 4 5 6)
+(displayln (map 1+ '(1 2 3 4 5))) ; expect: (2 3 4 5 6)
 
-(display (map pair? '(1 (2) 3 (4 . 5) 6 ()))) (newline); expect: (#f #t #f #t #f #f)
+(displayln (map pair? '(1 (2) 3 (4 . 5) 6 ()))); expect: (#f #t #f #t #f #f)
 
-(display (map (lambda (x) (cons x 3)) (list 2 4))) (newline); expect: ((2 . 3) (4 . 3))
+(displayln (map (lambda (x) (cons x 3)) (list 2 4))); expect: ((2 . 3) (4 . 3))

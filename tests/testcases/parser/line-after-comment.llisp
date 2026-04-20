@@ -1,2 +1,2 @@
 () ; comment
-(display "did run") ; expect: did run
+(displayln "did run") ; expect: did run

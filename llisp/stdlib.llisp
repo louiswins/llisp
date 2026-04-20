@@ -276,3 +276,7 @@
         (else `(if (equal? ,val (quote ,pattern)) ,kt ,kf))))
 
 (define call/cc call-with-current-continuation)
+
+(define (displayln v)
+  (display v)
+  (newline))

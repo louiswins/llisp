@@ -1,10 +1,10 @@
-(display (number? 12345)) (newline) ; expect: #t
-(display (number? +12345)) (newline) ; expect: #t
-(display (number? -12345)) (newline) ; expect: #t
-(display (number? 12345.)) (newline) ; expect: #t
-(display (number? .12345)) (newline) ; expect: #t
-(display (number? 12345.6)) (newline) ; expect: #t
-(display (number? 12345e6)) (newline) ; expect: #t
-(display (number? 12345.6e7)) (newline) ; expect: #t
-(display (number? 12345.6e+7)) (newline) ; expect: #t
-(display (number? 12345.6e-7)) (newline) ; expect: #t
+(displayln (number? 12345)) ; expect: #t
+(displayln (number? +12345)) ; expect: #t
+(displayln (number? -12345)) ; expect: #t
+(displayln (number? 12345.)) ; expect: #t
+(displayln (number? .12345)) ; expect: #t
+(displayln (number? 12345.6)) ; expect: #t
+(displayln (number? 12345e6)) ; expect: #t
+(displayln (number? 12345.6e7)) ; expect: #t
+(displayln (number? 12345.6e+7)) ; expect: #t
+(displayln (number? 12345.6e-7)) ; expect: #t

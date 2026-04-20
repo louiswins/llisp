@@ -1,9 +1,9 @@
-(display "abc") (newline) ; expect: abc
+(displayln "abc") ; expect: abc
 
 ; backslash escapes
-(display "de\tf") (newline) ; expect: de	f
-(display "g\\h") (newline) ; expect: g\h
-(display "i\"j") (newline) ; expect: i"j
+(displayln "de\tf") ; expect: de	f
+(displayln "g\\h") ; expect: g\h
+(displayln "i\"j") ; expect: i"j
 ; unicode
-(display "\u2603") (newline) ; expect: ☃
-(display "\U0001F4A9") (newline) ; expect: 💩
+(displayln "\u2603") ; expect: ☃
+(displayln "\U0001F4A9") ; expect: 💩

@@ -1,11 +1,10 @@
-; expect: #t
-; forbid: #f
-(display (symbol? 'a)) (newline)
-(display (symbol? 'symbol?)) (newline)
-(display (symbol? 'with-a-dash)) (newline)
-(display (symbol? 'number123)) (newline)
-(display (symbol? '890-can-start-with-number)) (newline)
-(display (symbol? '1.2.3)) (newline)
+(display (symbol? 'a)) (newline) ; expect: #t
+(display (symbol? 'symbol?)) (newline) ; expect: #t
+(display (symbol? 'with-a-dash)) (newline) ; expect: #t
+(display (symbol? 'number123)) (newline) ; expect: #t
+(display (symbol? '890-can-start-with-number)) (newline) ; expect: #t
+(display (symbol? '1.2.3)) (newline) ; expect: #t
+(display (symbol? '234e)) (newline) ; expect: #t
+
 ; Known issue where strtod parses hex. Need a new number parser.
-;(display (symbol? '0x123)) (newline)
-(display (symbol? '234e)) (newline)
+;(display (symbol? '0x123)) (newline) ; do not expect: #t

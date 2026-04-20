@@ -1,16 +1,12 @@
 (display (cons 1 nil)) (newline) ; expect: (1)
 (display (car (cons 2 nil))) (newline) ; expect: 2
 (display (cdr (cons 3 nil))) (newline) ; expect: ()
-; forbid: 3
 (display (car '(4))) (newline) ; expect: 4
 (display (cdr '(5))) (newline) ; expect: ()
-; forbid: 5
 
 (display (car (cons 6 7))) (newline) ; expect: 6
 (display (cdr (cons 8 9))) (newline) ; expect: 9
-(display (cons 10 11)) (newline) ; expect (10 . 11)
+(display (cons 10 11)) (newline) ; expect: (10 . 11)
 
-; #expect: #t
-; #forbid: #f
-(display (pair? '(12 . 13))) (newline)
-(display (pair? '(14 15))) (newline)
+(display (pair? '(12 . 13))) (newline) ; expect: #t
+(display (pair? '(14 15))) (newline) ; expect: #t

@@ -13,7 +13,6 @@ EXECUTABLE_PATH = Path(__file__).parent.parent / 'x64/Debug/llisp.exe'
 NAME_WIDTH = 60
 
 REQUIREMENTS_PATTERN = re.compile('; expect: (.*)')
-PROHIBITIONS_PATTERN = re.compile('; forbid: (.*)')
 
 @dataclass
 class Testcase:
@@ -21,12 +20,10 @@ class Testcase:
     category: Optional[str]
     file: Path
     expects: list[str]
-    forbids: list[str]
 
-
-def find_expectations(srcfile: Path) -> tuple[list[str], list[str]]:
+def find_requirements(srcfile: Path) -> list[str]:
     source = srcfile.read_text()
-    return (REQUIREMENTS_PATTERN.findall(source), PROHIBITIONS_PATTERN.findall(source))
+    return REQUIREMENTS_PATTERN.findall(source)
 
 def find_tests() -> Iterator[Testcase]:
     for t in TESTCASE_PATH.glob('**/*.llisp'):
@@ -35,8 +32,7 @@ def find_tests() -> Iterator[Testcase]:
         category: Optional[str] = None
         if len(parts) > 1:
             category = '/'.join(parts[:-1])
-        exp, fbd = find_expectations(t)
-        yield Testcase(t.stem, category, t, exp, fbd)
+        yield Testcase(t.stem, category, t, find_requirements(t))
 
 
 def run_test(test: Testcase) -> list[str]:
@@ -46,12 +42,15 @@ def run_test(test: Testcase) -> list[str]:
         failures.append(f'Exited with {res.returncode}')
     if res.stderr:
         failures.append(f'Wrote to stderr:\n{res.stderr}')
-    for exp in test.expects:
-        if exp not in res.stdout:
-            failures.append(f'Expected "{exp}"')
-    for fbd in test.forbids:
-        if fbd in res.stdout:
-            failures.append(f'Did not expect "{fbd}"')
+    lines = res.stdout.splitlines()
+    for i, line in enumerate(lines):
+        if i >= len(test.expects):
+            failures.append(f'Too much output: expected {len(test.expects)} lines, saw {len(lines)}')
+            break
+        if line != test.expects[i]:
+            failures.append(f'Wrong output on line {i+1}:\nExpected: "{test.expects[i]}"\nSaw: "{line}"')
+    if len(lines) < len(test.expects):
+        failures.append(f'Too little output: expected {len(test.expects)} lines, saw {len(lines)}')
 
     return failures
 

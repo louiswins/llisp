@@ -1,13 +1,10 @@
-; expect: ok
-; forbid: wrong
-
-(display (if #t "ok" "wrong")) (newline)
-(display (if #f "wrong" "ok")) (newline)
+(display (if #t "ok" "wrong")) (newline) ; expect: ok
+(display (if #f "wrong" "ok")) (newline) ; expect: ok
 
 ; only false itself is falsy
-(display (if () "ok" "wrong")) (newline)
-(display (if 0 "ok" "wrong")) (newline)
-(display (if "" "ok" "wrong")) (newline)
+(display (if () "ok" "wrong")) (newline) ; expect: ok
+(display (if 0 "ok" "wrong")) (newline) ; expect: ok
+(display (if "" "ok" "wrong")) (newline) ; expect: ok
 
 ; (if #f anything) with no else-part returns #f
-(display (if (if #f "wrong") "wrong" "ok")) (newline)
+(display (if #f "wrong")) (newline) ; expect: #f

@@ -39,3 +39,17 @@ jobs:
       run: |
         call "C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\Common7\Tools\VsDevCmd.bat"
         msbuild /m /p:Configuration=${{ matrix.config }} /p:Platform=x64 ${{env.SOLUTION_FILE_PATH}}
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
+
+    - name: Install MyPy
+      run: pip install mypy
+    - name: Run MyPy
+      run: mypy --strict tests/test.py
+
+    - name: Test
+      run: python tests/test.py x64\${{ matrix.config }}
+

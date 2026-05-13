@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: windows-2025-vs2026
     strategy:
       matrix:
         config: [ "Debug", "Release" ]
@@ -23,22 +23,12 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    # from https://stackoverflow.com/questions/79852888/
-    - name: Install VS 2026 Build Tools
-      shell: pwsh
-      run: |
-        Write-Host "Installing VS 2026 Build Tools..."
-        choco install visualstudio2026buildtools `
-          --package-parameters "--add Microsoft.VisualStudio.Workload.VCTools --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --includeRecommended --quiet" `
-          -y --ignore-package-exit-codes=3010
-        Write-Host "VS 2026 Build Tools installation completed" 
+    - name: Add MSBuild to PATH
+      uses: microsoft/setup-msbuild@v1.0.2
 
     - name: Build
       working-directory: ${{env.GITHUB_WORKSPACE}}
-      shell: cmd
-      run: |
-        call "C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\Common7\Tools\VsDevCmd.bat"
-        msbuild /m /p:Configuration=${{ matrix.config }} /p:Platform=x64 ${{env.SOLUTION_FILE_PATH}}
+      run: msbuild /m /p:Configuration=${{ matrix.config }} /p:Platform=x64 ${{env.SOLUTION_FILE_PATH}}
 
     - name: Setup Python
       uses: actions/setup-python@v4
@@ -47,7 +37,7 @@ jobs:
 
     - name: Install MyPy
       run: pip install mypy
-    - name: Run MyPy
+    - name: Validate testrunner
       run: mypy --strict tests/test.py
 
     - name: Run Tests
